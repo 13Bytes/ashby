@@ -1,117 +1,28 @@
-import { useMemo, useState } from 'react'
-import type { PlotConfig } from './types/plotConfig'
+import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { DataSourceSection } from './components/DataSourceSection'
+import { normalizePlotConfig } from './config/configMappers'
+import { createDefaultPlotConfig, type DataframeConfig, type PlotConfig } from './config/defaultPlotConfig'
+import { exportConfig, parseImportedConfig } from './utils/configIo'
 import './App.css'
 
-const tabLabels = [
-  'General',
-  'Data Source',
-  'Axes',
-  'Layers',
-  'Styling',
-  'Advanced',
-] as const
+const tabLabels = ['General', 'Data Source', 'Axes', 'Layers', 'Styling', 'Advanced'] as const
 
 type ConfigTab = (typeof tabLabels)[number]
+type AlertTone = 'success' | 'error'
 
-const initialPlotConfig: PlotConfig = {
-  version: 3,
-  create_all_dataframes: true,
-  dataframes: [
-    {
-      name: 'Default Dataframe',
-      API_Key: null,
-      teable_url: null,
-      import_file_name: '',
-      import_sheet: 0,
-      image_ratio: 16 / 9,
-      resolution: 'svg',
-      legend_title: {
-        en: 'Material Family',
-      },
-      font: {
-        font_style: 'sans-serif',
-        font: 'Arial',
-        font_size: 22,
-      },
-      language: 'en',
-      dark_mode: false,
-      create_all_frames: true,
-      frames: [
-        {
-          name: 'Frame 1',
-          legend_flag: true,
-          title: {
-            en: 'New Ashby Plot',
-          },
-          dark_mode: false,
-          legend_above: false,
-          language: 'en',
-          export_file_name: null,
-          x_quantity: 'Density',
-          x_rel_quantity: null,
-          log_x_flag: true,
-          x_lim: null,
-          y_quantity: 'Youngs Modulus',
-          y_rel_quantity: null,
-          log_y_flag: true,
-          y_lim: null,
-          automatic_Display_Area_margin: 0.12,
-          algorithm: 'cubic',
-          layers: [
-            {
-              name: 'All Materials',
-              whitelist_flag: true,
-              whitelist: null,
-              alpha: 0.35,
-              linewidth: 1.5,
-            },
-            {
-              alpha_points: null,
-              alpha_areas: null,
-            },
-          ],
-          filter: {},
-          guidelines: [],
-          annotations: [
-            {
-              marker_size: 330,
-              font_size: 18,
-            },
-          ],
-          colored_areas: [],
-          highlighted_hulls: [],
-        },
-      ],
-      axes: [
-        {
-          name: 'Density',
-          columns: ['density'],
-          mode: 'default',
-          labels: {
-            en: 'Density [kg/m³]',
-          },
-        },
-        {
-          name: 'Youngs Modulus',
-          columns: ['youngs_modulus'],
-          mode: 'default',
-          labels: {
-            en: "Young's Modulus [GPa]",
-          },
-        },
-      ],
-      material_colors: {
-        default: '#000000',
-      },
-    },
-  ],
+interface AlertState {
+  tone: AlertTone
+  message: string
 }
 
 function App() {
-  const [plotConfig, setPlotConfig] = useState<PlotConfig>(initialPlotConfig)
+  const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
   const [activeTab, setActiveTab] = useState<ConfigTab>('General')
+  const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
+  const [alert, setAlert] = useState<AlertState | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const activeDataframe = plotConfig.dataframes[0]
+  const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[0]
 
   const summaryCards = useMemo(
@@ -127,8 +38,77 @@ function App() {
   )
 
   const resetConfig = () => {
-    setPlotConfig(initialPlotConfig)
+    setPlotConfig(createDefaultPlotConfig())
+    setActiveDataframeIndex(0)
     setActiveTab('General')
+    setAlert({ tone: 'success', message: 'Configuration reset to defaults.' })
+  }
+
+  const patchDataframe = (index: number, patch: (current: DataframeConfig) => DataframeConfig) => {
+    setPlotConfig((current) => {
+      const nextFrames = current.dataframes.map((df, dfIndex) =>
+        dfIndex === index ? patch(df) : df,
+      )
+
+      return {
+        ...current,
+        dataframes: nextFrames,
+      }
+    })
+  }
+
+  const addDataframe = () => {
+    const template = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
+    const clone: DataframeConfig = {
+      ...structuredClone(template),
+      name: `Dataframe ${plotConfig.dataframes.length + 1}`,
+    }
+
+    setPlotConfig((current) => ({
+      ...current,
+      createAllDataframes:
+        current.createAllDataframes === true
+          ? true
+          : [...current.createAllDataframes, current.dataframes.length],
+      dataframes: [...current.dataframes, clone],
+    }))
+
+    setActiveDataframeIndex(plotConfig.dataframes.length)
+    setAlert({ tone: 'success', message: 'Added dataframe.' })
+  }
+
+  const handleExport = () => {
+    exportConfig(plotConfig)
+    setAlert({ tone: 'success', message: 'Config exported as JSON.' })
+  }
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const text = await file.text()
+      const parsed = parseImportedConfig(text, true)
+      const normalized = normalizePlotConfig(parsed)
+
+      setPlotConfig(normalized)
+      setActiveDataframeIndex(0)
+      setAlert({ tone: 'success', message: `Imported ${file.name} successfully.` })
+    } catch {
+      setAlert({
+        tone: 'error',
+        message: 'Invalid config file. Please import valid JSON/JSONC.',
+      })
+    } finally {
+      event.target.value = ''
+    }
   }
 
   return (
@@ -155,15 +135,29 @@ function App() {
           </nav>
           <section className="tab-content" aria-live="polite">
             <h3>{activeTab}</h3>
-            <p>
-              {activeTab} controls will live here. This panel is already wired to the
-              top-level <code>plotConfig</code> state object.
-            </p>
+            {activeTab === 'Data Source' ? (
+              <DataSourceSection
+                plotConfig={plotConfig}
+                activeDataframeIndex={activeDataframeIndex}
+                onPatchDataframe={patchDataframe}
+                onAddDataframe={addDataframe}
+              />
+            ) : (
+              <p>
+                {activeTab} controls will live here. This panel is already wired to the
+                top-level <code>plotConfig</code> state object.
+              </p>
+            )}
           </section>
         </aside>
 
         <section className="preview-panel">
           <h2>Preview</h2>
+          {alert ? (
+            <div className={alert.tone === 'success' ? 'alert alert-success' : 'alert alert-error'} role="status">
+              {alert.message}
+            </div>
+          ) : null}
           <div className="summary-grid">
             {summaryCards.map((card) => (
               <article key={card.label} className="summary-card">
@@ -181,8 +175,19 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <button type="button">Import Config</button>
-        <button type="button">Export Config</button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,.jsonc,application/json"
+          className="hidden-input"
+          onChange={handleImportFile}
+        />
+        <button type="button" onClick={handleImportClick}>
+          Import Config
+        </button>
+        <button type="button" onClick={handleExport}>
+          Export Config
+        </button>
         <button type="button" onClick={resetConfig}>
           Reset
         </button>
