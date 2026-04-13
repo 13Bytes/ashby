@@ -30,6 +30,7 @@ export interface DataframeConfig {
     fontSize: number
   }
   language: string
+  plotLanguages: string[]
   darkMode: boolean
   createAllFrames: true | number[]
   frames: FrameConfig[]
@@ -145,10 +146,6 @@ export function createDefaultPlotConfig(): PlotConfig {
     createAllDataframes: true,
     dataframes: [
       {
-        name: '',
-        apiKey: '',
-        teableUrl: '',
-        importFileName: '',
         importSheet: 0,
         imageRatio: 16 / 9,
         resolution: 'svg',
@@ -159,23 +156,20 @@ export function createDefaultPlotConfig(): PlotConfig {
           fontSize: 22,
         },
         language: 'en',
+        plotLanguages: ['en'],
         darkMode: false,
         createAllFrames: true,
         frames: [
           {
-            name: '',
             legendFlag: true,
-            title: { en: '' },
+            title: { en: 'Ashby plot' },
             darkMode: false,
             legendAbove: false,
             language: 'en',
-            exportFileName: '',
             xQuantity: 'deftemp',
-            xRelQuantity: '',
             logXFlag: false,
             xLim: undefined,
             yQuantity: 'Rm',
-            yRelQuantity: '',
             logYFlag: false,
             yLim: undefined,
             automaticDisplayAreaMargin: 0.12,
