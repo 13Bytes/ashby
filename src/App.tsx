@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { DataSourceSection } from './components/DataSourceSection'
+import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { Card } from './components/ui/card'
@@ -22,6 +23,7 @@ import { Select } from './components/ui/select'
 const tabLabels = ['General', 'Data Source', 'Axes', 'Layers', 'Styling', 'Advanced'] as const
 
 type ConfigTab = (typeof tabLabels)[number]
+type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'
 
 interface AlertState {
@@ -114,6 +116,7 @@ function JsonEditor({
 
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
+  const [activePage, setActivePage] = useState<AppPage>('config')
   const [activeTab, setActiveTab] = useState<ConfigTab>('General')
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
@@ -1057,63 +1060,72 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-zinc-200 p-6 text-left dark:border-zinc-800">
-        <h1 className="m-0 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
-        <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-          Build and validate your configuration from a single typed state tree.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 p-6 text-left dark:border-zinc-800">
+        <div>
+          <h1 className="m-0 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
+          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+            Build and validate your configuration from a single typed state tree.
+          </p>
+        </div>
+        <Button type="button" variant="outline" onClick={() => setActivePage(activePage === 'config' ? 'plot' : 'config')}>
+          {activePage === 'config' ? 'Show Plot' : 'Show Config'}
+        </Button>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[320px_1fr]">
-        <aside className="flex flex-col gap-4 border-b border-zinc-200 p-5 text-left md:border-r md:border-b-0 dark:border-zinc-800">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Configuration</h2>
-          <nav className="grid gap-2" aria-label="Configuration sections">
-            {tabLabels.map((tab) => (
-              <Button
-                key={tab}
-                type="button"
-                variant="outline"
-                className={cn(
-                  'justify-start',
-                  tab === activeTab && 'border-violet-400 bg-violet-100/70 dark:bg-violet-900/30',
-                )}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-              </Button>
-            ))}
-          </nav>
-          <section className="rounded-lg border border-dashed border-zinc-300 p-4 dark:border-zinc-700" aria-live="polite">
-            <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">{activeTab}</h3>
-            {renderTabContent()}
+      {activePage === 'config' ? (
+        <main className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[320px_1fr]">
+          <aside className="flex flex-col gap-4 border-b border-zinc-200 p-5 text-left md:border-r md:border-b-0 dark:border-zinc-800">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Configuration</h2>
+            <nav className="grid gap-2" aria-label="Configuration sections">
+              {tabLabels.map((tab) => (
+                <Button
+                  key={tab}
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'justify-start',
+                    tab === activeTab && 'border-violet-400 bg-violet-100/70 dark:bg-violet-900/30',
+                  )}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab}
+                </Button>
+              ))}
+            </nav>
+            <section className="rounded-lg border border-dashed border-zinc-300 p-4 dark:border-zinc-700" aria-live="polite">
+              <h3 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">{activeTab}</h3>
+              {renderTabContent()}
+            </section>
+          </aside>
+
+          <section className="flex min-w-0 flex-col gap-4 p-5 text-left">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Preview</h2>
+            {alert ? (
+              <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'}>{alert.message}</Alert>
+            ) : null}
+
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
+              {summaryCards.map((card) => (
+                <Card key={card.label}>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">{card.label}</span>
+                  <strong className="text-zinc-900 dark:text-zinc-100">{card.value}</strong>
+                </Card>
+              ))}
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+              <h3 className="border-b border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-900 dark:border-zinc-800 dark:text-zinc-100">
+                JSON Preview
+              </h3>
+              <pre className="max-h-[420px] overflow-auto bg-zinc-50 p-3 text-xs dark:bg-zinc-900">
+                {JSON.stringify(plotConfig, null, 2)}
+              </pre>
+            </div>
           </section>
-        </aside>
-
-        <section className="flex min-w-0 flex-col gap-4 p-5 text-left">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Preview</h2>
-          {alert ? (
-            <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'}>{alert.message}</Alert>
-          ) : null}
-
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
-            {summaryCards.map((card) => (
-              <Card key={card.label}>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">{card.label}</span>
-                <strong className="text-zinc-900 dark:text-zinc-100">{card.value}</strong>
-              </Card>
-            ))}
-          </div>
-
-          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <h3 className="border-b border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-900 dark:border-zinc-800 dark:text-zinc-100">
-              JSON Preview
-            </h3>
-            <pre className="max-h-[420px] overflow-auto bg-zinc-50 p-3 text-xs dark:bg-zinc-900">
-              {JSON.stringify(plotConfig, null, 2)}
-            </pre>
-          </div>
-        </section>
-      </main>
+        </main>
+      ) : (
+        <PlotPage plotConfig={plotConfig} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} />
+      )}
 
       <footer className="flex flex-wrap justify-end gap-3 border-t border-zinc-200 p-4 dark:border-zinc-800">
         <input
