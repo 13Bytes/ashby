@@ -77,7 +77,7 @@ export function DataSourceSection({
               onChange={(event) =>
                 update((current) => ({
                   ...current,
-                  apiKey: event.target.value || null,
+                  apiKey: event.target.value || undefined,
                 }))
               }
             />
@@ -94,7 +94,7 @@ export function DataSourceSection({
               onChange={(event) =>
                 update((current) => ({
                   ...current,
-                  teableUrl: event.target.value || null,
+                  teableUrl: event.target.value || undefined,
                 }))
               }
             />
@@ -114,7 +114,7 @@ export function DataSourceSection({
               onChange={(event) =>
                 update((current) => ({
                   ...current,
-                  importFileName: event.target.value || null,
+                  importFileName: event.target.value || undefined,
                 }))
               }
             />

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
 import { materialSamples, type MaterialSample } from '../data/materialSamples'
 import { Alert } from './ui/alert'
-import { Card } from './ui/card'
 
 interface Props {
   plotConfig: PlotConfig
@@ -80,7 +79,7 @@ const getAxisValue = (record: MaterialSample, axis: AxisConfig | undefined): num
   return values[0]
 }
 
-const getRelativeValue = (record: MaterialSample, dataframe: DataframeConfig, quantity: string | null): number | null => {
+const getRelativeValue = (record: MaterialSample, dataframe: DataframeConfig, quantity?: string): number | null => {
   if (!quantity) {
     return null
   }
@@ -108,7 +107,7 @@ const getColor = (dataframe: DataframeConfig, material: string): string =>
 const getGuidelineShapes = (guidelines: GuidelineConfig[]) =>
   guidelines
     .map((guideline) => {
-      if (guideline.x !== null) {
+      if (guideline.x !== undefined) {
         return {
           type: 'line',
           xref: 'x',
@@ -125,7 +124,7 @@ const getGuidelineShapes = (guidelines: GuidelineConfig[]) =>
         }
       }
 
-      if (guideline.y !== null) {
+      if (guideline.y !== undefined) {
         return {
           type: 'line',
           xref: 'paper',
@@ -151,55 +150,56 @@ function buildPlot(plotConfig: PlotConfig, activeDataframeIndex: number, activeF
   const frame = dataframe.frames[activeFrameIndex] ?? dataframe.frames[0]
   const xAxis = dataframe.axes.find((axis) => axis.name === frame.xQuantity)
   const yAxis = dataframe.axes.find((axis) => axis.name === frame.yQuantity)
-  const dataLayer = frame.layers.find((layer) => layer.name) ?? frame.layers[0] ?? {}
-  const styleLayer = frame.layers[frame.layers.length - 1] ?? {}
   const pointGroups = new Map<string, PlotTrace>()
 
-  for (const record of materialSamples) {
-    if (!passesLayerFilter(record, dataLayer)) {
-      continue
-    }
-
-    const xBase = getAxisValue(record, xAxis)
-    const yBase = getAxisValue(record, yAxis)
-    const xRel = getRelativeValue(record, dataframe, frame.xRelQuantity)
-    const yRel = getRelativeValue(record, dataframe, frame.yRelQuantity)
-    const x = xBase !== null && xRel ? xBase / xRel : xBase
-    const y = yBase !== null && yRel ? yBase / yRel : yBase
-
-    if (x === null || y === null) {
-      continue
-    }
-
-    const material = String(record.Material ?? 'Material')
-    const trace =
-      pointGroups.get(material) ??
-      {
-        x: [],
-        y: [],
-        text: [],
-        customdata: [],
-        mode: 'markers',
-        type: 'scatter',
-        name: material,
-        marker: {
-          color: getColor(dataframe, material),
-          opacity: styleLayer.alphaPoints ?? dataLayer.alpha ?? 0.72,
-          size: 11,
-          line: {
-            color: getColor(dataframe, material),
-            width: dataLayer.linewidth ?? 1.5,
-          },
-        },
-        hovertemplate:
-          '<b>%{text}</b><br>%{customdata[0]}<br>%{customdata[1]}<br>x: %{x}<br>y: %{y}<extra></extra>',
+  for (const [layerIndex, dataLayer] of frame.layers.entries()) {
+    for (const record of materialSamples) {
+      if (!passesLayerFilter(record, dataLayer)) {
+        continue
       }
 
-    trace.x.push(x)
-    trace.y.push(y)
-    trace.text.push(String(record.Variante ?? material))
-    trace.customdata.push([String(record.Hersteller ?? ''), String(record.Gruppe ?? '')])
-    pointGroups.set(material, trace)
+      const xBase = getAxisValue(record, xAxis)
+      const yBase = getAxisValue(record, yAxis)
+      const xRel = getRelativeValue(record, dataframe, frame.xRelQuantity)
+      const yRel = getRelativeValue(record, dataframe, frame.yRelQuantity)
+      const x = xBase !== null && xRel ? xBase / xRel : xBase
+      const y = yBase !== null && yRel ? yBase / yRel : yBase
+
+      if (x === null || y === null) {
+        continue
+      }
+
+      const material = String(record.Material ?? 'Material')
+      const groupName = `${dataLayer.name || `Layer ${layerIndex + 1}`} · ${material}`
+      const trace =
+        pointGroups.get(groupName) ??
+        {
+          x: [],
+          y: [],
+          text: [],
+          customdata: [],
+          mode: 'markers',
+          type: 'scatter',
+          name: groupName,
+          marker: {
+            color: getColor(dataframe, material),
+            opacity: dataLayer.alphaPoints ?? dataLayer.alpha ?? 0.72,
+            size: 11,
+            line: {
+              color: getColor(dataframe, material),
+              width: dataLayer.linewidth ?? 1.5,
+            },
+          },
+          hovertemplate:
+            '<b>%{text}</b><br>%{customdata[0]}<br>%{customdata[1]}<br>x: %{x}<br>y: %{y}<extra></extra>',
+        }
+
+      trace.x.push(x)
+      trace.y.push(y)
+      trace.text.push(String(record.Variante ?? material))
+      trace.customdata.push([String(record.Hersteller ?? ''), String(record.Gruppe ?? '')])
+      pointGroups.set(groupName, trace)
+    }
   }
 
   const darkMode = frame.darkMode || dataframe.darkMode
@@ -240,7 +240,7 @@ function buildPlot(plotConfig: PlotConfig, activeDataframeIndex: number, activeF
         orientation: frame.legendAbove ? 'h' : 'v',
         x: frame.legendAbove ? 0 : 1.02,
         y: frame.legendAbove ? 1.18 : 1,
-        title: { text: dataframe.legendTitle[dataframe.language] || dataframe.legendTitle.en || dataLayer.name || 'Material' },
+        title: { text: dataframe.legendTitle[dataframe.language] || dataframe.legendTitle.en || 'Material' },
       },
       margin: { l: 88, r: frame.legendFlag ? 128 : 24, t: frame.legendAbove ? 108 : 64, b: 72 },
       showlegend: frame.legendFlag,
@@ -286,21 +286,6 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
 
   return (
     <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2.5">
-        <Card>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">Rows</span>
-          <strong className="text-zinc-900 dark:text-zinc-100">{materialSamples.length}</strong>
-        </Card>
-        <Card>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">Plotted</span>
-          <strong className="text-zinc-900 dark:text-zinc-100">{traces.reduce((sum, trace) => sum + trace.x.length, 0)}</strong>
-        </Card>
-        <Card>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">Groups</span>
-          <strong className="text-zinc-900 dark:text-zinc-100">{traces.length}</strong>
-        </Card>
-      </div>
-
       {traces.length === 0 ? (
         <Alert variant="destructive">No rows match the active frame axes and layer filter.</Alert>
       ) : null}
