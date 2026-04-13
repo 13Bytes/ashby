@@ -3,9 +3,12 @@ import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
+import { normalizePlotConfig } from './config/configMappers'
+import type { PlotConfig } from './config/defaultPlotConfig'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [plotConfig] = useState<PlotConfig>(() => normalizePlotConfig())
 
   return (
     <>
@@ -19,6 +22,10 @@ function App() {
           <h1>Get started</h1>
           <p>
             Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+          </p>
+          <p>
+            Active PlotConfig: version <code>{plotConfig.version}</code>,{' '}
+            <code>{plotConfig.dataframes.length}</code> dataframe(s)
           </p>
         </div>
         <button
