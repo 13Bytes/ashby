@@ -16,10 +16,10 @@ export interface PlotConfig {
 }
 
 export interface DataframeConfig {
-  name: string | null
-  apiKey: string | null
-  teableUrl: string | null
-  importFileName: string | null
+  name?: string
+  apiKey?: string
+  teableUrl?: string
+  importFileName?: string
   importSheet: number
   imageRatio: number
   resolution: number | 'svg'
@@ -34,30 +34,30 @@ export interface DataframeConfig {
   createAllFrames: true | number[]
   frames: FrameConfig[]
   axes: AxisConfig[]
-  materialColors: Record<string, string | null>
+  materialColors: Record<string, string>
   _extensions: UnknownConfigBucket
 }
 
 export interface FrameConfig {
-  name: string | null
+  name?: string
   legendFlag: boolean
   title: Record<string, string>
   darkMode: boolean
-  legendAbove: boolean | null
+  legendAbove?: boolean
   language: string
-  exportFileName: string | null
+  exportFileName?: string
   xQuantity: string
-  xRelQuantity: string | null
+  xRelQuantity?: string
   logXFlag: boolean
-  xLim: [number, number] | null
+  xLim?: [number, number]
   yQuantity: string
-  yRelQuantity: string | null
+  yRelQuantity?: string
   logYFlag: boolean
-  yLim: [number, number] | null
+  yLim?: [number, number]
   automaticDisplayAreaMargin: number
   algorithm: PlotAlgorithm
   layers: LayerConfig[]
-  filter: Record<string, unknown> | null
+  filter?: Record<string, unknown>
   guidelines: GuidelineConfig[]
   annotations: AnnotationConfig[]
   coloredAreas: ColoredAreaConfig[]
@@ -68,16 +68,16 @@ export interface FrameConfig {
 export interface LayerConfig {
   name?: string
   whitelistFlag?: boolean
-  whitelist?: (string | null)[] | null
-  alpha?: number | null
+  whitelist?: string[]
+  alpha?: number
   linewidth?: number
-  alphaPoints?: number | null
-  alphaAreas?: number | null
+  alphaPoints?: number
+  alphaAreas?: number
 }
 
 export interface GuidelineConfig {
-  x: number | null
-  y: number | null
+  x?: number
+  y?: number
   m: number
   lineProps: {
     linestyle: string
@@ -107,18 +107,18 @@ export interface AnnotationConfig {
     sizeFactor: number
     linewidths: number
     edgecolors: string
-  } | null
+  }
   arrow?: {
     width: number
     facecolor: string
     headlength: number
     headwidth: number
     linewidth: number
-  } | null
+  }
 }
 
 export interface ColoredAreaConfig {
-  axes: Record<string, [number, number][]> | null
+  axes?: Record<string, [number, number][]>
   x: number[]
   y: number[]
   color: string
@@ -145,10 +145,10 @@ export function createDefaultPlotConfig(): PlotConfig {
     createAllDataframes: true,
     dataframes: [
       {
-        name: null,
-        apiKey: null,
-        teableUrl: null,
-        importFileName: null,
+        name: '',
+        apiKey: '',
+        teableUrl: '',
+        importFileName: '',
         importSheet: 0,
         imageRatio: 16 / 9,
         resolution: 'svg',
@@ -163,37 +163,37 @@ export function createDefaultPlotConfig(): PlotConfig {
         createAllFrames: true,
         frames: [
           {
-            name: null,
+            name: '',
             legendFlag: true,
             title: { en: '' },
             darkMode: false,
             legendAbove: false,
             language: 'en',
-            exportFileName: null,
+            exportFileName: '',
             xQuantity: 'deftemp',
-            xRelQuantity: null,
+            xRelQuantity: '',
             logXFlag: false,
-            xLim: null,
+            xLim: undefined,
             yQuantity: 'Rm',
-            yRelQuantity: null,
+            yRelQuantity: '',
             logYFlag: false,
-            yLim: null,
+            yLim: undefined,
             automaticDisplayAreaMargin: 0.12,
             algorithm: 'cubic',
             layers: [
               {
                 name: 'Material',
                 whitelistFlag: false,
-                whitelist: null,
+                whitelist: [],
                 alpha: 0.4,
                 linewidth: 1.5,
               },
               {
-                alphaPoints: null,
-                alphaAreas: null,
+                alphaPoints: undefined,
+                alphaAreas: undefined,
               },
             ],
-            filter: null,
+            filter: {},
             guidelines: [],
             annotations: [
               {

@@ -80,7 +80,7 @@ const getAxisValue = (record: MaterialSample, axis: AxisConfig | undefined): num
   return values[0]
 }
 
-const getRelativeValue = (record: MaterialSample, dataframe: DataframeConfig, quantity: string | null): number | null => {
+const getRelativeValue = (record: MaterialSample, dataframe: DataframeConfig, quantity?: string): number | null => {
   if (!quantity) {
     return null
   }
@@ -108,7 +108,7 @@ const getColor = (dataframe: DataframeConfig, material: string): string =>
 const getGuidelineShapes = (guidelines: GuidelineConfig[]) =>
   guidelines
     .map((guideline) => {
-      if (guideline.x !== null) {
+      if (guideline.x !== undefined) {
         return {
           type: 'line',
           xref: 'x',
@@ -125,7 +125,7 @@ const getGuidelineShapes = (guidelines: GuidelineConfig[]) =>
         }
       }
 
-      if (guideline.y !== null) {
+      if (guideline.y !== undefined) {
         return {
           type: 'line',
           xref: 'paper',

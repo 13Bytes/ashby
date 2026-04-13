@@ -10,11 +10,11 @@ import {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 
-const asNullableString = (value: unknown): string | null => {
+const asOptionalString = (value: unknown): string | undefined => {
   if (value === null || value === undefined || value === '') {
-    return null
+    return undefined
   }
-  return typeof value === 'string' ? value : null
+  return typeof value === 'string' ? value : undefined
 }
 
 const coerceBool = (value: unknown, fallback: boolean): boolean =>
@@ -88,7 +88,7 @@ const normalizeFrame = (
 
   return {
     ...structuredClone(fallback),
-    name: asNullableString(partial.name),
+    name: asOptionalString(partial.name),
     legendFlag: coerceBool(partial.legendFlag ?? partial.legend_flag, fallback.legendFlag),
     title: isRecord(partial.title)
       ? Object.fromEntries(
@@ -96,39 +96,36 @@ const normalizeFrame = (
         )
       : fallback.title,
     darkMode: coerceBool(partial.darkMode ?? partial.dark_mode, fallback.darkMode),
-    legendAbove:
-      partial.legendAbove === null || partial.legend_above === null
-        ? null
-        : coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
+    legendAbove: coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
-    exportFileName: asNullableString(partial.exportFileName ?? partial.export_file_name),
+    exportFileName: asOptionalString(partial.exportFileName ?? partial.export_file_name),
     xQuantity:
       typeof (partial.xQuantity ?? partial.x_quantity) === 'string'
         ? String(partial.xQuantity ?? partial.x_quantity)
         : fallback.xQuantity,
-    xRelQuantity: asNullableString(partial.xRelQuantity ?? partial.x_rel_quantity),
+    xRelQuantity: asOptionalString(partial.xRelQuantity ?? partial.x_rel_quantity),
     logXFlag: coerceBool(partial.logXFlag ?? partial.log_x_flag, fallback.logXFlag),
     xLim:
       Array.isArray(xLim) && xLim.length === 2 && xLim.every((item) => typeof item === 'number')
         ? [xLim[0], xLim[1]]
-        : null,
+        : undefined,
     yQuantity:
       typeof (partial.yQuantity ?? partial.y_quantity) === 'string'
         ? String(partial.yQuantity ?? partial.y_quantity)
         : fallback.yQuantity,
-    yRelQuantity: asNullableString(partial.yRelQuantity ?? partial.y_rel_quantity),
+    yRelQuantity: asOptionalString(partial.yRelQuantity ?? partial.y_rel_quantity),
     logYFlag: coerceBool(partial.logYFlag ?? partial.log_y_flag, fallback.logYFlag),
     yLim:
       Array.isArray(yLim) && yLim.length === 2 && yLim.every((item) => typeof item === 'number')
         ? [yLim[0], yLim[1]]
-        : null,
+        : undefined,
     automaticDisplayAreaMargin: coerceNumber(
       partial.automaticDisplayAreaMargin ?? partial.automatic_Display_Area_margin,
       fallback.automaticDisplayAreaMargin,
     ),
     algorithm: normalizedAlgorithm,
     layers: Array.isArray(partial.layers) ? partial.layers : fallback.layers,
-    filter: isRecord(partial.filter) ? partial.filter : partial.filter === null ? null : fallback.filter,
+    filter: isRecord(partial.filter) ? partial.filter : fallback.filter,
     guidelines: Array.isArray(partial.guidelines) ? partial.guidelines : fallback.guidelines,
     annotations: Array.isArray(partial.annotations)
       ? partial.annotations
@@ -200,10 +197,10 @@ const normalizeDataframe = (
 
   return {
     ...structuredClone(fallback),
-    name: asNullableString(partial.name),
-    apiKey: asNullableString(partial.apiKey ?? partial.API_Key),
-    teableUrl: asNullableString(partial.teableUrl ?? partial.teable_url),
-    importFileName: asNullableString(partial.importFileName ?? partial.import_file_name),
+    name: asOptionalString(partial.name),
+    apiKey: asOptionalString(partial.apiKey ?? partial.API_Key),
+    teableUrl: asOptionalString(partial.teableUrl ?? partial.teable_url),
+    importFileName: asOptionalString(partial.importFileName ?? partial.import_file_name),
     importSheet: coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet),
     imageRatio:
       legacyImageWidth > 0 && legacyImageHeight > 0
@@ -267,7 +264,7 @@ const normalizeDataframe = (
     materialColors: isRecord(partial.materialColors ?? partial.material_colors)
       ? Object.fromEntries(
           Object.entries((partial.materialColors ?? partial.material_colors) as Record<string, unknown>).filter(
-            (entry): entry is [string, string | null] => typeof entry[1] === 'string' || entry[1] === null,
+            (entry): entry is [string, string] => typeof entry[1] === 'string',
           ),
         )
       : fallback.materialColors,
