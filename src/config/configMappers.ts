@@ -177,6 +177,8 @@ const normalizeDataframe = (
     'legendTitle',
     'font',
     'language',
+    'plot_languages',
+    'plotLanguages',
     'dark_mode',
     'darkMode',
     'create_all_frames',
@@ -194,6 +196,7 @@ const normalizeDataframe = (
   const legacyImageWidth = coerceNumber(partial.image_width, 0)
   const legacyImageHeight = coerceNumber(partial.image_height, 0)
   const createAllFramesSource = partial.createAllFrames ?? partial.create_all_frames
+  const plotLanguagesSource = partial.plotLanguages ?? partial.plot_languages
 
   return {
     ...structuredClone(fallback),
@@ -231,6 +234,9 @@ const normalizeDataframe = (
         }
       : fallback.font,
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
+    plotLanguages: Array.isArray(plotLanguagesSource)
+      ? plotLanguagesSource.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+      : fallback.plotLanguages,
     darkMode: coerceBool(partial.darkMode ?? partial.dark_mode, fallback.darkMode),
     createAllFrames:
       createAllFramesSource === true
