@@ -1,4 +1,7 @@
 import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Select } from './ui/select'
 
 type SourceMode = 'teable' | 'file'
 
@@ -32,10 +35,12 @@ export function DataSourceSection({
   }
 
   return (
-    <div className="data-source-section">
-      <div className="field-group">
-        <label htmlFor="source-mode">Source mode</label>
-        <select
+    <div className="grid gap-3 text-sm">
+      <div className="grid gap-2">
+        <label htmlFor="source-mode" className="font-medium text-zinc-900 dark:text-zinc-100">
+          Source mode
+        </label>
+        <Select
           id="source-mode"
           value={sourceMode}
           onChange={(event) => {
@@ -51,8 +56,8 @@ export function DataSourceSection({
         >
           <option value="teable">Teable API</option>
           <option value="file">File import</option>
-        </select>
-        <small>
+        </Select>
+        <small className="text-xs text-zinc-600 dark:text-zinc-400">
           Legacy semantics: use <code>API_Key</code> + <code>teable_url</code> for live Teable loading,
           or <code>import_file_name</code> + <code>import_sheet</code> for static file input.
         </small>
@@ -60,9 +65,11 @@ export function DataSourceSection({
 
       {sourceMode === 'teable' ? (
         <>
-          <div className="field-group">
-            <label htmlFor="api-key">API_Key</label>
-            <input
+          <div className="grid gap-2">
+            <label htmlFor="api-key" className="font-medium text-zinc-900 dark:text-zinc-100">
+              API_Key
+            </label>
+            <Input
               id="api-key"
               type="text"
               value={dataframe.apiKey ?? ''}
@@ -75,9 +82,11 @@ export function DataSourceSection({
               }
             />
           </div>
-          <div className="field-group">
-            <label htmlFor="teable-url">teable_url</label>
-            <input
+          <div className="grid gap-2">
+            <label htmlFor="teable-url" className="font-medium text-zinc-900 dark:text-zinc-100">
+              teable_url
+            </label>
+            <Input
               id="teable-url"
               type="url"
               value={dataframe.teableUrl ?? ''}
@@ -93,9 +102,11 @@ export function DataSourceSection({
         </>
       ) : (
         <>
-          <div className="field-group">
-            <label htmlFor="import-file-name">import_file_name</label>
-            <input
+          <div className="grid gap-2">
+            <label htmlFor="import-file-name" className="font-medium text-zinc-900 dark:text-zinc-100">
+              import_file_name
+            </label>
+            <Input
               id="import-file-name"
               type="text"
               value={dataframe.importFileName ?? ''}
@@ -108,9 +119,11 @@ export function DataSourceSection({
               }
             />
           </div>
-          <div className="field-group">
-            <label htmlFor="import-sheet">import_sheet</label>
-            <input
+          <div className="grid gap-2">
+            <label htmlFor="import-sheet" className="font-medium text-zinc-900 dark:text-zinc-100">
+              import_sheet
+            </label>
+            <Input
               id="import-sheet"
               type="number"
               min={0}
@@ -129,15 +142,15 @@ export function DataSourceSection({
         </>
       )}
 
-      <small>
+      <small className="text-xs text-zinc-600 dark:text-zinc-400">
         Hidden mode values are preserved in memory, so toggling does not discard prior Teable/file settings.
       </small>
 
-      <div>
-        <button type="button" onClick={onAddDataframe}>
+      <div className="grid gap-1">
+        <Button type="button" variant="outline" size="sm" className="w-fit" onClick={onAddDataframe}>
           Add dataframe
-        </button>
-        <small>
+        </Button>
+        <small className="text-xs text-zinc-600 dark:text-zinc-400">
           Optional multi-dataframe support for <code>create_all_dataframes</code>-style workflows.
         </small>
       </div>
