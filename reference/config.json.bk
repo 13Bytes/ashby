@@ -1,0 +1,165 @@
+{
+
+"frames":[{
+    "API_Key": "Bearer teable_accEbwLnOPcALnjGJXU_Hp6iPPr5mn5WPOgMNfzqgAro1j9t1G0Vj6DjAJTMg+s=",
+    "teable_url":null,
+    "teable_url__":"https://teable.aerospace-lab.de/api/table/tblMYoRyrN4FrwdAiH6/record",
+    "import_file_name":"MatWeb_materials_export.xlsx",
+    "import_sheet":0,
+
+    "export_file_name":"transparend_old.png",
+
+    "image_width":16,
+    "image_height":9,
+    "image_dpi":"svg",
+
+
+    "automatic_Display_Area_flag":true,
+    "automatic_Display_Area_margin": 0.1,
+    "x_lim":[20, 230],
+    "y_lim":[10, 130],
+
+    "log_x_flag":false,
+    "log_y_flag":false,
+
+    "x_quantity":"deftemp",
+    "y_quantity":"Rm",
+    "language":"de",
+    "legend_flag":true,
+    
+    "layers":[{
+            "name": "Material",
+            "whitelist_flag": false,
+            "whitelist": [null],
+            "alpha": 0.4
+        },{
+            "name": "Hersteller",
+            "whitelist_flag": false,
+            "whitelist": [null],
+            "alpha": null
+        },{
+            "alpha_points": 0.3,
+            "alpha_areas":  0.6
+        }],
+
+    "filter":{
+        "conjunction":"and",
+        "filterSet":[{
+            "fieldId":"Available",
+            "operator":"is",
+            "value":null
+        }]
+    },
+
+    "guidelines":[{
+            "x": 100,
+            "y": 80,
+            "m": 0.4,
+            "linestyle": "--",
+            "color":"green",
+            "linewidth": 4,
+            "fontsize": 22,
+            "string":"$\\frac{Latex}{Test} = ✔$",
+            "string_above": true,
+            "string_padding": 4
+        }],
+
+    "markers":[{
+            "Deflection Temperature at 1.8 MPa 264 psi":140,
+            "Tensile Strength Ultimate":30,
+            "Density":400,
+            "name":"Foam",
+            "color":"b",
+            "marker": "*",
+            "size_factor":1
+        },{
+            "Young Modulus":2.009,
+            "Poisson":0.3,
+            "Density":1300,
+            "name":"PLA",
+            "color":"r",
+            "marker":".",
+            "size_factor":1
+        }],
+        "marker_size": 400,
+
+    "annotations":[{
+        "marker_size": 300,
+        "font_size":15
+    },{
+        "text":{
+            "name":"Bambu PPS",
+            "rel_pos":[0,5],
+            "color":"PPS"
+        },
+        "axes":{
+            "HDT 1.8":235,
+            "Rm":87,
+            "E-Mod":8.23
+        },
+        "marker":{
+            "color":"PPS",
+            "marker_symbol": "o",
+            "size_factor":1
+        },
+        "arrow":null
+    }],
+
+
+    "colored_areas":[{
+            "x": [0, 300, 300, 80,  80, 0  ],
+            "y": [0,   0,  50, 50, 200, 200],
+            "color": "r",
+            "alpha": 0.2
+        }],
+
+    "material_colors":{
+        "ABS": "#219DD3",	
+        "PA12":"#7BBFD9", 	
+        "PEEK":"#D69D20",	
+        "PLA": "#E3B768",	
+        "PET": "#3BD420",	
+        "PETG":"#85E064",	
+        "PPSU":"#B52ED6",	
+        "PPS": "#CE82E0",
+
+        "PA11":"#219DD3",	
+        "POM": "#7BBFD9",	
+        "PP":  "#D69D20",	
+        "PVDF":"#E3B768",	
+        "PC":  "#3BD420",	
+        "PEI": "#85E064",	
+        "PA6": "#B52ED6",	
+        "PPA": "#CE82E0",
+
+        "PA": "red",
+        "default":"grey"
+        }
+}],
+
+"axes":[{
+        "name":"deftemp",
+        "columns":["Deflection Temperature at 18 MPa 264 psi"],
+        "de":"Verformungstemperatur [°C] @ 1,8 MPa",
+        "en":"Deflection Temperature $HDT$ [°C] @ 1.8 MPa"
+    },{
+        "name":"Rm",
+        "columns":["Tensile Strength Yield", "Tensile Strength Ultimate", "Tensile Strength at Break", "Tensile Strength"],
+        "de":"Zugfestigkeit $R_m$ [MPa]",
+        "en":"Tensile Strength $R_m$ [MPa]"
+    },{
+        "name":"dens",
+        "columns":["Density"],
+        "de":"Dichte $[\\frac{\\text{g}}{\\text{cm}^3}]$",
+        "en":"Density $[\\frac{\\text{g}}{\\text{cm}^3}]$"
+    }],
+
+
+"arrows":[{
+        "width": 3,
+        "shrink": 0.1,
+        "facecolor": "black",
+        "headlength": 10,
+        "headwidth": 10
+    }]
+}
