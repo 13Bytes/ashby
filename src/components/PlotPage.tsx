@@ -9,7 +9,7 @@ interface Props {
   activeFrameIndex: number
 }
 
-type PlotTrace = {
+type MarkerTrace = {
   x: number[]
   y: number[]
   text: string[]
@@ -28,6 +28,25 @@ type PlotTrace = {
   }
   hovertemplate: string
 }
+
+type AreaTrace = {
+  x: number[]
+  y: number[]
+  type: 'scatter'
+  mode: 'lines'
+  fill: 'toself'
+  name: string
+  line: {
+    color: string
+    width: number
+  }
+  fillcolor: string
+  opacity: number
+  hoverinfo: 'skip'
+  showlegend: false
+}
+
+type PlotTrace = MarkerTrace | AreaTrace
 
 const asNumber = (value: MaterialSample[string]): number | null =>
   typeof value === 'number' && Number.isFinite(value) ? value : null
@@ -145,12 +164,76 @@ const getGuidelineShapes = (guidelines: GuidelineConfig[]) =>
     })
     .filter(Boolean)
 
+const getColoredAreaTraces = (frame: FrameConfig): PlotTrace[] =>
+  frame.coloredAreas
+    .map((area, index) => {
+      if (!Array.isArray(area.x) || !Array.isArray(area.y) || area.x.length < 2 || area.y.length < 2) {
+        return null
+      }
+
+      const trace: AreaTrace = {
+        x: area.x,
+        y: area.y,
+        type: 'scatter',
+        mode: 'lines',
+        fill: 'toself',
+        name: `Area ${index + 1}`,
+        line: { color: area.color, width: 1 },
+        fillcolor: area.color,
+        opacity: area.alpha ?? 0.25,
+        hoverinfo: 'skip',
+        showlegend: false,
+      }
+      return trace
+    })
+    .filter((entry): entry is AreaTrace => entry !== null)
+
+const getPlotAnnotations = (
+  frame: FrameConfig,
+  xAxis: AxisConfig | undefined,
+  yAxis: AxisConfig | undefined,
+) =>
+  frame.annotations
+    .map((annotation) => {
+      if (!annotation.text?.name || !annotation.axes) {
+        return null
+      }
+
+      const xAxisName = xAxis?.name ?? frame.xQuantity
+      const yAxisName = yAxis?.name ?? frame.yQuantity
+      const xBase = annotation.axes[xAxisName] ?? annotation.axes.x
+      const yBase = annotation.axes[yAxisName] ?? annotation.axes.y
+      if (!Number.isFinite(xBase) || !Number.isFinite(yBase)) {
+        return null
+      }
+
+      const [xOffset, yOffset] = annotation.text.relPos ?? [0, 0]
+      return {
+        x: xBase,
+        y: yBase,
+        text: annotation.text.name,
+        showarrow: true,
+        arrowhead: 2,
+        arrowsize: annotation.arrow?.headwidth ?? 1,
+        arrowwidth: annotation.arrow?.linewidth ?? 1,
+        arrowcolor: annotation.arrow?.facecolor || annotation.text.color || '#111827',
+        ax: xOffset,
+        ay: yOffset,
+        font: {
+          size: annotation.text.fontSize ?? annotation.fontSize ?? 12,
+          color: annotation.text.color || '#111827',
+        },
+        bgcolor: 'rgba(255,255,255,0.7)',
+      }
+    })
+    .filter(Boolean)
+
 function buildPlot(plotConfig: PlotConfig, activeDataframeIndex: number, activeFrameIndex: number) {
   const dataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const frame = dataframe.frames[activeFrameIndex] ?? dataframe.frames[0]
   const xAxis = dataframe.axes.find((axis) => axis.name === frame.xQuantity)
   const yAxis = dataframe.axes.find((axis) => axis.name === frame.yQuantity)
-  const pointGroups = new Map<string, PlotTrace>()
+  const pointGroups = new Map<string, MarkerTrace>()
 
   for (const [layerIndex, dataLayer] of frame.layers.entries()) {
     for (const record of materialSamples) {
@@ -209,7 +292,7 @@ function buildPlot(plotConfig: PlotConfig, activeDataframeIndex: number, activeF
   const gridColor = darkMode ? '#3f3f46' : '#e4e4e7'
 
   return {
-    traces: [...pointGroups.values()],
+    traces: [...getColoredAreaTraces(frame), ...pointGroups.values()],
     layout: {
       autosize: true,
       paper_bgcolor: paperColor,
@@ -245,6 +328,7 @@ function buildPlot(plotConfig: PlotConfig, activeDataframeIndex: number, activeF
       margin: { l: 88, r: frame.legendFlag ? 128 : 24, t: frame.legendAbove ? 108 : 64, b: 72 },
       showlegend: frame.legendFlag,
       shapes: getGuidelineShapes(frame.guidelines),
+      annotations: getPlotAnnotations(frame, xAxis, yAxis),
     },
   }
 }
