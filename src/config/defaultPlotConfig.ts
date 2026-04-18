@@ -100,7 +100,7 @@ export interface AnnotationConfig {
     relPos: [number, number]
     color: string
     fontSize?: number
-  }
+  } | null
   axes?: Record<string, number>
   marker?: {
     color: string
@@ -108,14 +108,14 @@ export interface AnnotationConfig {
     sizeFactor: number
     linewidths: number
     edgecolors: string
-  }
+  } | null
   arrow?: {
     width: number
     facecolor: string
     headlength: number
     headwidth: number
     linewidth: number
-  }
+  } | null
 }
 
 export interface ColoredAreaConfig {

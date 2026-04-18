@@ -177,7 +177,7 @@ function App() {
   const [alert, setAlert] = useState<AlertState | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
-  const xlsxDataInputRef = useRef<HTMLInputElement | null>(null)
+  const [importDataFile, setImportDataFile] = useState<File | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
@@ -326,7 +326,13 @@ function App() {
     })
   }
 
-  const importDatabase = async (file?: File) => {
+  const importDatabase = async () => {
+    const file = importDataFile
+    if (sourceMode === 'file' && !file) {
+      setAlert({ tone: 'error', message: 'Please choose an .xlsx file first.' })
+      return
+    }
+
     setImportInProgress(true)
     try {
       const response = await fetch('/api/import-database', {
@@ -458,30 +464,67 @@ function App() {
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold">{t('dataframe')}</span>
               {plotConfig.dataframes.map((df, index) => (
-                <div key={index} className="inline-flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0) }}>
+                <Button
+                  key={index}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0) }}
+                >
                     {df.name || `Dataframe ${index + 1}`}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => removeDataframe(index)}>✕</Button>
-                </div>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="font-semibold"
+                    onClick={(event) => { event.stopPropagation(); removeDataframe(index) }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        removeDataframe(index)
+                      }
+                    }}
+                  >
+                    ✕
+                  </span>
+                </Button>
               ))}
               <Button size="sm" onClick={addDataframe}>+</Button>
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
               <span className="text-sm font-semibold">{t('frame')}</span>
               {activeDataframe.frames.map((frame, index) => (
-                <div key={index} className="inline-flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setActiveFrameIndex(index)}>
+                <Button key={index} variant="outline" size="sm" className="gap-2" onClick={() => setActiveFrameIndex(index)}>
                     {frame.name || `Frame ${index + 1}`}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => removeFrame(index)}>✕</Button>
-                </div>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="font-semibold"
+                    onClick={(event) => { event.stopPropagation(); removeFrame(index) }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        removeFrame(index)
+                      }
+                    }}
+                  >
+                    ✕
+                  </span>
+                </Button>
               ))}
               <Button size="sm" onClick={addFrame}>+</Button>
             </div>
           </section>
 
-          {alert ? <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'}>{alert.message}</Alert> : null}
+          {alert ? (
+            <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-start justify-between gap-3">
+              <span>{alert.message}</span>
+              <button type="button" className="font-semibold" onClick={() => setAlert(null)} aria-label="Close notification">
+                ✕
+              </button>
+            </Alert>
+          ) : null}
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
@@ -539,6 +582,7 @@ function App() {
                     className="hidden"
                     onChange={(event) => {
                       const file = event.target.files?.[0]
+                      setImportDataFile(file ?? null)
                       patchActiveDataframe((c) => ({ ...c, importFileName: file?.name || undefined }))
                       event.target.value = ''
                     }}
@@ -560,30 +604,11 @@ function App() {
             <div className="sm:col-span-2 flex items-center gap-2">
               <Button
                 type="button"
-                onClick={() => {
-                  if (sourceMode === 'teable') {
-                    void importDatabase()
-                    return
-                  }
-                  xlsxDataInputRef.current?.click()
-                }}
+                onClick={() => { void importDatabase() }}
                 disabled={importInProgress}
               >
                 {importInProgress ? 'Importing…' : 'Import database'}
               </Button>
-              <input
-                ref={xlsxDataInputRef}
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) {
-                    void importDatabase(file)
-                  }
-                  event.target.value = ''
-                }}
-              />
             </div>
             <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
               {activeDataframe.plotLanguages.map((lang) => (
@@ -698,15 +723,50 @@ function App() {
             <div className="sm:col-span-2 grid gap-3">
               <div className="flex items-center gap-2">
                 <h4 className="m-0 text-sm font-semibold">Annotations</h4>
-                <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: { x: 0, y: 0 } }] }))}>+ Annotation</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: { x: 0, y: 0 }, marker: null, arrow: null }] }))}>+ Annotation</Button>
               </div>
               {activeFrame.annotations.map((annotation, annotationIndex) => (
                 <div key={annotationIndex} className="relative grid gap-2 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:grid-cols-2">
                   <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.filter((_, i) => i !== annotationIndex) }))}>✕</Button>
+                  <Field label="marker_size (default)" jsonPath={`annotations[${annotationIndex}].marker_size`}><Input type="number" value={annotation.markerSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, markerSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : entry) }))} /></Field>
+                  <Field label="font_size (default)" jsonPath={`annotations[${annotationIndex}].font_size`}><Input type="number" value={annotation.fontSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, fontSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : entry) }))} /></Field>
                   <Field label="text.name" jsonPath={`annotations[${annotationIndex}].text.name`}><Input value={annotation.text?.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: e.target.value, relPos: entry.text?.relPos ?? [0, 0], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
                   <Field label="text.color" jsonPath={`annotations[${annotationIndex}].text.color`}><Input value={annotation.text?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
+                  <Field label="text.rel_pos[0]" jsonPath={`annotations[${annotationIndex}].text.rel_pos[0]`}><Input type="number" value={annotation.text?.relPos?.[0] ?? 0} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: [numberValue(e.target.valueAsNumber, entry.text?.relPos?.[0] ?? 0), entry.text?.relPos?.[1] ?? 0], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
+                  <Field label="text.rel_pos[1]" jsonPath={`annotations[${annotationIndex}].text.rel_pos[1]`}><Input type="number" value={annotation.text?.relPos?.[1] ?? 0} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: [entry.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, entry.text?.relPos?.[1] ?? 0)], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
+                  <Field label="text.font_size" jsonPath={`annotations[${annotationIndex}].text.font_size`}><Input type="number" value={annotation.text?.fontSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: entry.text?.color ?? '#111827', fontSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } } : entry) }))} /></Field>
                   <Field label="axes.x" jsonPath={`annotations[${annotationIndex}].axes.x`}><Input type="number" value={annotation.axes?.x ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, axes: { ...(entry.axes ?? {}), x: numberValue(e.target.valueAsNumber, 0) } } : entry) }))} /></Field>
                   <Field label="axes.y" jsonPath={`annotations[${annotationIndex}].axes.y`}><Input type="number" value={annotation.axes?.y ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, axes: { ...(entry.axes ?? {}), y: numberValue(e.target.valueAsNumber, 0) } } : entry) }))} /></Field>
+                  <Field label="marker" jsonPath={`annotations[${annotationIndex}].marker`}>
+                    <Select value={annotation.marker === null ? 'none' : 'enabled'} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: e.target.value === 'none' ? null : (entry.marker ?? { color: '', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }) } : entry) }))}>
+                      <option value="enabled">enabled</option>
+                      <option value="none">none</option>
+                    </Select>
+                  </Field>
+                  {annotation.marker === null ? null : (
+                    <>
+                      <Field label="marker.color" jsonPath={`annotations[${annotationIndex}].marker.color`}><Input value={annotation.marker?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: e.target.value, markerSymbol: entry.marker?.markerSymbol ?? 'o', sizeFactor: entry.marker?.sizeFactor ?? 1, linewidths: entry.marker?.linewidths ?? 0, edgecolors: entry.marker?.edgecolors ?? 'black' } } : entry) }))} /></Field>
+                      <Field label="marker.marker_symbol" jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker?.markerSymbol ?? 'o'} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: entry.marker?.color ?? '', markerSymbol: e.target.value, sizeFactor: entry.marker?.sizeFactor ?? 1, linewidths: entry.marker?.linewidths ?? 0, edgecolors: entry.marker?.edgecolors ?? 'black' } } : entry) }))} /></Field>
+                      <Field label="marker.size_factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}><Input type="number" step={0.1} value={annotation.marker?.sizeFactor ?? 1} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: entry.marker?.color ?? '', markerSymbol: entry.marker?.markerSymbol ?? 'o', sizeFactor: numberValue(e.target.valueAsNumber, entry.marker?.sizeFactor ?? 1), linewidths: entry.marker?.linewidths ?? 0, edgecolors: entry.marker?.edgecolors ?? 'black' } } : entry) }))} /></Field>
+                      <Field label="marker.linewidths" jsonPath={`annotations[${annotationIndex}].marker.linewidths`}><Input type="number" value={annotation.marker?.linewidths ?? 0} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: entry.marker?.color ?? '', markerSymbol: entry.marker?.markerSymbol ?? 'o', sizeFactor: entry.marker?.sizeFactor ?? 1, linewidths: numberValue(e.target.valueAsNumber, entry.marker?.linewidths ?? 0), edgecolors: entry.marker?.edgecolors ?? 'black' } } : entry) }))} /></Field>
+                      <Field label="marker.edgecolors" jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}><Input value={annotation.marker?.edgecolors ?? 'black'} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: entry.marker?.color ?? '', markerSymbol: entry.marker?.markerSymbol ?? 'o', sizeFactor: entry.marker?.sizeFactor ?? 1, linewidths: entry.marker?.linewidths ?? 0, edgecolors: e.target.value } } : entry) }))} /></Field>
+                    </>
+                  )}
+                  <Field label="arrow" jsonPath={`annotations[${annotationIndex}].arrow`}>
+                    <Select value={annotation.arrow === null ? 'none' : 'enabled'} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: e.target.value === 'none' ? null : (entry.arrow ?? { width: 0, facecolor: '', headlength: 0, headwidth: 0, linewidth: 1 }) } : entry) }))}>
+                      <option value="enabled">enabled</option>
+                      <option value="none">none</option>
+                    </Select>
+                  </Field>
+                  {annotation.arrow === null ? null : (
+                    <>
+                      <Field label="arrow.width" jsonPath={`annotations[${annotationIndex}].arrow.width`}><Input type="number" value={annotation.arrow?.width ?? 0} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { width: numberValue(e.target.valueAsNumber, entry.arrow?.width ?? 0), facecolor: entry.arrow?.facecolor ?? '', headlength: entry.arrow?.headlength ?? 0, headwidth: entry.arrow?.headwidth ?? 0, linewidth: entry.arrow?.linewidth ?? 1 } } : entry) }))} /></Field>
+                      <Field label="arrow.facecolor" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow?.facecolor ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { width: entry.arrow?.width ?? 0, facecolor: e.target.value, headlength: entry.arrow?.headlength ?? 0, headwidth: entry.arrow?.headwidth ?? 0, linewidth: entry.arrow?.linewidth ?? 1 } } : entry) }))} /></Field>
+                      <Field label="arrow.headlength" jsonPath={`annotations[${annotationIndex}].arrow.headlength`}><Input type="number" value={annotation.arrow?.headlength ?? 0} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { width: entry.arrow?.width ?? 0, facecolor: entry.arrow?.facecolor ?? '', headlength: numberValue(e.target.valueAsNumber, entry.arrow?.headlength ?? 0), headwidth: entry.arrow?.headwidth ?? 0, linewidth: entry.arrow?.linewidth ?? 1 } } : entry) }))} /></Field>
+                      <Field label="arrow.headwidth" jsonPath={`annotations[${annotationIndex}].arrow.headwidth`}><Input type="number" value={annotation.arrow?.headwidth ?? 0} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { width: entry.arrow?.width ?? 0, facecolor: entry.arrow?.facecolor ?? '', headlength: entry.arrow?.headlength ?? 0, headwidth: numberValue(e.target.valueAsNumber, entry.arrow?.headwidth ?? 0), linewidth: entry.arrow?.linewidth ?? 1 } } : entry) }))} /></Field>
+                      <Field label="arrow.linewidth" jsonPath={`annotations[${annotationIndex}].arrow.linewidth`}><Input type="number" value={annotation.arrow?.linewidth ?? 1} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { width: entry.arrow?.width ?? 0, facecolor: entry.arrow?.facecolor ?? '', headlength: entry.arrow?.headlength ?? 0, headwidth: entry.arrow?.headwidth ?? 0, linewidth: numberValue(e.target.valueAsNumber, entry.arrow?.linewidth ?? 1) } } : entry) }))} /></Field>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
