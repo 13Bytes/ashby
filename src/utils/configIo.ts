@@ -9,7 +9,7 @@ function stripJsonComments(text: string): string {
     .replace(JSONC_LINE_COMMENT, (_match, prefix: string) => prefix)
 }
 
-function toExternalConfig(config: PlotConfig): unknown {
+export function toExternalConfig(config: PlotConfig): unknown {
   return {
     version: config.version,
     create_all_dataframes: config.createAllDataframes,
