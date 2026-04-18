@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
@@ -31,6 +31,9 @@ const WHITELIST_OPTIONS: MultiOption[] = [
   { value: 'PETG', label: 'PETG' },
 ]
 
+const DEFAULT_THEME = 'system'
+type ThemeMode = 'light' | 'dark' | 'system'
+
 const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
 const parseColumnsFromImportResult = (value: unknown): string[] => {
   if (!Array.isArray(value)) {
@@ -61,6 +64,42 @@ const getAxisBasesFromColumns = (columns: string[]): string[] => {
     .map(([base]) => base)
     .sort((a, b) => a.localeCompare(b))
 }
+
+const getNextTabName = (names: Array<string | undefined>, prefix: string): string => {
+  const usedNumbers = new Set<number>()
+  for (const entry of names) {
+    const value = entry?.trim()
+    if (!value) continue
+    const match = value.match(new RegExp(`^${prefix}\\s+(\\d+)$`, 'i'))
+    if (match) {
+      usedNumbers.add(Number(match[1]))
+    }
+  }
+
+  let candidate = 1
+  while (usedNumbers.has(candidate)) {
+    candidate += 1
+  }
+  return `${prefix} ${candidate}`
+}
+
+const getConfigLanguages = (config: PlotConfig): string[] => {
+  const languages = new Set<string>()
+  for (const dataframe of config.dataframes) {
+    dataframe.plotLanguages.forEach((entry) => entry && languages.add(entry))
+    languages.add(dataframe.language)
+    Object.keys(dataframe.legendTitle).forEach((entry) => entry && languages.add(entry))
+    dataframe.axes.forEach((axis) => Object.keys(axis.labels).forEach((entry) => entry && languages.add(entry)))
+    dataframe.frames.forEach((frame) => Object.keys(frame.title).forEach((entry) => entry && languages.add(entry)))
+  }
+  return [...languages].sort((a, b) => a.localeCompare(b))
+}
+
+const getConfigWhitelistKeywords = (config: PlotConfig): string[] =>
+  [...new Set(config.dataframes.flatMap((df) => df.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))))].sort((a, b) => a.localeCompare(b))
+
+const getConfigAxisColumns = (config: PlotConfig): string[] =>
+  [...new Set(config.dataframes.flatMap((df) => df.axes.flatMap((axis) => axis.columns)))].sort((a, b) => a.localeCompare(b))
 const getSourceMode = (dataframe: DataframeConfig): SourceMode =>
   dataframe._extensions.sourceMode === 'teable' || dataframe._extensions.sourceMode === 'file'
     ? dataframe._extensions.sourceMode
@@ -181,7 +220,17 @@ function App() {
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
+  const [availableWhitelistKeywords, setAvailableWhitelistKeywords] = useState<MultiOption[]>(WHITELIST_OPTIONS)
   const [importInProgress, setImportInProgress] = useState(false)
+  const [tabRename, setTabRename] = useState<{ type: 'dataframe' | 'frame'; index: number; value: string } | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return DEFAULT_THEME
+    const stored = window.localStorage.getItem('ui-theme')
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT_THEME
+  })
 
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
@@ -214,6 +263,33 @@ function App() {
       .map((column) => ({ value: column, label: column }))
   }, [availableColumns])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const df = Number(params.get('dataframe'))
+    const frame = Number(params.get('frame'))
+    if (Number.isInteger(df) && df >= 0) {
+      setActiveDataframeIndex(df)
+    }
+    if (Number.isInteger(frame) && frame >= 0) {
+      setActiveFrameIndex(frame)
+    }
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.set('dataframe', String(activeDataframeIndex))
+    params.set('frame', String(activeFrameIndex))
+    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
+  }, [activeDataframeIndex, activeFrameIndex])
+
+  useEffect(() => {
+    const html = document.documentElement
+    const darkPreferred = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const useDark = themeMode === 'dark' || (themeMode === 'system' && darkPreferred)
+    html.classList.toggle('dark', useDark)
+    window.localStorage.setItem('ui-theme', themeMode)
+  }, [themeMode])
+
   const patchDataframe = (index: number, patch: (current: DataframeConfig) => DataframeConfig) => {
     setPlotConfig((current) => ({ ...current, dataframes: current.dataframes.map((df, i) => (i === index ? patch(df) : df)) }))
   }
@@ -223,13 +299,23 @@ function App() {
   }
 
   const addDataframe = () => {
-    setPlotConfig((current) => ({ ...current, dataframes: [...current.dataframes, structuredClone(current.dataframes[0])] }))
-    setActiveDataframeIndex(plotConfig.dataframes.length)
-    setActiveFrameIndex(0)
+    setPlotConfig((current) => {
+      const nextIndex = current.dataframes.length
+      const source = structuredClone(current.dataframes[0])
+      source.name = getNextTabName(current.dataframes.map((df) => df.name), 'Dataframe')
+      source.frames = source.frames.map((frame, frameIndex) => ({ ...frame, name: `Frame ${frameIndex + 1}` }))
+      setActiveDataframeIndex(nextIndex)
+      setActiveFrameIndex(0)
+      return { ...current, dataframes: [...current.dataframes, source] }
+    })
   }
 
   const addFrame = () => {
-    patchActiveDataframe((df) => ({ ...df, frames: [...df.frames, structuredClone(df.frames[0])] }))
+    patchActiveDataframe((df) => {
+      const next = structuredClone(df.frames[0])
+      next.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+      return { ...df, frames: [...df.frames, next] }
+    })
     setActiveFrameIndex(activeDataframe.frames.length)
   }
 
@@ -355,7 +441,29 @@ function App() {
       }
 
       const columns = parseColumnsFromImportResult(payload.columns)
+      const knownColumns = new Set(columns)
+      const unknownColumns = new Set<string>()
+      for (const axis of activeDataframe.axes) {
+        for (const column of axis.columns) {
+          if (!knownColumns.has(column)) {
+            unknownColumns.add(column)
+          }
+        }
+      }
+      for (const layer of activeFrame.layers) {
+        if (layer.name && !knownColumns.has(layer.name)) {
+          unknownColumns.add(layer.name)
+        }
+      }
+      if (unknownColumns.size > 0) {
+        throw new Error(`Database import error: unknown column(s): ${[...unknownColumns].join(', ')}`)
+      }
       setAvailableColumns(columns)
+      setAvailableWhitelistKeywords(
+        [...new Set([...activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))])]
+          .sort((a, b) => a.localeCompare(b))
+          .map((entry) => ({ value: entry, label: entry })),
+      )
       setAlert({
         tone: 'success',
         message:
@@ -419,7 +527,21 @@ function App() {
     if (!file) return
     try {
       const normalized = normalizePlotConfig(parseImportedConfig(await file.text(), true))
-      setPlotConfig(normalized)
+      const detectedLanguages = getConfigLanguages(normalized)
+      const normalizedWithLanguages: PlotConfig = {
+        ...normalized,
+        dataframes: normalized.dataframes.map((df) => {
+          const languages = detectedLanguages.length > 0 ? detectedLanguages : df.plotLanguages
+          return {
+            ...df,
+            plotLanguages: languages,
+            language: languages.includes(df.language) ? df.language : (languages[0] ?? 'en'),
+          }
+        }),
+      }
+      setPlotConfig(normalizedWithLanguages)
+      setAvailableColumns(getConfigAxisColumns(normalizedWithLanguages))
+      setAvailableWhitelistKeywords(getConfigWhitelistKeywords(normalizedWithLanguages).map((entry) => ({ value: entry, label: entry })))
       setAlert({ tone: 'success', message: `Imported ${file.name} successfully.` })
     } catch {
       setAlert({ tone: 'error', message: 'Invalid config file.' })
@@ -436,6 +558,30 @@ function App() {
     }
   }
 
+  const openTabWithSelection = (dataframeIndex: number, frameIndex: number) => {
+    const params = new URLSearchParams(window.location.search)
+    params.set('dataframe', String(dataframeIndex))
+    params.set('frame', String(frameIndex))
+    window.open(`${window.location.pathname}?${params.toString()}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const applyTabRename = () => {
+    if (!tabRename) return
+    const trimmed = tabRename.value.trim()
+    if (tabRename.type === 'dataframe') {
+      patchDataframe(tabRename.index, (df) => ({ ...df, name: trimmed || undefined }))
+      if (tabRename.index === activeDataframeIndex) {
+        setActiveFrameIndex(0)
+      }
+    } else {
+      patchActiveDataframe((df) => ({
+        ...df,
+        frames: df.frames.map((frame, index) => (index === tabRename.index ? { ...frame, name: trimmed || undefined } : frame)),
+      }))
+    }
+    setTabRename(null)
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 p-6 text-left dark:border-zinc-800">
@@ -443,25 +589,58 @@ function App() {
           <h1 className="m-0 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
           <p className="mt-1 text-zinc-600 dark:text-zinc-400">Human-readable editor with editable JSON popup.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="relative flex gap-2">
+          <Button type="button" variant="outline" onClick={() => setShowMenu((current) => !current)}>Menu</Button>
           <Button type="button" variant="outline" onClick={() => setUiLanguage((current) => (current === 'en' ? 'de' : 'en'))}>{uiLanguage === 'en' ? 'DE' : 'EN'}</Button>
           <Button type="button" variant="outline" onClick={() => { setJsonDraft(JSON.stringify(plotConfig, null, 2)); setShowJson(true) }}>{t('json')}</Button>
           <Button type="button" variant="outline" onClick={() => setActivePage(activePage === 'config' ? 'plot' : 'config')}>
             {activePage === 'config' ? t('showPlot') : t('showConfig')}
           </Button>
+          {showMenu ? (
+            <div className="absolute right-0 top-11 z-40 grid min-w-40 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+              <Button type="button" variant="outline" size="sm" onClick={() => { setShowAbout(true); setShowMenu(false) }}>About</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setShowSettings(true); setShowMenu(false) }}>Settings</Button>
+            </div>
+          ) : null}
         </div>
       </header>
 
       {activePage === 'config' ? (
-        <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-5 text-left">
+        <main className="mx-auto grid min-h-0 w-full max-w-[1800px] flex-1 grid-cols-1 gap-4 p-5 text-left">
           <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold">{t('dataframe')}</span>
               {plotConfig.dataframes.map((df, index) => (
                 <div key={index} className="inline-flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0) }}>
-                    {df.name || `Dataframe ${index + 1}`}
-                  </Button>
+                  {tabRename?.type === 'dataframe' && tabRename.index === index ? (
+                    <Input
+                      autoFocus
+                      value={tabRename.value}
+                      onChange={(event) => setTabRename((current) => (current ? { ...current, value: event.target.value } : current))}
+                      onBlur={applyTabRename}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') applyTabRename()
+                        if (event.key === 'Escape') setTabRename(null)
+                      }}
+                      className="h-8 w-36"
+                    />
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={activeDataframeIndex === index ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30' : ''}
+                      onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0) }}
+                      onDoubleClick={() => setTabRename({ type: 'dataframe', index, value: df.name || `Dataframe ${index + 1}` })}
+                      onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                        if (event.button === 1) {
+                          event.preventDefault()
+                          openTabWithSelection(index, 0)
+                        }
+                      }}
+                    >
+                      {df.name || `Dataframe ${index + 1}`}
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => removeDataframe(index)}>✕</Button>
                 </div>
               ))}
@@ -471,9 +650,35 @@ function App() {
               <span className="text-sm font-semibold">{t('frame')}</span>
               {activeDataframe.frames.map((frame, index) => (
                 <div key={index} className="inline-flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setActiveFrameIndex(index)}>
-                    {frame.name || `Frame ${index + 1}`}
-                  </Button>
+                  {tabRename?.type === 'frame' && tabRename.index === index ? (
+                    <Input
+                      autoFocus
+                      value={tabRename.value}
+                      onChange={(event) => setTabRename((current) => (current ? { ...current, value: event.target.value } : current))}
+                      onBlur={applyTabRename}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') applyTabRename()
+                        if (event.key === 'Escape') setTabRename(null)
+                      }}
+                      className="h-8 w-28"
+                    />
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={activeFrameIndex === index ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30' : ''}
+                      onClick={() => setActiveFrameIndex(index)}
+                      onDoubleClick={() => setTabRename({ type: 'frame', index, value: frame.name || `Frame ${index + 1}` })}
+                      onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                        if (event.button === 1) {
+                          event.preventDefault()
+                          openTabWithSelection(activeDataframeIndex, index)
+                        }
+                      }}
+                    >
+                      {frame.name || `Frame ${index + 1}`}
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => removeFrame(index)}>✕</Button>
                 </div>
               ))}
@@ -490,7 +695,6 @@ function App() {
                 <option value="all">All</option><option value="selected">Selected</option>
               </Select>
             </Field>
-            <Field label={t('dataframeName')} jsonPath="dataframes[i].name"><Input value={activeDataframe.name ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, name: e.target.value || undefined }))} /></Field>
             <Field label={t('dataframeLanguage')} jsonPath="dataframes[i].language">
               <Select value={activeDataframe.language} onChange={(e) => patchActiveDataframe((c) => ({ ...c, language: e.target.value }))}>
                 {activeDataframe.plotLanguages.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
@@ -599,7 +803,6 @@ function App() {
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">Frame</h3>
-            <Field label="Frame name" jsonPath="frames[j].name"><Input value={activeFrame.name ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, name: e.target.value || undefined }))} /></Field>
             <Field label="Export file name" jsonPath="frames[j].export_file_name"><Input value={activeFrame.exportFileName ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, exportFileName: e.target.value || undefined }))} /></Field>
             <Field label="Algorithm" jsonPath="frames[j].algorithm"><Select value={activeFrame.algorithm} onChange={(e) => patchActiveFrame((c) => ({ ...c, algorithm: e.target.value as FrameConfig['algorithm'] }))}>{PLOT_ALGORITHMS.map((a) => <option key={a} value={a}>{a}</option>)}</Select></Field>
             <Field label="Legend enabled" jsonPath="legend_flag"><Select value={activeFrame.legendFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
@@ -649,7 +852,7 @@ function App() {
                   </Select>
                 </Field>
                 <Field label="Whitelist mode" jsonPath={`layers[${layerIndex}].whitelist_flag`}><Select value={layer.whitelistFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelistFlag: e.target.value === 'true' } : x) }))}><option value="true">Whitelist</option><option value="false">Blacklist</option></Select></Field>
-                <Field label="Whitelist keywords" jsonPath={`layers[${layerIndex}].whitelist`}><MultiSelectInput value={layer.whitelist ?? []} options={WHITELIST_OPTIONS} placeholder={t('whitelistPlaceholder')} onChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))} /></Field>
+                <Field label="Whitelist keywords" jsonPath={`layers[${layerIndex}].whitelist`}><MultiSelectInput value={layer.whitelist ?? []} options={availableWhitelistKeywords} placeholder={t('whitelistPlaceholder')} onChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))} /></Field>
                 <Field label="Alpha" jsonPath={`layers[${layerIndex}].alpha`}><Input type="number" step={0.05} min={0} max={1} value={layer.alpha ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, alpha: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
                 <Field label="Line width" jsonPath={`layers[${layerIndex}].linewidth`}><Input type="number" min={0} step={0.1} value={layer.linewidth ?? 1.5} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, linewidth: Math.max(0, numberValue(e.target.valueAsNumber, x.linewidth ?? 1.5)) } : x) }))} /></Field>
                 <Field label="Alpha points" jsonPath={`layers[${layerIndex}].alpha_points`}><Input type="number" step={0.05} min={0} max={1} value={layer.alphaPoints ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, alphaPoints: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
@@ -729,8 +932,42 @@ function App() {
           </section>
         </main>
       ) : (
-        <PlotPage plotConfig={plotConfig} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} />
+        <PlotPage plotConfig={plotConfig} />
       )}
+
+      {showAbout ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+          <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="mt-0 text-lg">About</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Ashby Plot Builder helps create and edit plotting configs with live backend SVG rendering.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" onClick={() => setShowAbout(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showSettings ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+          <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="mt-0 text-lg">Settings</h3>
+            <div className="grid gap-2">
+              <Field label="Theme" jsonPath="ui.theme">
+                <Select value={themeMode} onChange={(event) => setThemeMode(event.target.value as ThemeMode)}>
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </Select>
+              </Field>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" onClick={() => setShowSettings(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showJson ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
