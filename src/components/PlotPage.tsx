@@ -208,18 +208,17 @@ const getPlotAnnotations = (
       }
 
       const [xOffset, yOffset] = annotation.text.relPos ?? [0, 0]
-      const arrowEnabled = annotation.arrow !== null
       return {
         x: xBase,
         y: yBase,
         text: annotation.text.name,
-        showarrow: arrowEnabled,
+        showarrow: true,
         arrowhead: 2,
         arrowsize: annotation.arrow?.headwidth ?? 1,
         arrowwidth: annotation.arrow?.linewidth ?? 1,
         arrowcolor: annotation.arrow?.facecolor || annotation.text.color || '#111827',
-        ax: arrowEnabled ? xOffset : undefined,
-        ay: arrowEnabled ? yOffset : undefined,
+        ax: xOffset,
+        ay: yOffset,
         font: {
           size: annotation.text.fontSize ?? annotation.fontSize ?? 12,
           color: annotation.text.color || '#111827',
