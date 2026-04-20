@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "backend": "python3 backend/app.py"
+    "backend": "uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload"
   },
   "dependencies": {
     "plotly.js-dist-min": "^3.5.0",

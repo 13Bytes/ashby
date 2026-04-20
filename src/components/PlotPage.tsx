@@ -54,11 +54,11 @@ export function PlotPage({ plotConfig }: Props) {
     <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
       <section className="flex items-center justify-between rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <div>
-          <h3 className="m-0 text-sm font-semibold">Backend SVG preview</h3>
+          <h3 className="m-0 text-sm font-semibold">Backend plot preview</h3>
           <p className="m-0 mt-1 text-xs text-zinc-500">The complete JSON config is sent to the Python backend.</p>
         </div>
         <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading}>
-          {loading ? 'Rendering…' : 'Refresh plot'}
+          {loading ? 'Rendering…' : 'Preview plot'}
         </Button>
       </section>
 
