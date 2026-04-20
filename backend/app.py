@@ -3,10 +3,17 @@ from __future__ import annotations
 import io
 from typing import Any
 
-from flask import Flask, jsonify, request
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import JSONResponse
+from matplotlib.figure import Figure
 from openpyxl import load_workbook
+from pydantic import BaseModel
 
-app = Flask(__name__)
+app = FastAPI(title='Ashby Backend API')
+
+
+class RenderPlotRequest(BaseModel):
+    config: dict[str, Any]
 
 
 def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]:
@@ -20,44 +27,48 @@ def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]
 
 
 @app.post('/api/render-plot')
-def render_plot() -> Any:
-    payload = request.get_json(silent=True) or {}
-    config = payload.get('config')
-    if not isinstance(config, dict):
-        return jsonify({'message': 'Missing config payload.'}), 400
+def render_plot(payload: RenderPlotRequest) -> JSONResponse:
+    figure = Figure(figsize=(12, 6.75), dpi=100)
+    axis = figure.subplots()
+    axis.plot([], [])
+    axis.set_title('Backend matplotlib dummy plot')
+    axis.text(
+        0.01,
+        0.95,
+        f"Received config keys: {', '.join(sorted(payload.config.keys()))}",
+        transform=axis.transAxes,
+        fontsize=10,
+        va='top',
+    )
+    axis.grid(True, alpha=0.25)
 
-    svg = """<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='675' viewBox='0 0 1200 675'>
-  <rect x='0' y='0' width='1200' height='675' fill='#f8fafc' />
-  <text x='40' y='64' font-size='32' font-family='Arial, sans-serif' fill='#111827'>Backend SVG placeholder</text>
-  <text x='40' y='104' font-size='18' font-family='Arial, sans-serif' fill='#334155'>Implement plotting logic inside backend/app.py render_plot().</text>
-  <text x='40' y='138' font-size='15' font-family='monospace' fill='#475569'>Received config keys: %s</text>
-</svg>""" % ', '.join(sorted(config.keys()))
-
-    return jsonify({'svg': svg})
+    svg_buffer = io.StringIO()
+    figure.savefig(svg_buffer, format='svg', bbox_inches='tight')
+    svg_buffer.seek(0)
+    return JSONResponse({'svg': svg_buffer.getvalue()})
 
 
 @app.post('/api/import-database')
-def import_database() -> Any:
-    if request.is_json:
-        payload = request.get_json(silent=True) or {}
-        teable_url = payload.get('teable_url')
-        api_key = payload.get('API_Key')
-        if not teable_url or not api_key:
-            return jsonify({'success': False, 'message': 'Missing teable_url or API_Key.'}), 400
-        return jsonify({'success': True, 'columns': []})
+async def import_database(
+    request: Request,
+    import_sheet: int = Form(0),
+    file: UploadFile | None = File(None),
+    teable_url: str | None = Form(None),
+    API_Key: str | None = Form(None),
+) -> JSONResponse:
+    if request.headers.get('content-type', '').startswith('application/json'):
+        payload = await request.json()
+        teable_url_json = payload.get('teable_url')
+        api_key_json = payload.get('API_Key')
+        if not teable_url_json or not api_key_json:
+            return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
+        return JSONResponse({'success': True, 'columns': []})
 
-    upload = request.files.get('file')
-    if upload is None:
-        return jsonify({'success': False, 'message': 'Missing uploaded file.'}), 400
+    if file is None:
+        if not teable_url or not API_Key:
+            return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
+        return JSONResponse({'success': True, 'columns': []})
 
-    try:
-        sheet_index = int(request.form.get('import_sheet', '0'))
-    except ValueError:
-        sheet_index = 0
-
-    columns = _extract_columns_from_xlsx(upload.read(), sheet_index)
-    return jsonify({'success': True, 'columns': columns})
-
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    file_bytes = await file.read()
+    columns = _extract_columns_from_xlsx(file_bytes, import_sheet)
+    return JSONResponse({'success': True, 'columns': columns})

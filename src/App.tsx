@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
@@ -46,6 +46,34 @@ const parseColumnsFromImportResult = (value: unknown): string[] => {
     return []
   }
   return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0).map((entry) => entry.trim()))]
+}
+
+const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
+  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
+    return items
+  }
+  const next = [...items]
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return next
+}
+
+const hsvToHex = (hue: number, saturation: number, value: number): string => {
+  const c = value * saturation
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1))
+  const m = value - c
+  let rgb: [number, number, number] = [0, 0, 0]
+
+  if (hue < 60) rgb = [c, x, 0]
+  else if (hue < 120) rgb = [x, c, 0]
+  else if (hue < 180) rgb = [0, c, x]
+  else if (hue < 240) rgb = [0, x, c]
+  else if (hue < 300) rgb = [x, 0, c]
+  else rgb = [c, 0, x]
+
+  return `#${rgb
+    .map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, '0'))
+    .join('')}`
 }
 
 const getAxisBasesFromColumns = (columns: string[]): string[] => {
@@ -116,7 +144,7 @@ const getSourceMode = (dataframe: DataframeConfig): SourceMode =>
 const UI_LABELS: Record<UILanguage, Record<string, string>> = {
   en: {
     json: 'JSON',
-    showPlot: 'Show Plot',
+    showPlot: 'Preview Plot',
     showConfig: 'Show Config',
     dataframe: 'Dataframe',
     frame: 'Frame',
@@ -145,7 +173,7 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
   },
   de: {
     json: 'JSON',
-    showPlot: 'Plot anzeigen',
+    showPlot: 'Plot-Vorschau',
     showConfig: 'Konfiguration anzeigen',
     dataframe: 'Datenrahmen',
     frame: 'Frame',
@@ -240,6 +268,9 @@ function App() {
   const [showMenu, setShowMenu] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
+  const [draggedDataframeIndex, setDraggedDataframeIndex] = useState<number | null>(null)
+  const [draggedFrameIndex, setDraggedFrameIndex] = useState<number | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return DEFAULT_THEME
     const stored = window.localStorage.getItem('ui-theme')
@@ -301,6 +332,7 @@ function App() {
     const darkPreferred = window.matchMedia('(prefers-color-scheme: dark)').matches
     const useDark = themeMode === 'dark' || (themeMode === 'system' && darkPreferred)
     html.classList.toggle('dark', useDark)
+    html.style.colorScheme = useDark ? 'dark' : 'light'
     window.localStorage.setItem('ui-theme', themeMode)
   }, [themeMode])
 
@@ -354,6 +386,43 @@ function App() {
       setActiveFrameIndex((prev) => Math.max(0, Math.min(prev, nextFrames.length - 1)))
       return { ...df, frames: nextFrames }
     })
+  }
+
+  const reorderDataframes = (from: number, to: number) => {
+    setPlotConfig((current) => ({ ...current, dataframes: moveItem(current.dataframes, from, to) }))
+    if (activeDataframeIndex === from) {
+      setActiveDataframeIndex(to)
+    } else if (from < activeDataframeIndex && to >= activeDataframeIndex) {
+      setActiveDataframeIndex((prev) => prev - 1)
+    } else if (from > activeDataframeIndex && to <= activeDataframeIndex) {
+      setActiveDataframeIndex((prev) => prev + 1)
+    }
+  }
+
+  const reorderFrames = (from: number, to: number) => {
+    patchActiveDataframe((df) => ({ ...df, frames: moveItem(df.frames, from, to) }))
+    if (activeFrameIndex === from) {
+      setActiveFrameIndex(to)
+    } else if (from < activeFrameIndex && to >= activeFrameIndex) {
+      setActiveFrameIndex((prev) => prev - 1)
+    } else if (from > activeFrameIndex && to <= activeFrameIndex) {
+      setActiveFrameIndex((prev) => prev + 1)
+    }
+  }
+
+  const generateMaterialColors = () => {
+    patchActiveDataframe((df) => {
+      const keys = Object.keys(df.materialColors)
+      if (keys.length === 0) return df
+      const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
+        const hue = (index / keys.length) * 360
+        const brightness = index % 2 === 0 ? 0.78 : 0.62
+        acc[key] = hsvToHex(hue, 0.75, brightness)
+        return acc
+      }, {})
+      return { ...df, materialColors: nextColors }
+    })
+    setShowGenerateColorsConfirm(false)
   }
 
   const addAxis = () => {
@@ -642,7 +711,20 @@ function App() {
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold">{t('dataframe')}</span>
               {plotConfig.dataframes.map((df, index) => (
-                <div key={index} className="inline-flex items-center gap-1">
+                <div
+                  key={index}
+                  className="inline-flex"
+                  draggable
+                  onDragStart={() => setDraggedDataframeIndex(index)}
+                  onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+                  onDrop={() => {
+                    if (draggedDataframeIndex !== null) {
+                      reorderDataframes(draggedDataframeIndex, index)
+                    }
+                    setDraggedDataframeIndex(null)
+                  }}
+                  onDragEnd={() => setDraggedDataframeIndex(null)}
+                >
                   {tabRename?.type === 'dataframe' && tabRename.index === index ? (
                     <Input
                       autoFocus
@@ -656,13 +738,24 @@ function App() {
                       className="h-8 w-36"
                     />
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={activeDataframeIndex === index ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30' : ''}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${
+                        activeDataframeIndex === index
+                          ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
+                          : 'border-input bg-transparent hover:bg-accent hover:text-accent-foreground'
+                      }`}
                       onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0) }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setActiveDataframeIndex(index)
+                          setActiveFrameIndex(0)
+                        }
+                      }}
                       onDoubleClick={() => setTabRename({ type: 'dataframe', index, value: df.name || `Dataframe ${index + 1}` })}
-                      onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                      onMouseDown={(event: MouseEvent<HTMLDivElement>) => {
                         if (event.button === 1) {
                           event.preventDefault()
                           openTabWithSelection(index, 0)
@@ -670,9 +763,18 @@ function App() {
                       }}
                     >
                       {df.name || `Dataframe ${index + 1}`}
-                    </Button>
+                      <button
+                        type="button"
+                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          removeDataframe(index)
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => removeDataframe(index)}>✕</Button>
                 </div>
               ))}
               <Button size="sm" onClick={addDataframe}>+</Button>
@@ -680,7 +782,20 @@ function App() {
             <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
               <span className="text-sm font-semibold">{t('frame')}</span>
               {activeDataframe.frames.map((frame, index) => (
-                <div key={index} className="inline-flex items-center gap-1">
+                <div
+                  key={index}
+                  className="inline-flex"
+                  draggable
+                  onDragStart={() => setDraggedFrameIndex(index)}
+                  onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+                  onDrop={() => {
+                    if (draggedFrameIndex !== null) {
+                      reorderFrames(draggedFrameIndex, index)
+                    }
+                    setDraggedFrameIndex(null)
+                  }}
+                  onDragEnd={() => setDraggedFrameIndex(null)}
+                >
                   {tabRename?.type === 'frame' && tabRename.index === index ? (
                     <Input
                       autoFocus
@@ -694,13 +809,23 @@ function App() {
                       className="h-8 w-28"
                     />
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={activeFrameIndex === index ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30' : ''}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${
+                        activeFrameIndex === index
+                          ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
+                          : 'border-input bg-transparent hover:bg-accent hover:text-accent-foreground'
+                      }`}
                       onClick={() => setActiveFrameIndex(index)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setActiveFrameIndex(index)
+                        }
+                      }}
                       onDoubleClick={() => setTabRename({ type: 'frame', index, value: frame.name || `Frame ${index + 1}` })}
-                      onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
+                      onMouseDown={(event: MouseEvent<HTMLDivElement>) => {
                         if (event.button === 1) {
                           event.preventDefault()
                           openTabWithSelection(activeDataframeIndex, index)
@@ -708,9 +833,18 @@ function App() {
                       }}
                     >
                       {frame.name || `Frame ${index + 1}`}
-                    </Button>
+                      <button
+                        type="button"
+                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          removeFrame(index)
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => removeFrame(index)}>✕</Button>
                 </div>
               ))}
               <Button size="sm" onClick={addFrame}>+</Button>
@@ -913,7 +1047,12 @@ function App() {
           </section>
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 sm:grid-cols-2">
-            <h3 className="sm:col-span-2 text-sm font-semibold">{uiLanguage === 'en' ? 'Material colors' : 'Materialfarben'}</h3>
+            <div className="sm:col-span-2 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Material colors' : 'Materialfarben'}</h3>
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowGenerateColorsConfirm(true)}>
+                Generate colors
+              </Button>
+            </div>
             {Object.entries(activeDataframe.materialColors).map(([material, color]) => (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                 <Input value={material} readOnly />
@@ -1001,6 +1140,21 @@ function App() {
             </div>
             <div className="mt-4 flex justify-end">
               <Button variant="outline" onClick={() => setShowSettings(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showGenerateColorsConfirm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+          <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 className="mt-0 text-lg">Generate new material colors?</h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              This overwrites all current material colors and spaces hues evenly across all keys.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowGenerateColorsConfirm(false)}>Cancel</Button>
+              <Button onClick={generateMaterialColors}>Yes, generate</Button>
             </div>
           </div>
         </div>
