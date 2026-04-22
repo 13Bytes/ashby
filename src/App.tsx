@@ -141,6 +141,15 @@ const getSourceMode = (dataframe: DataframeConfig): SourceMode =>
       ? 'teable'
       : 'file'
 
+const getUniqueMaterialKey = (materialColors: Record<string, string>, seed = 'new_material'): string => {
+  if (!materialColors[seed]) return seed
+  let index = 1
+  while (materialColors[`${seed}_${index}`]) {
+    index += 1
+  }
+  return `${seed}_${index}`
+}
+
 const UI_LABELS: Record<UILanguage, Record<string, string>> = {
   en: {
     json: 'JSON',
@@ -271,6 +280,9 @@ function App() {
   const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
   const [draggedDataframeIndex, setDraggedDataframeIndex] = useState<number | null>(null)
   const [draggedFrameIndex, setDraggedFrameIndex] = useState<number | null>(null)
+  const [dataframeDropIndex, setDataframeDropIndex] = useState<number | null>(null)
+  const [frameDropIndex, setFrameDropIndex] = useState<number | null>(null)
+  const [moveFrameTargetDataframe, setMoveFrameTargetDataframe] = useState<string>('0')
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return DEFAULT_THEME
     const stored = window.localStorage.getItem('ui-theme')
@@ -336,6 +348,10 @@ function App() {
     window.localStorage.setItem('ui-theme', themeMode)
   }, [themeMode])
 
+  useEffect(() => {
+    setMoveFrameTargetDataframe(String(activeDataframeIndex))
+  }, [activeDataframeIndex])
+
   const patchDataframe = (index: number, patch: (current: DataframeConfig) => DataframeConfig) => {
     setPlotConfig((current) => ({ ...current, dataframes: current.dataframes.map((df, i) => (i === index ? patch(df) : df)) }))
   }
@@ -363,6 +379,58 @@ function App() {
       return { ...df, frames: [...df.frames, next] }
     })
     setActiveFrameIndex(activeDataframe.frames.length)
+  }
+
+  const duplicateDataframe = (index: number) => {
+    setPlotConfig((current) => {
+      const original = current.dataframes[index]
+      if (!original) return current
+      const clone = structuredClone(original)
+      clone.name = getNextTabName(current.dataframes.map((df) => df.name), original.name?.trim() || 'Dataframe')
+      const nextDataframes = [...current.dataframes]
+      nextDataframes.splice(index + 1, 0, clone)
+      setActiveDataframeIndex(index + 1)
+      setActiveFrameIndex(0)
+      return { ...current, dataframes: nextDataframes }
+    })
+  }
+
+  const duplicateFrame = (index: number) => {
+    patchActiveDataframe((df) => {
+      const original = df.frames[index]
+      if (!original) return df
+      const clone = structuredClone(original)
+      clone.name = getNextTabName(df.frames.map((frame) => frame.name), original.name?.trim() || 'Frame')
+      const nextFrames = [...df.frames]
+      nextFrames.splice(index + 1, 0, clone)
+      setActiveFrameIndex(index + 1)
+      return { ...df, frames: nextFrames }
+    })
+  }
+
+  const moveFrameToDataframe = (sourceDataframeIndex: number, sourceFrameIndex: number, targetDataframeIndex: number) => {
+    if (sourceDataframeIndex === targetDataframeIndex) return
+    setPlotConfig((current) => {
+      const sourceDataframe = current.dataframes[sourceDataframeIndex]
+      const targetDataframe = current.dataframes[targetDataframeIndex]
+      if (!sourceDataframe || !targetDataframe || sourceDataframe.frames.length <= 1) {
+        return current
+      }
+      const frameToMove = sourceDataframe.frames[sourceFrameIndex]
+      if (!frameToMove) return current
+      const nextDataframes = current.dataframes.map((df, index) => {
+        if (index === sourceDataframeIndex) {
+          return { ...df, frames: df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex) }
+        }
+        if (index === targetDataframeIndex) {
+          return { ...df, frames: [...df.frames, frameToMove] }
+        }
+        return df
+      })
+      setActiveDataframeIndex(targetDataframeIndex)
+      setActiveFrameIndex(nextDataframes[targetDataframeIndex].frames.length - 1)
+      return { ...current, dataframes: nextDataframes }
+    })
   }
 
   const removeDataframe = (index: number) => {
@@ -423,6 +491,16 @@ function App() {
       return { ...df, materialColors: nextColors }
     })
     setShowGenerateColorsConfirm(false)
+  }
+
+  const toggleDummyValue = () => {
+    patchActiveDataframe((df) => ({
+      ...df,
+      _extensions: {
+        ...df._extensions,
+        dummyValue: !(df._extensions.dummyValue === true),
+      },
+    }))
   }
 
   const addAxis = () => {
@@ -713,18 +791,28 @@ function App() {
               {plotConfig.dataframes.map((df, index) => (
                 <div
                   key={index}
-                  className="inline-flex"
+                  className="inline-flex items-center gap-2 transition-all duration-150"
                   draggable
                   onDragStart={() => setDraggedDataframeIndex(index)}
-                  onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+                  onDragOver={(event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault()
+                    setDataframeDropIndex(index)
+                  }}
                   onDrop={() => {
                     if (draggedDataframeIndex !== null) {
                       reorderDataframes(draggedDataframeIndex, index)
                     }
                     setDraggedDataframeIndex(null)
+                    setDataframeDropIndex(null)
                   }}
-                  onDragEnd={() => setDraggedDataframeIndex(null)}
+                  onDragEnd={() => {
+                    setDraggedDataframeIndex(null)
+                    setDataframeDropIndex(null)
+                  }}
                 >
+                  {draggedDataframeIndex !== null && dataframeDropIndex === index ? (
+                    <div className="h-8 w-8 rounded-md border-2 border-dashed border-violet-400 bg-violet-100/70 transition-all dark:bg-violet-900/30" />
+                  ) : null}
                   {tabRename?.type === 'dataframe' && tabRename.index === index ? (
                     <Input
                       autoFocus
@@ -768,6 +856,17 @@ function App() {
                         className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
                         onClick={(event) => {
                           event.stopPropagation()
+                          duplicateDataframe(index)
+                        }}
+                        title="Duplicate dataframe"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        onClick={(event) => {
+                          event.stopPropagation()
                           removeDataframe(index)
                         }}
                       >
@@ -784,18 +883,28 @@ function App() {
               {activeDataframe.frames.map((frame, index) => (
                 <div
                   key={index}
-                  className="inline-flex"
+                  className="inline-flex items-center gap-2 transition-all duration-150"
                   draggable
                   onDragStart={() => setDraggedFrameIndex(index)}
-                  onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+                  onDragOver={(event: DragEvent<HTMLDivElement>) => {
+                    event.preventDefault()
+                    setFrameDropIndex(index)
+                  }}
                   onDrop={() => {
                     if (draggedFrameIndex !== null) {
                       reorderFrames(draggedFrameIndex, index)
                     }
                     setDraggedFrameIndex(null)
+                    setFrameDropIndex(null)
                   }}
-                  onDragEnd={() => setDraggedFrameIndex(null)}
+                  onDragEnd={() => {
+                    setDraggedFrameIndex(null)
+                    setFrameDropIndex(null)
+                  }}
                 >
+                  {draggedFrameIndex !== null && frameDropIndex === index ? (
+                    <div className="h-8 w-8 rounded-md border-2 border-dashed border-violet-400 bg-violet-100/70 transition-all dark:bg-violet-900/30" />
+                  ) : null}
                   {tabRename?.type === 'frame' && tabRename.index === index ? (
                     <Input
                       autoFocus
@@ -838,6 +947,17 @@ function App() {
                         className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
                         onClick={(event) => {
                           event.stopPropagation()
+                          duplicateFrame(index)
+                        }}
+                        title="Duplicate frame"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        onClick={(event) => {
+                          event.stopPropagation()
                           removeFrame(index)
                         }}
                       >
@@ -848,10 +968,32 @@ function App() {
                 </div>
               ))}
               <Button size="sm" onClick={addFrame}>+</Button>
+              <div className="ml-2 flex items-center gap-2">
+                <Select value={moveFrameTargetDataframe} onChange={(event) => setMoveFrameTargetDataframe(event.target.value)}>
+                  {plotConfig.dataframes.map((dataframe, index) => (
+                    <option key={`move-frame-${index}`} value={index}>
+                      {dataframe.name || `Dataframe ${index + 1}`}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => moveFrameToDataframe(activeDataframeIndex, activeFrameIndex, Number(moveFrameTargetDataframe))}
+                  disabled={plotConfig.dataframes.length <= 1}
+                >
+                  Move frame
+                </Button>
+              </div>
             </div>
           </section>
 
-          {alert ? <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'}>{alert.message}</Alert> : null}
+          {alert ? (
+            <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">
+              <span>{alert.message}</span>
+              <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label="Close notification">✕</button>
+            </Alert>
+          ) : null}
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
@@ -868,6 +1010,11 @@ function App() {
             <Field label={t('imageRatio')} jsonPath="dataframes[i].image_ratio"><Input type="number" step="0.01" value={activeDataframe.imageRatio} onChange={(e) => patchActiveDataframe((c) => ({ ...c, imageRatio: numberValue(e.target.valueAsNumber, c.imageRatio) }))} /></Field>
             <Field label={t('resolution')} jsonPath="dataframes[i].resolution"><Input value={String(activeDataframe.resolution)} onChange={(e) => patchActiveDataframe((c) => ({ ...c, resolution: e.target.value === 'svg' ? 'svg' : numberValue(Number(e.target.value), 1000) }))} /></Field>
             <Field label={t('dataframeDarkMode')} jsonPath="dataframes[i].dark_mode"><Select value={activeDataframe.darkMode ? 'true' : 'false'} onChange={(e) => patchActiveDataframe((c) => ({ ...c, darkMode: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
+            <Field label="Dummy value toggle" jsonPath="dataframes[i]._extensions.dummyValue">
+              <Button type="button" variant="outline" onClick={toggleDummyValue}>
+                {activeDataframe._extensions.dummyValue === true ? 'Disable dummy_value' : 'Enable dummy_value'}
+              </Button>
+            </Field>
             <Field label={t('createAllFrames')} jsonPath="dataframes[i].create_all_frames"><Select value={activeDataframe.createAllFrames === true ? 'all' : 'selected'} onChange={(e) => patchActiveDataframe((c) => ({ ...c, createAllFrames: e.target.value === 'all' ? true : [activeFrameIndex] }))}><option value="all">All</option><option value="selected">Selected</option></Select></Field>
             <Field label={t('fontStyle')} jsonPath="font.font_style"><Input value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value } }))} /></Field>
             <Field label={t('fontFamily')} jsonPath="font.font"><Input value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
@@ -1055,13 +1202,52 @@ function App() {
             </div>
             {Object.entries(activeDataframe.materialColors).map(([material, color]) => (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
-                <Input value={material} readOnly />
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={material}
+                    onChange={(e) =>
+                      patchActiveDataframe((df) => {
+                        const nextKey = e.target.value.trim()
+                        if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
+                        const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
+                          acc[key === material ? nextKey : key] = value
+                          return acc
+                        }, {})
+                        return { ...df, materialColors: nextColors }
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="rounded px-2 text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                    onClick={() =>
+                      patchActiveDataframe((df) => {
+                        const rest = Object.fromEntries(Object.entries(df.materialColors).filter(([key]) => key !== material))
+                        return { ...df, materialColors: rest }
+                      })
+                    }
+                    aria-label={`Remove ${material}`}
+                  >
+                    ✕
+                  </button>
+                </div>
                 <Input type="color" value={color} className="h-10 w-16 p-1" onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
                 <Input value={color} onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
               </div>
             ))}
             <Field label="Add color key" jsonPath="material_colors">
-              <Button type="button" variant="outline" onClick={() => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, ['new_material']: '#000000' } }))}>Add material color</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  patchActiveDataframe((df) => {
+                    const key = getUniqueMaterialKey(df.materialColors)
+                    return { ...df, materialColors: { ...df.materialColors, [key]: '#000000' } }
+                  })
+                }
+              >
+                Add material color
+              </Button>
             </Field>
           </section>
 
