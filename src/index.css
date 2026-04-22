@@ -9,7 +9,7 @@ body {
 }
 
 #root {
-  width: 1126px;
+  width: min(96vw, 1920px);
   max-width: 100%;
   margin: 0 auto;
   min-height: 100svh;
@@ -17,8 +17,6 @@ body {
   box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  #root {
-    border-inline-color: rgb(39 39 42);
-  }
+.dark #root {
+  border-inline-color: rgb(39 39 42);
 }
