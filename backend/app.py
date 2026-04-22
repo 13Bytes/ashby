@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 from matplotlib.figure import Figure
-from openpyxl import load_workbook
+import pandas as pd
 from pydantic import BaseModel
 
 app = FastAPI(title='Ashby Backend API')
@@ -17,13 +17,13 @@ class RenderPlotRequest(BaseModel):
 
 
 def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]:
-    workbook = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-    sheets = workbook.worksheets
-    if not sheets:
+    dataframes = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None)
+    sheet_names = list(dataframes.keys())
+    if not sheet_names:
         return []
-    index = min(max(sheet_index, 0), len(sheets) - 1)
-    first_row = next(sheets[index].iter_rows(min_row=1, max_row=1, values_only=True), ())
-    return [str(cell).strip() for cell in first_row if isinstance(cell, str) and cell.strip()]
+    index = min(max(sheet_index, 0), len(sheet_names) - 1)
+    selected = dataframes[sheet_names[index]]
+    return [str(column).strip() for column in selected.columns if str(column).strip()]
 
 
 @app.post('/api/render-plot')

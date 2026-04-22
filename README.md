@@ -23,6 +23,21 @@ npm install
 npm run dev
 ```
 
+### Backend (FastAPI)
+
+The backend is a web server and must be started with Uvicorn (running `backend/app.py` directly will exit immediately after import). Start it in a second terminal:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+uvicorn backend.app:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Reference plotting integration note
+
+`reference/src/plot_ashby.py` can be reused by calling `main(dataframe_config, interactive=False)` for a single dataframe. This keeps the reference code untouched; you just need to provide a dataframe dictionary in the expected schema and make sure the `reference/src` package path is on `PYTHONPATH`.
+
 ## Validation
 
 ```bash

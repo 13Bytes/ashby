@@ -15,6 +15,10 @@ const alertVariants = cva('w-full rounded-lg border p-3 text-sm', {
   },
 })
 
-export function Alert({ className, variant, ...props }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
-  return <div role="status" className={cn(alertVariants({ variant }), className)} {...props} />
+export function Alert({ className, variant, children, ...props }: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+  return (
+    <div role="status" className={cn(alertVariants({ variant }), className)} {...props}>
+      {children}
+    </div>
+  )
 }
