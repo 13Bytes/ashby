@@ -1,19 +1,48 @@
 from __future__ import annotations
 
+import json
 import io
+import re
+from urllib.parse import quote
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import JSONResponse
-from matplotlib.figure import Figure
 import pandas as pd
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
+from .plot_renderer import PlotRenderError, render_plot_image
+
 app = FastAPI(title='Ashby Backend API')
+
+BACKEND_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = BACKEND_DIR.parent
+UPLOADS_DIR = PROJECT_DIR / '.ashby-uploaded-data'
 
 
 class RenderPlotRequest(BaseModel):
     config: dict[str, Any]
+    dataframe_index: int = 0
+    frame_index: int = 0
+
+
+def _sanitize_filename(filename: str) -> str:
+    source = Path(filename).name
+    stem = re.sub(r'[^A-Za-z0-9._-]+', '-', Path(source).stem).strip('._-') or 'upload'
+    suffix = Path(source).suffix.lower() or '.xlsx'
+    if suffix != '.xlsx':
+        suffix = '.xlsx'
+    return f'{stem}-{uuid4().hex[:8]}{suffix}'
+
+
+def _store_uploaded_xlsx(file_bytes: bytes, filename: str) -> str:
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    stored_name = _sanitize_filename(filename)
+    target_path = UPLOADS_DIR / stored_name
+    target_path.write_bytes(file_bytes)
+    return stored_name
 
 
 def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]:
@@ -26,26 +55,27 @@ def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]
     return [str(column).strip() for column in selected.columns if str(column).strip()]
 
 
-@app.post('/api/render-plot')
-def render_plot(payload: RenderPlotRequest) -> JSONResponse:
-    figure = Figure(figsize=(12, 6.75), dpi=100)
-    axis = figure.subplots()
-    axis.plot([], [])
-    axis.set_title('Backend matplotlib dummy plot')
-    axis.text(
-        0.01,
-        0.95,
-        f"Received config keys: {', '.join(sorted(payload.config.keys()))}",
-        transform=axis.transAxes,
-        fontsize=10,
-        va='top',
-    )
-    axis.grid(True, alpha=0.25)
+def _encode_messages_header(messages: list[str]) -> str:
+    return quote(json.dumps(messages, ensure_ascii=False), safe='')
 
-    svg_buffer = io.StringIO()
-    figure.savefig(svg_buffer, format='svg', bbox_inches='tight')
-    svg_buffer.seek(0)
-    return JSONResponse({'svg': svg_buffer.getvalue()})
+
+@app.post('/api/render-plot')
+def render_plot(payload: RenderPlotRequest) -> Response:
+    try:
+        rendered_plot = render_plot_image(
+            payload.config,
+            dataframe_index=payload.dataframe_index,
+            frame_index=payload.frame_index,
+        )
+    except PlotRenderError as exc:
+        return JSONResponse({'message': str(exc), 'messages': exc.messages}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({'message': str(exc), 'messages': []}, status_code=400)
+
+    response = Response(content=rendered_plot.content, media_type=rendered_plot.media_type)
+    if rendered_plot.messages:
+        response.headers['X-Ashby-Messages'] = _encode_messages_header(rendered_plot.messages)
+    return response
 
 
 @app.post('/api/import-database')
@@ -71,4 +101,5 @@ async def import_database(
 
     file_bytes = await file.read()
     columns = _extract_columns_from_xlsx(file_bytes, import_sheet)
-    return JSONResponse({'success': True, 'columns': columns})
+    stored_import_file_name = _store_uploaded_xlsx(file_bytes, file.filename or 'uploaded.xlsx')
+    return JSONResponse({'success': True, 'columns': columns, 'import_file_name': stored_import_file_name})

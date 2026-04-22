@@ -49,15 +49,18 @@ export function toExternalConfig(config: PlotConfig): unknown {
         y_lim: frame.yLim ?? null,
         automatic_Display_Area_margin: frame.automaticDisplayAreaMargin,
         algorithm: frame.algorithm,
-        layers: frame.layers.map((layer) => ({
-          name: layer.name ?? '',
-          whitelist_flag: layer.whitelistFlag ?? false,
-          whitelist: layer.whitelist ?? null,
-          alpha: layer.alpha ?? null,
-          linewidth: layer.linewidth ?? 1.5,
-          alpha_points: layer.alphaPoints ?? null,
-          alpha_areas: layer.alphaAreas ?? null,
-        })),
+        layers: frame.layers.map((layer) => {
+          const normalizedName = layer.name?.trim()
+          return {
+            ...(normalizedName ? { name: normalizedName } : {}),
+            whitelist_flag: layer.whitelistFlag ?? false,
+            whitelist: layer.whitelist ?? null,
+            alpha: layer.alpha ?? null,
+            linewidth: layer.linewidth ?? 1.5,
+            alpha_points: layer.alphaPoints ?? null,
+            alpha_areas: layer.alphaAreas ?? null,
+          }
+        }),
         filter: frame.filter ?? {},
         guidelines: frame.guidelines.map((guideline) => ({
           x: guideline.x ?? null,

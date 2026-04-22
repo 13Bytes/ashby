@@ -1,0 +1,95 @@
+{
+  "config": {
+    "dataframes": [
+      {
+        "import_file_name": "MatWeb_materials_export_TDW25.xlsx",
+        "import_sheet": 0,
+        "image_ratio": 1.7777777777777777,
+        "resolution": "svg",
+        "legend_title": {
+          "en": ""
+        },
+        "font": {
+          "font_style": "sans-serif",
+          "font": "Arial",
+          "font_size": 22
+        },
+        "language": "en",
+        "dark_mode": false,
+        "frames": [
+          {
+            "legend_flag": true,
+            "title": {
+              "en": "Ashby plot"
+            },
+            "dark_mode": false,
+            "legend_above": false,
+            "language": "en",
+            "x_quantity": "deftemp",
+            "x_rel_quantity": null,
+            "log_x_flag": false,
+            "y_quantity": "Rm",
+            "y_rel_quantity": null,
+            "log_y_flag": false,
+            "automatic_Display_Area_margin": 0.12,
+            "algorithm": "cubic",
+            "layers": [
+              {
+                "name": "Material",
+                "whitelist_flag": false,
+                "whitelist": [],
+                "alpha": 0.4,
+                "linewidth": 1.5
+              },
+              {
+                "alpha_points": null,
+                "alpha_areas": null
+              }
+            ],
+            "filter": {},
+            "guidelines": [],
+            "annotations": [
+              {
+                "marker_size": 330,
+                "font_size": 18
+              }
+            ],
+            "colored_areas": [],
+            "highlighted_hulls": []
+          }
+        ],
+        "axes": [
+          {
+            "name": "deftemp",
+            "columns": [
+              "Deflection Temperature at 1.8 MPa 264 psi"
+            ],
+            "mode": "default",
+            "labels": {
+              "en": "Deflection Temperature"
+            }
+          },
+          {
+            "name": "Rm",
+            "columns": [
+              "Tensile Strength Yield",
+              "Tensile Strength Ultimate",
+              "Tensile Strength at Break",
+              "Tensile Strength"
+            ],
+            "mode": "max",
+            "labels": {
+              "en": "Tensile Strength"
+            }
+          }
+        ],
+        "material_colors": {
+          "default": "#000000",
+          "ABS": "#219DD3"
+        }
+      }
+    ]
+  },
+  "dataframe_index": 0,
+  "frame_index": 0
+}

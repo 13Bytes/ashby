@@ -15,14 +15,7 @@ type SourceMode = 'teable' | 'file'
 type UILanguage = 'en' | 'de'
 
 type MultiOption = { value: string; label: string }
-type ImportDatabaseResponse = { columns?: string[]; message?: string; success?: boolean }
-
-const AXIS_COLUMN_OPTIONS: MultiOption[] = [
-  { value: 'Deflection Temperature at 18 MPa 264 psi', label: 'Deflection Temperature (18 MPa)' },
-  { value: 'Tensile Strength Yield', label: 'Tensile Strength Yield' },
-  { value: 'Tensile Strength Ultimate', label: 'Tensile Strength Ultimate' },
-  { value: 'Density', label: 'Density' },
-]
+type ImportDatabaseResponse = { columns?: string[]; import_file_name?: string; message?: string; success?: boolean }
 
 const WHITELIST_OPTIONS: MultiOption[] = [
   { value: 'ABS', label: 'ABS' },
@@ -175,9 +168,11 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     teableUrl: 'Teable URL',
     uploadXlsx: 'Upload .xlsx',
     upload: 'Upload',
+    uploadAndImport: 'Upload & import',
     plotLanguages: 'Plot languages',
     add: 'Add',
     axisColumnsPlaceholder: 'Select axis columns.',
+    axisColumnsPlaceholderEmpty: 'Load a datasource or import a config to see selectable axis columns.',
     whitelistPlaceholder: 'Select keywords.',
   },
   de: {
@@ -204,9 +199,11 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     teableUrl: 'Teable-URL',
     uploadXlsx: '.xlsx hochladen',
     upload: 'Hochladen',
+    uploadAndImport: 'Hochladen & importieren',
     plotLanguages: 'Plot-Sprachen',
     add: 'Hinzufügen',
     axisColumnsPlaceholder: 'Achsenspalten auswählen.',
+    axisColumnsPlaceholderEmpty: 'Lade eine Datenquelle oder importiere eine Konfiguration, um auswählbare Achsenspalten zu sehen.',
     whitelistPlaceholder: 'Schlüsselwörter auswählen.',
   },
 }
@@ -226,22 +223,26 @@ function MultiSelectInput({ value, options, placeholder, onChange }: { value: st
   return (
     <div className="grid gap-2">
       <div className="max-h-28 overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900">
-        {options.map((option) => (
-          <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
-            <input
-              type="checkbox"
-              checked={selected.has(option.value)}
-              onChange={(event) =>
-                onChange(
-                  event.target.checked
-                    ? [...new Set([...value, option.value])]
-                    : value.filter((entry) => entry !== option.value),
-                )
-              }
-            />
-            <span>{option.label}</span>
-          </label>
-        ))}
+        {options.length > 0 ? (
+          options.map((option) => (
+            <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
+              <input
+                type="checkbox"
+                checked={selected.has(option.value)}
+                onChange={(event) =>
+                  onChange(
+                    event.target.checked
+                      ? [...new Set([...value, option.value])]
+                      : value.filter((entry) => entry !== option.value),
+                  )
+                }
+              />
+              <span>{option.label}</span>
+            </label>
+          ))
+        ) : (
+          <p className="m-0 py-1 text-sm text-zinc-500">No options available.</p>
+        )}
       </div>
       <p className="m-0 text-xs text-zinc-500">{placeholder}</p>
     </div>
@@ -267,7 +268,6 @@ function App() {
   const [alert, setAlert] = useState<AlertState | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
-  const xlsxDataInputRef = useRef<HTMLInputElement | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
@@ -295,13 +295,10 @@ function App() {
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
   const activePlotLanguage = activeFrame.language
   const availableAxisColumns = useMemo(
-    () =>
-      (availableColumns.length > 0
-        ? getAxisBasesFromColumns(availableColumns)
-        : AXIS_COLUMN_OPTIONS.map((option) => option.value)
-      ).map((column) => ({ value: column, label: column })),
+    () => getAxisBasesFromColumns(availableColumns).map((column) => ({ value: column, label: column })),
     [availableColumns],
   )
+  const axisColumnsPlaceholder = availableAxisColumns.length > 0 ? t('axisColumnsPlaceholder') : t('axisColumnsPlaceholderEmpty')
   const layerNameOptions = useMemo(() => {
     if (availableColumns.length === 0) {
       return []
@@ -618,11 +615,9 @@ function App() {
           unknownColumns.add(layer.name)
         }
       }
-      if (unknownColumns.size > 0) {
-        throw new Error(`Database import error: unknown column(s): ${[...unknownColumns].join(', ')}`)
-      }
       patchActiveDataframe((df) => ({
         ...df,
+        importFileName: payload.import_file_name ?? df.importFileName,
         axes: df.axes.map((axis) => ({
           ...axis,
           columns: axis.columns.filter((column) => axisBases.includes(column)),
@@ -641,12 +636,16 @@ function App() {
           .sort((a, b) => a.localeCompare(b))
           .map((entry) => ({ value: entry, label: entry })),
       )
+      const unavailableColumnsMessage =
+        unknownColumns.size > 0
+          ? ` Unavailable config columns were removed for this source: ${[...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ')}.`
+          : ''
       setAlert({
         tone: 'success',
         message:
           columns.length > 0
-            ? `${sourceMode === 'teable' ? 'Teable' : 'Excel'} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}`
-            : `${sourceMode === 'teable' ? 'Teable' : 'Excel'} import successful.${payload.message ? ` ${payload.message}` : ''}`,
+            ? `${sourceMode === 'teable' ? 'Teable' : 'Excel'} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}`
+            : `${sourceMode === 'teable' ? 'Teable' : 'Excel'} import successful.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}`,
       })
     } catch (error) {
       setAlert({
@@ -723,6 +722,16 @@ function App() {
       setAlert({ tone: 'success', message: `Imported ${file.name} successfully.` })
     } catch {
       setAlert({ tone: 'error', message: 'Invalid config file.' })
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  const handleSpreadsheetSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      await importDatabase(file)
     } finally {
       event.target.value = ''
     }
@@ -1047,17 +1056,15 @@ function App() {
             <Field label={t('uploadXlsx')} jsonPath="import_file_name">
                 <div className="flex gap-2">
                   <Input value={activeDataframe.importFileName ?? ''} readOnly placeholder="No file selected" />
-                    <Button type="button" variant="outline" onClick={() => uploadInputRef.current?.click()}>{t('upload')}</Button>
+                    <Button type="button" variant="outline" onClick={() => uploadInputRef.current?.click()} disabled={importInProgress}>
+                      {importInProgress ? 'Importing…' : t('uploadAndImport')}
+                    </Button>
                   <input
                     ref={uploadInputRef}
                     type="file"
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0]
-                      patchActiveDataframe((c) => ({ ...c, importFileName: file?.name || undefined }))
-                      event.target.value = ''
-                    }}
+                    onChange={handleSpreadsheetSelection}
                   />
                 </div>
               </Field>
@@ -1073,34 +1080,19 @@ function App() {
                 <Button type="button" variant="outline" onClick={() => addPlotLanguage(plotLanguageDraft)}>{t('add')}</Button>
               </div>
             </Field>
-            <div className="sm:col-span-2 flex items-center gap-2">
-              <Button
-                type="button"
-                onClick={() => {
-                  if (sourceMode === 'teable') {
+            {sourceMode === 'teable' ? (
+              <div className="sm:col-span-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={() => {
                     void importDatabase()
-                    return
-                  }
-                  xlsxDataInputRef.current?.click()
-                }}
-                disabled={importInProgress}
-              >
-                {importInProgress ? 'Importing…' : 'Import database'}
-              </Button>
-              <input
-                ref={xlsxDataInputRef}
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) {
-                    void importDatabase(file)
-                  }
-                  event.target.value = ''
-                }}
-              />
-            </div>
+                  }}
+                  disabled={importInProgress}
+                >
+                  {importInProgress ? 'Importing…' : 'Import database'}
+                </Button>
+              </div>
+            ) : null}
             <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
               {activeDataframe.plotLanguages.map((lang) => (
                 <button key={lang} type="button" className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${activeDataframe.language === lang ? 'border-violet-500 bg-violet-100' : 'border-zinc-300'}`} onClick={() => patchActiveDataframe((c) => ({ ...c, language: lang }))}>
@@ -1145,7 +1137,7 @@ function App() {
                 <Field label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
                 <Field label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
                 <Field label={`Axis ${axisIndex + 1} Columns`} jsonPath={`axes[${axisIndex}].columns`}>
-                  <MultiSelectInput value={axis.columns} options={availableAxisColumns} placeholder={t('axisColumnsPlaceholder')} onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))} />
+                  <MultiSelectInput value={axis.columns} options={availableAxisColumns} placeholder={axisColumnsPlaceholder} onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))} />
                 </Field>
                 <Field key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label (${activePlotLanguage})`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
               </div>
@@ -1294,7 +1286,7 @@ function App() {
           </section>
         </main>
       ) : (
-        <PlotPage plotConfig={plotConfig} />
+        <PlotPage plotConfig={plotConfig} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} />
       )}
 
       {showAbout ? (

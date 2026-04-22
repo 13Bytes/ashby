@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "node --test --test-isolation=none tests/frontend/**/*.test.mjs",
+    "test:backend": "backend\\.venv\\Scripts\\python -m unittest discover -s tests/backend -p \"test_*.py\"",
     "preview": "vite preview",
     "backend": "uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload"
   },

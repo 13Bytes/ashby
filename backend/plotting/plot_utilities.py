@@ -49,7 +49,8 @@ class data_handling():
             plotted = False            
            
             for category, material_data in data.groupby(layer_name, dropna=False):
-                if pd.isna(category): category == None
+                if pd.isna(category):
+                    category = None
                 # print("====== Layer ", current_layer_number, ": ", category, "  (", layer_name, ") ======") 
 
                 if  (category in layer_whitelist and layer_whitelist_flag == True) or \
@@ -200,7 +201,8 @@ class parse_data():   # relative & absolute separate
                     break
             
             if self.quantities[dim] != import_quantities[dim]:
-                raise KeyError(f"{["x","y"][dim]}-quantity '{import_quantities[dim]}' not found. please check the config.json and datasource")
+                axis_name = ['x', 'y'][dim]
+                raise KeyError(f"{axis_name}-quantity '{import_quantities[dim]}' not found. please check the config.json and datasource")
 
     def clear_unused_columns(self, data:pd.DataFrame) -> None:
         for dim in [0,1]:
@@ -221,7 +223,7 @@ class parse_data():   # relative & absolute separate
                 point[0, property] = data[    property_data + ' low'      ].iloc[data_point].copy()  # low
 
                 if not pd.isna(data[property_data + ' high'].iloc[data_point]):
-                    point[0, property] = data[    property_data + ' high' ].iloc[data_point].copy()  # high
+                    point[1, property] = data[    property_data + ' high' ].iloc[data_point].copy()  # high
 
                 # point[1, property] = data.get(property_data + ' high', np.nan).iloc[data_point].copy()  # high  (optional)
 

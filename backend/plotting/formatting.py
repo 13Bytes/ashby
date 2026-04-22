@@ -1,8 +1,12 @@
-import os
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 from matplotlib import patches
 from PIL import Image
 import numpy as np
+
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class legend():
@@ -88,11 +92,7 @@ def axe_label(sorted_data, axe):
 
 
 def watermark(fig, alpha, pos, size):
-    logo =  os.path.join(
-            os.getcwd(),
-            'media',
-            'watermark.png'
-        )
+    logo = BACKEND_DIR / 'media' / 'watermark.png'
 
     # change alpha value
     img = Image.open(logo).convert("RGBA")
