@@ -6,6 +6,13 @@
 
 body {
   margin: 0;
+  background-color: rgb(255 255 255);
+  color: rgb(24 24 27);
+}
+
+.dark body {
+  background-color: rgb(9 9 11);
+  color: rgb(244 244 245);
 }
 
 #root {
