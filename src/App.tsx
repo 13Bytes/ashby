@@ -4,7 +4,7 @@ import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { normalizePlotConfig } from './config/configMappers'
 import { AXIS_MODES, PLOT_ALGORITHMS, createDefaultPlotConfig, type AxisConfig, type DataframeConfig, type FrameConfig, type GuidelineConfig, type PlotConfig } from './config/defaultPlotConfig'
-import { exportConfig, parseImportedConfig } from './utils/configIo'
+import { exportConfig, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Input } from './components/ui/input'
 import { Select } from './components/ui/select'
 
@@ -13,6 +13,7 @@ type AlertTone = 'success' | 'error'
 interface AlertState { tone: AlertTone; message: string }
 type SourceMode = 'teable' | 'file'
 type UILanguage = 'en' | 'de'
+type JsonRenderTarget = { dataframeIndex: number; frameIndex: number }
 
 type MultiOption = { value: string; label: string }
 type ImportDatabaseResponse = { columns?: string[]; import_file_name?: string; message?: string; success?: boolean }
@@ -108,6 +109,63 @@ const getNextTabName = (names: Array<string | undefined>, prefix: string): strin
     candidate += 1
   }
   return `${prefix} ${candidate}`
+}
+
+const getSelectedIndices = (length: number, value: true | number[]): number[] =>
+  value === true
+    ? Array.from({ length }, (_, index) => index)
+    : [...new Set(value.filter((entry) => Number.isInteger(entry) && entry >= 0 && entry < length))]
+
+const toggleIndexSelection = (length: number, value: true | number[], index: number, enabled: boolean): true | number[] => {
+  const selected = new Set(getSelectedIndices(length, value))
+  if (enabled) {
+    selected.add(index)
+  } else {
+    selected.delete(index)
+  }
+  if (selected.size === length) {
+    return true
+  }
+  return [...selected].sort((a, b) => a - b)
+}
+
+const insertSelectionIndex = (length: number, value: true | number[], index: number): true | number[] => {
+  if (value === true) return true
+  const shifted = value.map((entry) => (entry >= index ? entry + 1 : entry))
+  return getSelectedIndices(length, shifted)
+}
+
+const removeSelectionIndex = (length: number, value: true | number[], index: number): true | number[] => {
+  if (value === true) {
+    return length === 0 ? [] : true
+  }
+  const shifted = value
+    .filter((entry) => entry !== index)
+    .map((entry) => (entry > index ? entry - 1 : entry))
+  if (shifted.length === length && length > 0) {
+    return true
+  }
+  return shifted
+}
+
+const reorderSelectionIndices = (length: number, value: true | number[], from: number, to: number): true | number[] => {
+  if (value === true) return true
+  const moved = value.map((entry) => {
+    if (entry === from) return to
+    if (from < to && entry > from && entry <= to) return entry - 1
+    if (from > to && entry >= to && entry < from) return entry + 1
+    return entry
+  })
+  const normalized = getSelectedIndices(length, moved)
+  return normalized.length === length && length > 0 ? true : normalized
+}
+
+const buildJsonFrameNeedle = (config: PlotConfig, target: JsonRenderTarget): string | null => {
+  const frame = config.dataframes[target.dataframeIndex]?.frames[target.frameIndex]
+  if (!frame) return null
+  const snippet = JSON.stringify(frame, null, 2).trim()
+  const lines = snippet.split('\n')
+  return lines.length > 2 ? lines.slice(1, -1).join('\n') : snippet
 }
 
 const getConfigLanguages = (config: PlotConfig): string[] => {
@@ -268,6 +326,8 @@ function App() {
   const [alert, setAlert] = useState<AlertState | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
+  const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const jsonOverlayRef = useRef<HTMLPreElement | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
@@ -288,12 +348,13 @@ function App() {
     const stored = window.localStorage.getItem('ui-theme')
     return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT_THEME
   })
+  const [jsonFullscreen, setJsonFullscreen] = useState(false)
 
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const sourceMode = getSourceMode(activeDataframe)
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
-  const activePlotLanguage = activeFrame.language
+  const activePlotLanguage = activeDataframe.language
   const availableAxisColumns = useMemo(
     () => getAxisBasesFromColumns(availableColumns).map((column) => ({ value: column, label: column })),
     [availableColumns],
@@ -349,12 +410,39 @@ function App() {
     setMoveFrameTargetDataframe(String(activeDataframeIndex))
   }, [activeDataframeIndex])
 
+  useEffect(() => {
+    if (!showJson) return
+    const textarea = jsonTextareaRef.current
+    const overlay = jsonOverlayRef.current
+    if (!textarea) return
+    const needle = buildJsonFrameNeedle(plotConfig, { dataframeIndex: activeDataframeIndex, frameIndex: activeFrameIndex })
+    if (!needle) return
+    const index = jsonDraft.indexOf(needle)
+    if (index < 0) return
+    textarea.focus()
+    textarea.setSelectionRange(index, index)
+    const before = jsonDraft.slice(0, index)
+    const line = before.split('\n').length
+    const lineHeight = 18
+    const top = Math.max(0, (line - 6) * lineHeight)
+    textarea.scrollTop = top
+    if (overlay) {
+      overlay.scrollTop = top
+    }
+  }, [showJson, activeDataframeIndex, activeFrameIndex, jsonDraft, plotConfig])
+
   const patchDataframe = (index: number, patch: (current: DataframeConfig) => DataframeConfig) => {
     setPlotConfig((current) => ({ ...current, dataframes: current.dataframes.map((df, i) => (i === index ? patch(df) : df)) }))
   }
   const patchActiveDataframe = (patch: (current: DataframeConfig) => DataframeConfig) => patchDataframe(activeDataframeIndex, patch)
   const patchActiveFrame = (patch: (current: FrameConfig) => FrameConfig) => {
     patchActiveDataframe((df) => ({ ...df, frames: df.frames.map((frame, i) => (i === activeFrameIndex ? patch(frame) : frame)) }))
+  }
+  const toggleDataframeGeneration = (index: number, enabled: boolean) => {
+    setPlotConfig((current) => ({ ...current, createAllDataframes: toggleIndexSelection(current.dataframes.length, current.createAllDataframes, index, enabled) }))
+  }
+  const toggleFrameGeneration = (index: number, enabled: boolean) => {
+    patchActiveDataframe((df) => ({ ...df, createAllFrames: toggleIndexSelection(df.frames.length, df.createAllFrames, index, enabled) }))
   }
 
   const addDataframe = () => {
@@ -365,7 +453,12 @@ function App() {
       source.frames = source.frames.map((frame, frameIndex) => ({ ...frame, name: `Frame ${frameIndex + 1}` }))
       setActiveDataframeIndex(nextIndex)
       setActiveFrameIndex(0)
-      return { ...current, dataframes: [...current.dataframes, source] }
+      const nextDataframes = [...current.dataframes, source]
+      return {
+        ...current,
+        dataframes: nextDataframes,
+        createAllDataframes: insertSelectionIndex(nextDataframes.length, current.createAllDataframes, nextIndex),
+      }
     })
   }
 
@@ -373,7 +466,8 @@ function App() {
     patchActiveDataframe((df) => {
       const next = structuredClone(df.frames[0])
       next.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
-      return { ...df, frames: [...df.frames, next] }
+      const nextFrames = [...df.frames, next]
+      return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, nextFrames.length - 1) }
     })
     setActiveFrameIndex(activeDataframe.frames.length)
   }
@@ -388,7 +482,11 @@ function App() {
       nextDataframes.splice(index + 1, 0, clone)
       setActiveDataframeIndex(index + 1)
       setActiveFrameIndex(0)
-      return { ...current, dataframes: nextDataframes }
+      return {
+        ...current,
+        dataframes: nextDataframes,
+        createAllDataframes: insertSelectionIndex(nextDataframes.length, current.createAllDataframes, index + 1),
+      }
     })
   }
 
@@ -401,7 +499,7 @@ function App() {
       const nextFrames = [...df.frames]
       nextFrames.splice(index + 1, 0, clone)
       setActiveFrameIndex(index + 1)
-      return { ...df, frames: nextFrames }
+      return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, index + 1) }
     })
   }
 
@@ -417,16 +515,22 @@ function App() {
       if (!frameToMove) return current
       const nextDataframes = current.dataframes.map((df, index) => {
         if (index === sourceDataframeIndex) {
-          return { ...df, frames: df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex) }
+          const nextFrames = df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex)
+          return { ...df, frames: nextFrames, createAllFrames: removeSelectionIndex(nextFrames.length, df.createAllFrames, sourceFrameIndex) }
         }
         if (index === targetDataframeIndex) {
-          return { ...df, frames: [...df.frames, frameToMove] }
+          const nextFrames = [...df.frames, frameToMove]
+          return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, nextFrames.length - 1) }
         }
         return df
       })
       setActiveDataframeIndex(targetDataframeIndex)
       setActiveFrameIndex(nextDataframes[targetDataframeIndex].frames.length - 1)
-      return { ...current, dataframes: nextDataframes }
+      return {
+        ...current,
+        dataframes: nextDataframes,
+        createAllDataframes: current.createAllDataframes,
+      }
     })
   }
 
@@ -449,12 +553,19 @@ function App() {
       }
       const nextFrames = df.frames.filter((_, i) => i !== index)
       setActiveFrameIndex((prev) => Math.max(0, Math.min(prev, nextFrames.length - 1)))
-      return { ...df, frames: nextFrames }
+      return { ...df, frames: nextFrames, createAllFrames: removeSelectionIndex(nextFrames.length, df.createAllFrames, index) }
     })
   }
 
   const reorderDataframes = (from: number, to: number) => {
-    setPlotConfig((current) => ({ ...current, dataframes: moveItem(current.dataframes, from, to) }))
+    setPlotConfig((current) => {
+      const nextDataframes = moveItem(current.dataframes, from, to)
+      return {
+        ...current,
+        dataframes: nextDataframes,
+        createAllDataframes: reorderSelectionIndices(nextDataframes.length, current.createAllDataframes, from, to),
+      }
+    })
     if (activeDataframeIndex === from) {
       setActiveDataframeIndex(to)
     } else if (from < activeDataframeIndex && to >= activeDataframeIndex) {
@@ -465,7 +576,10 @@ function App() {
   }
 
   const reorderFrames = (from: number, to: number) => {
-    patchActiveDataframe((df) => ({ ...df, frames: moveItem(df.frames, from, to) }))
+    patchActiveDataframe((df) => {
+      const nextFrames = moveItem(df.frames, from, to)
+      return { ...df, frames: nextFrames, createAllFrames: reorderSelectionIndices(nextFrames.length, df.createAllFrames, from, to) }
+    })
     if (activeFrameIndex === from) {
       setActiveFrameIndex(to)
     } else if (from < activeFrameIndex && to >= activeFrameIndex) {
@@ -769,6 +883,159 @@ function App() {
     setTabRename(null)
   }
 
+  const openJsonEditor = () => {
+    const external = toExternalConfig(plotConfig)
+    const nextDraft = JSON.stringify(external, null, 2)
+    setJsonDraft(nextDraft)
+    setShowJson(true)
+  }
+
+  const applyJsonEditor = () => {
+    try {
+      setPlotConfig(normalizePlotConfig(parseImportedConfig(jsonDraft, true)))
+      setAlert({ tone: 'success', message: 'JSON applied.' })
+      setShowJson(false)
+    } catch {
+      setAlert({ tone: 'error', message: 'Invalid JSON in popup editor.' })
+    }
+  }
+
+  const selectedDataframes = getSelectedIndices(plotConfig.dataframes.length, plotConfig.createAllDataframes)
+  const selectedFrames = getSelectedIndices(activeDataframe.frames.length, activeDataframe.createAllFrames)
+  const jsonMarker = useMemo(() => {
+    const stack: Array<{ char: string; index: number }> = []
+    const unmatched = new Set<number>()
+    let inString = false
+    let escaped = false
+    let stringStartIndex = -1
+    for (let index = 0; index < jsonDraft.length; index += 1) {
+      const char = jsonDraft[index]
+      if (inString) {
+        if (escaped) {
+          escaped = false
+          continue
+        }
+        if (char === '\\') {
+          escaped = true
+          continue
+        }
+        if (char === '"') {
+          inString = false
+          stringStartIndex = -1
+        }
+        continue
+      }
+      if (char === '"') {
+        inString = true
+        stringStartIndex = index
+        continue
+      }
+      if (char === '{' || char === '[') {
+        stack.push({ char, index })
+      } else if (char === '}' || char === ']') {
+        const last = stack[stack.length - 1]
+        if (!last) {
+          unmatched.add(index)
+          continue
+        }
+        const validPair = (last.char === '{' && char === '}') || (last.char === '[' && char === ']')
+        if (validPair) {
+          stack.pop()
+        } else {
+          unmatched.add(last.index)
+          unmatched.add(index)
+          stack.pop()
+        }
+      }
+    }
+    stack.forEach((entry) => unmatched.add(entry.index))
+    if (inString && stringStartIndex >= 0) {
+      unmatched.add(stringStartIndex)
+    }
+    return unmatched
+  }, [jsonDraft])
+
+  const jsonHighlightedHtml = useMemo(() => {
+    const escapeHtml = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+    const pushToken = (buffer: string, mode: 'plain' | 'string' | 'number' | 'keyword') => {
+      if (!buffer) return ''
+      if (mode === 'string') return `<span class="text-emerald-400">${escapeHtml(buffer)}</span>`
+      if (mode === 'number') return `<span class="text-sky-400">${escapeHtml(buffer)}</span>`
+      if (mode === 'keyword') return `<span class="text-purple-400">${escapeHtml(buffer)}</span>`
+      return escapeHtml(buffer)
+    }
+
+    let output = ''
+    let buffer = ''
+    let mode: 'plain' | 'string' | 'number' | 'keyword' = 'plain'
+    let escaped = false
+    for (let index = 0; index < jsonDraft.length; index += 1) {
+      const char = jsonDraft[index]
+
+      if (jsonMarker.has(index) && ['{', '}', '[', ']', '"', "'"].includes(char)) {
+        output += pushToken(buffer, mode)
+        buffer = ''
+        mode = 'plain'
+        output += `<span class="rounded bg-red-500/20 text-red-300">${escapeHtml(char)}</span>`
+        continue
+      }
+
+      if (mode === 'string') {
+        buffer += char
+        if (escaped) {
+          escaped = false
+          continue
+        }
+        if (char === '\\') {
+          escaped = true
+          continue
+        }
+        if (char === '"') {
+          output += pushToken(buffer, mode)
+          buffer = ''
+          mode = 'plain'
+        }
+        continue
+      }
+
+      if (char === '"') {
+        output += pushToken(buffer, mode)
+        buffer = '"'
+        mode = 'string'
+        continue
+      }
+
+      if (/[{}\[\]:,]/.test(char)) {
+        output += pushToken(buffer, mode)
+        buffer = ''
+        mode = 'plain'
+        output += `<span class="text-zinc-400">${escapeHtml(char)}</span>`
+        continue
+      }
+
+      if (char === '\n' || char === ' ' || char === '\t') {
+        output += pushToken(buffer, mode)
+        buffer = ''
+        mode = 'plain'
+        output += char === '\n' ? '\n' : char === '\t' ? '  ' : ' '
+        continue
+      }
+
+      if (mode === 'plain') {
+        buffer = char
+        mode = /[0-9-]/.test(char) ? 'number' : /[A-Za-z]/.test(char) ? 'keyword' : 'plain'
+      } else {
+        buffer += char
+      }
+    }
+    output += pushToken(buffer, mode)
+    return output
+  }, [jsonDraft, jsonMarker])
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 p-6 text-left dark:border-zinc-800">
@@ -778,13 +1045,12 @@ function App() {
         </div>
         <div className="relative flex gap-2">
           <Button type="button" variant="outline" onClick={() => setShowMenu((current) => !current)}>Menu</Button>
-          <Button type="button" variant="outline" onClick={() => setUiLanguage((current) => (current === 'en' ? 'de' : 'en'))}>{uiLanguage === 'en' ? 'DE' : 'EN'}</Button>
-          <Button type="button" variant="outline" onClick={() => { setJsonDraft(JSON.stringify(plotConfig, null, 2)); setShowJson(true) }}>{t('json')}</Button>
+          <Button type="button" variant="outline" onClick={openJsonEditor}>{t('json')}</Button>
           <Button type="button" variant="outline" onClick={() => setActivePage(activePage === 'config' ? 'plot' : 'config')}>
             {activePage === 'config' ? t('showPlot') : t('showConfig')}
           </Button>
           {showMenu ? (
-            <div className="absolute right-0 top-11 z-40 grid min-w-40 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="absolute left-0 top-11 z-40 grid min-w-44 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
               <Button type="button" variant="outline" size="sm" onClick={() => { setShowAbout(true); setShowMenu(false) }}>About</Button>
               <Button type="button" variant="outline" size="sm" onClick={() => { setShowSettings(true); setShowMenu(false) }}>Settings</Button>
             </div>
@@ -860,6 +1126,18 @@ function App() {
                       }}
                     >
                       {df.name || `Dataframe ${index + 1}`}
+                      <label className="inline-flex items-center gap-1 text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={getSelectedIndices(plotConfig.dataframes.length, plotConfig.createAllDataframes).includes(index)}
+                          onChange={(event) => {
+                            event.stopPropagation()
+                            toggleDataframeGeneration(index, event.target.checked)
+                          }}
+                          onClick={(event) => event.stopPropagation()}
+                        />
+                        generate
+                      </label>
                       <button
                         type="button"
                         className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
@@ -951,6 +1229,18 @@ function App() {
                       }}
                     >
                       {frame.name || `Frame ${index + 1}`}
+                      <label className="inline-flex items-center gap-1 text-[11px]">
+                        <input
+                          type="checkbox"
+                          checked={getSelectedIndices(activeDataframe.frames.length, activeDataframe.createAllFrames).includes(index)}
+                          onChange={(event) => {
+                            event.stopPropagation()
+                            toggleFrameGeneration(index, event.target.checked)
+                          }}
+                          onClick={(event) => event.stopPropagation()}
+                        />
+                        generate
+                      </label>
                       <button
                         type="button"
                         className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
@@ -1007,9 +1297,11 @@ function App() {
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
             <Field label={t('createAllDataframes')} jsonPath="create_all_dataframes">
-              <Select value={plotConfig.createAllDataframes === true ? 'all' : 'selected'} onChange={(e) => setPlotConfig((c) => ({ ...c, createAllDataframes: e.target.value === 'all' ? true : [activeDataframeIndex] }))}>
-                <option value="all">All</option><option value="selected">Selected</option>
-              </Select>
+              <p className="m-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                {plotConfig.createAllDataframes === true
+                  ? `true (${selectedDataframes.length}/${plotConfig.dataframes.length})`
+                  : `[${selectedDataframes.join(', ')}]`}
+              </p>
             </Field>
             <Field label={t('dataframeLanguage')} jsonPath="dataframes[i].language">
               <Select value={activeDataframe.language} onChange={(e) => patchActiveDataframe((c) => ({ ...c, language: e.target.value }))}>
@@ -1024,7 +1316,13 @@ function App() {
                 {activeDataframe._extensions.dummyValue === true ? 'Disable dummy_value' : 'Enable dummy_value'}
               </Button>
             </Field>
-            <Field label={t('createAllFrames')} jsonPath="dataframes[i].create_all_frames"><Select value={activeDataframe.createAllFrames === true ? 'all' : 'selected'} onChange={(e) => patchActiveDataframe((c) => ({ ...c, createAllFrames: e.target.value === 'all' ? true : [activeFrameIndex] }))}><option value="all">All</option><option value="selected">Selected</option></Select></Field>
+            <Field label={t('createAllFrames')} jsonPath="dataframes[i].create_all_frames">
+              <p className="m-0 rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                {activeDataframe.createAllFrames === true
+                  ? `true (${selectedFrames.length}/${activeDataframe.frames.length})`
+                  : `[${selectedFrames.join(', ')}]`}
+              </p>
+            </Field>
             <Field label={t('fontStyle')} jsonPath="font.font_style"><Input value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value } }))} /></Field>
             <Field label={t('fontFamily')} jsonPath="font.font"><Input value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
             <Field label={t('fontSize')} jsonPath="font.font_size"><Input type="number" value={activeDataframe.font.fontSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
@@ -1245,7 +1543,7 @@ function App() {
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{uiLanguage === 'en' ? 'Advanced JSON fields' : 'Erweiterte JSON-Felder'}</h3>
-            <Field label="Filter" jsonPath="filter"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" value={JSON.stringify(activeFrame.filter ?? {}, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, filter: parseJsonField<Record<string, unknown>>(e.target.value, f.filter ?? {}) }))} /></Field>
+            <Field label="Filter" jsonPath="filter"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" value={JSON.stringify(activeFrame.filter ?? {}, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, filter: parseJsonField<Record<string, unknown>>(e.target.value, f.filter ?? {}) }))} /></Field>
             <div className="sm:col-span-2 grid gap-3">
               <div className="flex items-center gap-2">
                 <h4 className="m-0 text-sm font-semibold">Annotations</h4>
@@ -1282,7 +1580,7 @@ function App() {
                 </div>
               ))}
             </div>
-            <Field label="Highlighted hulls" jsonPath="highlighted_hulls"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 text-xs dark:border-zinc-700 dark:bg-zinc-900" value={JSON.stringify(activeFrame.highlightedHulls, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, highlightedHulls: parseJsonField(e.target.value, f.highlightedHulls) }))} /></Field>
+            <Field label="Highlighted hulls" jsonPath="highlighted_hulls"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" value={JSON.stringify(activeFrame.highlightedHulls, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, highlightedHulls: parseJsonField(e.target.value, f.highlightedHulls) }))} /></Field>
           </section>
         </main>
       ) : (
@@ -1308,6 +1606,12 @@ function App() {
           <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <h3 className="mt-0 text-lg">Settings</h3>
             <div className="grid gap-2">
+              <Field label="UI language" jsonPath="ui.language">
+                <Select value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
+                  <option value="en">English</option>
+                  <option value="de">Deutsch</option>
+                </Select>
+              </Field>
               <Field label="Theme" jsonPath="ui.theme">
                 <Select value={themeMode} onChange={(event) => setThemeMode(event.target.value as ThemeMode)}>
                   <option value="system">System</option>
@@ -1340,22 +1644,39 @@ function App() {
 
       {showJson ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-lg border border-zinc-700 bg-white dark:bg-zinc-950">
+          <div className={`${jsonFullscreen ? 'h-[96vh] w-[96vw] max-w-none' : 'max-h-[85vh] w-full max-w-4xl'} overflow-hidden rounded-lg border border-zinc-700 bg-white dark:bg-zinc-950`}>
             <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
               <h3 className="text-sm font-semibold">JSON Editor</h3>
-              <Button variant="outline" size="sm" onClick={() => setShowJson(false)}>Close</Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setJsonFullscreen((current) => !current)}>
+                  {jsonFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowJson(false)}>Close</Button>
+              </div>
             </div>
-            <textarea className="h-[70vh] w-full resize-none bg-zinc-50 p-3 font-mono text-xs dark:bg-zinc-900" value={jsonDraft} onChange={(e) => setJsonDraft(e.target.value)} />
+            <div className={`${jsonFullscreen ? 'h-[calc(96vh-7.5rem)]' : 'h-[70vh]'} relative`}>
+              <pre
+                ref={jsonOverlayRef}
+                aria-hidden
+                className="pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words bg-zinc-950 p-3 font-mono text-xs leading-[18px] text-zinc-100"
+                dangerouslySetInnerHTML={{ __html: jsonHighlightedHtml }}
+              />
+              <textarea
+                ref={jsonTextareaRef}
+                className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-3 font-mono text-xs leading-[18px] text-transparent caret-white"
+                value={jsonDraft}
+                onScroll={(event) => {
+                  if (jsonOverlayRef.current) {
+                    jsonOverlayRef.current.scrollTop = event.currentTarget.scrollTop
+                    jsonOverlayRef.current.scrollLeft = event.currentTarget.scrollLeft
+                  }
+                }}
+                onChange={(e) => setJsonDraft(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
             <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-              <Button size="sm" onClick={() => {
-                try {
-                  setPlotConfig(normalizePlotConfig(parseImportedConfig(jsonDraft, true)))
-                  setAlert({ tone: 'success', message: 'JSON applied.' })
-                  setShowJson(false)
-                } catch {
-                  setAlert({ tone: 'error', message: 'Invalid JSON in popup editor.' })
-                }
-              }}>Apply JSON</Button>
+              <Button size="sm" onClick={applyJsonEditor}>Apply JSON</Button>
             </div>
           </div>
         </div>

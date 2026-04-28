@@ -9,6 +9,11 @@ interface Props {
   activeDataframeIndex: number
   activeFrameIndex: number
 }
+interface RenderedPlotEntry {
+  dataframeIndex: number
+  frameIndex: number
+  url: string
+}
 
 function parseBackendMessages(headerValue: string | null): string[] {
   if (!headerValue) {
@@ -25,11 +30,12 @@ function parseBackendMessages(headerValue: string | null): string[] {
 
 export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<string[]>([])
 
-  const fetchPlot = async () => {
+  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex): Promise<string> => {
     setLoading(true)
     setError(null)
     setMessages([])
@@ -42,8 +48,8 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
         },
         body: JSON.stringify({
           config: toExternalConfig(plotConfig),
-          dataframe_index: activeDataframeIndex,
-          frame_index: activeFrameIndex,
+          dataframe_index: dataframeIndex,
+          frame_index: frameIndex,
         }),
       })
       const nextMessages = parseBackendMessages(response.headers.get('X-Ashby-Messages'))
@@ -67,12 +73,23 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
       setMessages(nextMessages)
 
       const nextUrl = URL.createObjectURL(imageBlob)
-      setImageUrl((current) => {
-        if (current) {
-          URL.revokeObjectURL(current)
+      if (dataframeIndex === activeDataframeIndex && frameIndex === activeFrameIndex) {
+        setImageUrl((current) => {
+          if (current) {
+            URL.revokeObjectURL(current)
+          }
+          return nextUrl
+        })
+      }
+      setCreatedPlots((current) => {
+        const existing = current.find((entry) => entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex)
+        if (existing) {
+          URL.revokeObjectURL(existing.url)
         }
-        return nextUrl
+        const rest = current.filter((entry) => !(entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex))
+        return [...rest, { dataframeIndex, frameIndex, url: nextUrl }]
       })
+      return nextUrl
     } catch (renderError) {
       setImageUrl((current) => {
         if (current) {
@@ -81,9 +98,39 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
         return null
       })
       setError(renderError instanceof Error ? renderError.message : 'Failed to render plot.')
+      throw renderError
     } finally {
       setLoading(false)
     }
+  }
+
+  const createPlots = async () => {
+    const dataframeSelection =
+      plotConfig.createAllDataframes === true
+        ? plotConfig.dataframes.map((_, index) => index)
+        : plotConfig.createAllDataframes
+
+    for (const dataframeIndex of dataframeSelection) {
+      const dataframe = plotConfig.dataframes[dataframeIndex]
+      if (!dataframe) continue
+      const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
+      for (const frameIndex of frameSelection) {
+        try {
+          await fetchPlot(dataframeIndex, frameIndex)
+        } catch {
+          // errors are shown via alert state
+        }
+      }
+    }
+  }
+
+  const downloadAllCreatedPlots = () => {
+    createdPlots.forEach((entry) => {
+      const anchor = document.createElement('a')
+      anchor.href = entry.url
+      anchor.download = `ashby-df${entry.dataframeIndex + 1}-frame${entry.frameIndex + 1}.svg`
+      anchor.click()
+    })
   }
 
   useEffect(() => {
@@ -97,6 +144,13 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
     }
   }, [imageUrl])
 
+  useEffect(
+    () => () => {
+      createdPlots.forEach((entry) => URL.revokeObjectURL(entry.url))
+    },
+    [createdPlots],
+  )
+
   return (
     <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
       <section className="flex items-center justify-between rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
@@ -106,6 +160,9 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
         </div>
         <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading}>
           {loading ? 'Rendering…' : 'Preview plot'}
+        </Button>
+        <Button type="button" variant="outline" onClick={() => void createPlots()} disabled={loading}>
+          {loading ? 'Rendering…' : 'Create plots'}
         </Button>
       </section>
 
@@ -124,6 +181,17 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
       ) : null}
 
       <section className="min-h-[55vh] overflow-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mb-2 flex items-center justify-end">
+          <button
+            type="button"
+            className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            onClick={downloadAllCreatedPlots}
+            disabled={createdPlots.length === 0}
+            title="Download created plots"
+          >
+            ⬇️
+          </button>
+        </div>
         {loading && !imageUrl ? <p className="text-sm text-zinc-500">Rendering image from backend…</p> : null}
         {imageUrl ? <img src={imageUrl} alt="Rendered Ashby plot" className="block min-w-fit max-w-none" /> : null}
       </section>
