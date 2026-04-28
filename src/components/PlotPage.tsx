@@ -8,11 +8,16 @@ interface Props {
   plotConfig: PlotConfig
   activeDataframeIndex: number
   activeFrameIndex: number
+  plotAction: 'preview-current' | 'create-all'
+  plotActionNonce: number
 }
 interface RenderedPlotEntry {
   dataframeIndex: number
   frameIndex: number
   url: string
+  blob: Blob
+  mediaType: string
+  exportFileName?: string
 }
 
 function parseBackendMessages(headerValue: string | null): string[] {
@@ -28,12 +33,19 @@ function parseBackendMessages(headerValue: string | null): string[] {
   }
 }
 
-export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }: Props) {
+export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<string[]>([])
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
+
+  const getDownloadName = (entry: RenderedPlotEntry) => {
+    const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
+    const base = entry.exportFileName?.trim() || `ashby-df${entry.dataframeIndex + 1}-frame${entry.frameIndex + 1}`
+    return `${base}.${extension}`
+  }
 
   const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex): Promise<string> => {
     setLoading(true)
@@ -87,7 +99,8 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
           URL.revokeObjectURL(existing.url)
         }
         const rest = current.filter((entry) => !(entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex))
-        return [...rest, { dataframeIndex, frameIndex, url: nextUrl }]
+        const exportFileName = plotConfig.dataframes[dataframeIndex]?.frames[frameIndex]?.exportFileName
+        return [...rest, { dataframeIndex, frameIndex, url: nextUrl, blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
       })
       return nextUrl
     } catch (renderError) {
@@ -110,6 +123,14 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
         ? plotConfig.dataframes.map((_, index) => index)
         : plotConfig.createAllDataframes
 
+    const total = dataframeSelection.reduce((count, dataframeIndex) => {
+      const dataframe = plotConfig.dataframes[dataframeIndex]
+      if (!dataframe) return count
+      const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
+      return count + frameSelection.length
+    }, 0)
+    setBatchProgress({ current: 0, total })
+    let completed = 0
     for (const dataframeIndex of dataframeSelection) {
       const dataframe = plotConfig.dataframes[dataframeIndex]
       if (!dataframe) continue
@@ -119,9 +140,13 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
           await fetchPlot(dataframeIndex, frameIndex)
         } catch {
           // errors are shown via alert state
+        } finally {
+          completed += 1
+          setBatchProgress({ current: completed, total })
         }
       }
     }
+    setBatchProgress(null)
   }
 
 
@@ -129,19 +154,44 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
   const downloadSinglePlot = (entry: RenderedPlotEntry) => {
     const anchor = document.createElement('a')
     anchor.href = entry.url
-    anchor.download = `ashby-df${entry.dataframeIndex + 1}-frame${entry.frameIndex + 1}.svg`
+    anchor.download = getDownloadName(entry)
     anchor.click()
   }
-  const downloadAllCreatedPlots = () => {
-    createdPlots.forEach((entry) => {
-      downloadSinglePlot(entry)
+  const downloadAllCreatedPlots = async () => {
+    const response = await fetch('/api/download-plots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        config: toExternalConfig(plotConfig),
+        plots: createdPlots.map((entry) => ({ dataframe_index: entry.dataframeIndex, frame_index: entry.frameIndex })),
+      }),
     })
+    if (!response.ok) {
+      setError(`Download all failed (${response.status}).`)
+      return
+    }
+    const zipBlob = await response.blob()
+    const zipUrl = URL.createObjectURL(zipBlob)
+    const anchor = document.createElement('a')
+    anchor.href = zipUrl
+    anchor.download = 'ashby-plots.zip'
+    anchor.click()
+    URL.revokeObjectURL(zipUrl)
   }
 
   useEffect(() => {
     void fetchPlot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plotConfig, activeDataframeIndex, activeFrameIndex])
+  }, [activeDataframeIndex, activeFrameIndex])
+
+  useEffect(() => {
+    if (plotAction === 'create-all') {
+      void createPlots()
+      return
+    }
+    void fetchPlot()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plotActionNonce])
 
   useEffect(() => () => {
     if (imageUrl) {
@@ -160,39 +210,23 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
     a.dataframeIndex === b.dataframeIndex ? a.frameIndex - b.frameIndex : a.dataframeIndex - b.dataframeIndex,
   )
 
-  const downloadCombinedHtml = () => {
-    const rows = createdPlotsSorted
-      .map(
-        (entry) =>
-          `<figure style="margin:0 0 24px"><figcaption style="margin-bottom:8px;font-family:sans-serif">Dataframe ${entry.dataframeIndex + 1} / Frame ${entry.frameIndex + 1}</figcaption><img style="max-width:100%" src="${entry.url}" /></figure>`,
-      )
-      .join('\n')
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ashby plots</title></head><body>${rows}</body></html>`
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = 'ashby-plots.html'
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }
-
   return (
     <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
-      <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-zinc-950/40">
+      <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
         <div>
           <h3 className="m-0 text-sm font-semibold">Backend plot preview</h3>
           <p className="m-0 mt-1 text-xs text-zinc-500">The selected dataframe/frame config is rendered by the Python backend.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading}>
-            {loading ? 'Rendering…' : 'Preview one Plot'}
+          <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading} title="Refresh preview">
+            ↻
           </Button>
-          <Button type="button" variant="outline" onClick={() => void createPlots()} disabled={loading}>
-            {loading ? 'Rendering…' : 'Create all Plots'}
+          <Button type="button" variant="outline" onClick={() => void downloadAllCreatedPlots()} disabled={createdPlots.length === 0}>
+            Download all (.zip)
           </Button>
         </div>
       </section>
+      {batchProgress ? <p className="m-0 text-xs text-zinc-500">{`${batchProgress.current} of ${batchProgress.total} Plots created`}</p> : null}
 
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       {messages.length > 0 ? (
@@ -209,28 +243,8 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
       ) : null}
 
       <section className="min-h-[55vh] overflow-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mb-2 flex items-center justify-end">
-          <button
-            type="button"
-            className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            onClick={downloadAllCreatedPlots}
-            disabled={createdPlots.length === 0}
-            title="Download all plots separately"
-          >
-            ⬇️ each
-          </button>
-          <button
-            type="button"
-            className="ml-2 rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            onClick={downloadCombinedHtml}
-            disabled={createdPlots.length === 0}
-            title="Download all plots in one HTML file"
-          >
-            ⬇️ one
-          </button>
-        </div>
         {loading && !imageUrl ? <p className="text-sm text-zinc-500">Rendering image from backend…</p> : null}
-        {imageUrl ? <img src={imageUrl} alt="Rendered Ashby plot" className="block min-w-fit max-w-none" /> : null}
+        {imageUrl ? <img src={imageUrl} alt="Rendered Ashby plot" className="block h-auto max-w-full" /> : null}
         {createdPlotsSorted.length > 0 ? (
           <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {createdPlotsSorted.map((entry) => (
@@ -246,7 +260,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
                     ⬇️ this
                   </button>
                 </div>
-                <img src={entry.url} alt={`Rendered dataframe ${entry.dataframeIndex + 1} frame ${entry.frameIndex + 1}`} className="block min-w-fit max-w-none" />
+                <img src={entry.url} alt={`Rendered dataframe ${entry.dataframeIndex + 1} frame ${entry.frameIndex + 1}`} className="block h-auto max-w-full" />
               </article>
             ))}
           </div>
