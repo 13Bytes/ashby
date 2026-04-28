@@ -151,19 +151,42 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
     [createdPlots],
   )
 
+  const createdPlotsSorted = [...createdPlots].sort((a, b) =>
+    a.dataframeIndex === b.dataframeIndex ? a.frameIndex - b.frameIndex : a.dataframeIndex - b.dataframeIndex,
+  )
+
+  const downloadCombinedHtml = () => {
+    const rows = createdPlotsSorted
+      .map(
+        (entry) =>
+          `<figure style="margin:0 0 24px"><figcaption style="margin-bottom:8px;font-family:sans-serif">Dataframe ${entry.dataframeIndex + 1} / Frame ${entry.frameIndex + 1}</figcaption><img style="max-width:100%" src="${entry.url}" /></figure>`,
+      )
+      .join('\n')
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ashby plots</title></head><body>${rows}</body></html>`
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = 'ashby-plots.html'
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
-      <section className="flex items-center justify-between rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-zinc-950/40">
         <div>
           <h3 className="m-0 text-sm font-semibold">Backend plot preview</h3>
           <p className="m-0 mt-1 text-xs text-zinc-500">The selected dataframe/frame config is rendered by the Python backend.</p>
         </div>
-        <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading}>
-          {loading ? 'Rendering…' : 'Preview plot'}
-        </Button>
-        <Button type="button" variant="outline" onClick={() => void createPlots()} disabled={loading}>
-          {loading ? 'Rendering…' : 'Create plots'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading}>
+            {loading ? 'Rendering…' : 'Preview plot'}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void createPlots()} disabled={loading}>
+            {loading ? 'Rendering…' : 'Generate'}
+          </Button>
+        </div>
       </section>
 
       {error ? <Alert variant="destructive">{error}</Alert> : null}
@@ -187,13 +210,32 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
             className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
             onClick={downloadAllCreatedPlots}
             disabled={createdPlots.length === 0}
-            title="Download created plots"
+            title="Download all plots separately"
           >
-            ⬇️
+            ⬇️ each
+          </button>
+          <button
+            type="button"
+            className="ml-2 rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            onClick={downloadCombinedHtml}
+            disabled={createdPlots.length === 0}
+            title="Download all plots in one HTML file"
+          >
+            ⬇️ one
           </button>
         </div>
         {loading && !imageUrl ? <p className="text-sm text-zinc-500">Rendering image from backend…</p> : null}
         {imageUrl ? <img src={imageUrl} alt="Rendered Ashby plot" className="block min-w-fit max-w-none" /> : null}
+        {createdPlotsSorted.length > 0 ? (
+          <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+            {createdPlotsSorted.map((entry) => (
+              <article key={`${entry.dataframeIndex}-${entry.frameIndex}`} className="grid gap-2">
+                <h4 className="m-0 text-xs font-semibold text-zinc-500">{`Dataframe ${entry.dataframeIndex + 1} · Frame ${entry.frameIndex + 1}`}</h4>
+                <img src={entry.url} alt={`Rendered dataframe ${entry.dataframeIndex + 1} frame ${entry.frameIndex + 1}`} className="block min-w-fit max-w-none" />
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
     </main>
   )
