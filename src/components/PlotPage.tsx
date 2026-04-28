@@ -124,12 +124,17 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
     }
   }
 
+
+
+  const downloadSinglePlot = (entry: RenderedPlotEntry) => {
+    const anchor = document.createElement('a')
+    anchor.href = entry.url
+    anchor.download = `ashby-df${entry.dataframeIndex + 1}-frame${entry.frameIndex + 1}.svg`
+    anchor.click()
+  }
   const downloadAllCreatedPlots = () => {
     createdPlots.forEach((entry) => {
-      const anchor = document.createElement('a')
-      anchor.href = entry.url
-      anchor.download = `ashby-df${entry.dataframeIndex + 1}-frame${entry.frameIndex + 1}.svg`
-      anchor.click()
+      downloadSinglePlot(entry)
     })
   }
 
@@ -181,10 +186,10 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading}>
-            {loading ? 'Rendering…' : 'Preview plot'}
+            {loading ? 'Rendering…' : 'Preview one Plot'}
           </Button>
           <Button type="button" variant="outline" onClick={() => void createPlots()} disabled={loading}>
-            {loading ? 'Rendering…' : 'Generate'}
+            {loading ? 'Rendering…' : 'Create all Plots'}
           </Button>
         </div>
       </section>
@@ -230,7 +235,17 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex }:
           <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {createdPlotsSorted.map((entry) => (
               <article key={`${entry.dataframeIndex}-${entry.frameIndex}`} className="grid gap-2">
-                <h4 className="m-0 text-xs font-semibold text-zinc-500">{`Dataframe ${entry.dataframeIndex + 1} · Frame ${entry.frameIndex + 1}`}</h4>
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="m-0 text-xs font-semibold text-zinc-500">{`Dataframe ${entry.dataframeIndex + 1} · Frame ${entry.frameIndex + 1}`}</h4>
+                  <button
+                    type="button"
+                    className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                    onClick={() => downloadSinglePlot(entry)}
+                    title="Download this plot"
+                  >
+                    ⬇️ this
+                  </button>
+                </div>
                 <img src={entry.url} alt={`Rendered dataframe ${entry.dataframeIndex + 1} frame ${entry.frameIndex + 1}`} className="block min-w-fit max-w-none" />
               </article>
             ))}

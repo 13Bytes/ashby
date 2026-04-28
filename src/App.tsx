@@ -302,12 +302,33 @@ function Field({ label, jsonPath, language, children }: { label: string; jsonPat
   )
 }
 
-function MultiSelectInput({ value, options, placeholder, onChange }: { value: string[]; options: MultiOption[]; placeholder: string; onChange: (next: string[]) => void }) {
+function MultiSelectInput({
+  value,
+  options,
+  placeholder,
+  onChange,
+  expanded = false,
+  onToggleExpanded,
+}: {
+  value: string[]
+  options: MultiOption[]
+  placeholder: string
+  onChange: (next: string[]) => void
+  expanded?: boolean
+  onToggleExpanded?: () => void
+}) {
   const selected = new Set(value)
 
   return (
     <div className="grid gap-2">
-      <div className="max-h-28 overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900">
+      {onToggleExpanded ? (
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="outline" onClick={onToggleExpanded}>
+            {expanded ? 'Collapse columns' : 'Expand columns'}
+          </Button>
+        </div>
+      ) : null}
+      <div className={`${expanded ? 'max-h-64' : 'max-h-28'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
         {options.length > 0 ? (
           options.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
@@ -376,10 +397,14 @@ function App() {
     return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT_THEME
   })
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
+  const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
+  const [importedDatabaseStatus, setImportedDatabaseStatus] = useState<Record<number, { imported: boolean; source: SourceMode }>>({})
 
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const sourceMode = getSourceMode(activeDataframe)
+  const darkPreferred = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false
+  const resolvedDarkMode = themeMode === 'dark' || (themeMode === 'system' && darkPreferred)
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
   const activePlotLanguage = activeDataframe.language
   const availableAxisColumns = useMemo(
@@ -771,6 +796,10 @@ function App() {
           })),
         })),
       }))
+      setImportedDatabaseStatus((current) => ({
+        ...current,
+        [activeDataframeIndex]: { imported: true, source: sourceMode },
+      }))
       setAvailableColumns(columns)
       setAvailableWhitelistKeywords(
         [...new Set([...activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))])]
@@ -1063,21 +1092,23 @@ function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 p-6 text-left dark:border-zinc-800">
-        <div>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 p-4 text-left dark:border-zinc-800">
+        <div className="flex items-center gap-5 text-sm">
           <h1 className="m-0 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">Human-readable editor with editable JSON popup.</p>
         </div>
-        <div className="relative flex gap-2">
+        <div className="relative flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setShowMenu((current) => !current)}>Menu</Button>
+          <span className="px-2 text-zinc-400">|</span>
           <input ref={fileInputRef} type="file" accept=".json,.jsonc,application/json" className="hidden" onChange={handleImportFile} />
           <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>Import</Button>
           <Button type="button" variant="outline" onClick={() => exportConfig(plotConfig)}>Export</Button>
           <Button type="button" variant="outline" onClick={() => setShowResetConfirm(true)}>Reset</Button>
-          <Button type="button" variant="outline" onClick={() => setShowMenu((current) => !current)}>Menu</Button>
+          <span className="px-2 text-zinc-400">|</span>
+          <Button type="button" variant="outline" onClick={() => setActivePage('config')}>Config</Button>
           <Button type="button" variant="outline" onClick={openJsonEditor}>{t('json')}</Button>
-          <Button type="button" variant="outline" onClick={() => setActivePage(activePage === 'config' ? 'plot' : 'config')}>
-            {activePage === 'config' ? t('showPlot') : t('showConfig')}
-          </Button>
+          <span className="px-2 text-zinc-400">|</span>
+          <Button type="button" variant="outline" onClick={() => setActivePage('plot')}>Preview one Plot</Button>
+          <Button type="button" variant="outline" onClick={() => setActivePage('plot')}>Create all Plots</Button>
           {showMenu ? (
             <div className="absolute left-0 top-11 z-40 grid min-w-44 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
               <Button type="button" variant="outline" size="sm" onClick={() => { setShowAbout(true); setShowMenu(false) }}>About</Button>
@@ -1138,12 +1169,13 @@ function App() {
                           ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
                           : 'border-input bg-transparent hover:bg-accent hover:text-accent-foreground'
                       }`}
-                      onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0) }}
+                      onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0); setExpandedAxisColumns({}) }}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
                           setActiveDataframeIndex(index)
                           setActiveFrameIndex(0)
+                          setExpandedAxisColumns({})
                         }
                       }}
                       onDoubleClick={() => setTabRename({ type: 'dataframe', index, value: df.name || `Dataframe ${index + 1}` })}
@@ -1404,6 +1436,14 @@ function App() {
                 </Button>
               </div>
             ) : null}
+            <div className="sm:col-span-2">
+              <p className="m-0 text-xs text-zinc-600 dark:text-zinc-300">
+                Database import status:{' '}
+                <strong className={importedDatabaseStatus[activeDataframeIndex]?.imported ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  {importedDatabaseStatus[activeDataframeIndex]?.imported ? `Imported (${importedDatabaseStatus[activeDataframeIndex]?.source})` : 'Not imported'}
+                </strong>
+              </p>
+            </div>
             <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
               {activeDataframe.plotLanguages.map((lang) => (
                 <button key={lang} type="button" className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${activeDataframe.language === lang ? 'border-violet-500 bg-violet-100' : 'border-zinc-300'}`} onClick={() => patchActiveDataframe((c) => ({ ...c, language: lang }))}>
@@ -1443,14 +1483,16 @@ function App() {
               <Button variant="outline" size="sm" onClick={addAxis}>+ Axes</Button>
             </div>
             {activeDataframe.axes.map((axis, axisIndex) => (
-              <div key={`${axis.name}-${axisIndex}`} className="relative grid gap-2 rounded-lg border border-zinc-300 bg-zinc-50 p-3 pr-12 dark:border-zinc-700 dark:bg-zinc-900 sm:grid-cols-2">
+              <div key={`${axis.name}-${axisIndex}`} className="relative grid gap-3 rounded-lg border border-zinc-300 bg-zinc-50 p-3 pr-12 dark:border-zinc-700 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <RemoveIconButton onClick={() => removeAxis(axisIndex)} />
-                <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
-                <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
+                <div className="grid gap-2">
+                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
+                  <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label (${activePlotLanguage})`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
+                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
+                </div>
                 <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Columns`} jsonPath={`axes[${axisIndex}].columns`}>
-                  <MultiSelectInput value={axis.columns} options={availableAxisColumns} placeholder={axisColumnsPlaceholder} onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))} />
+                  <MultiSelectInput value={axis.columns} options={availableAxisColumns} placeholder={axisColumnsPlaceholder} expanded={expandedAxisColumns[axisIndex] === true} onToggleExpanded={() => setExpandedAxisColumns((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))} onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))} />
                 </Field>
-                <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label (${activePlotLanguage})`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
               </div>
             ))}
           </section>
@@ -1673,12 +1715,12 @@ function App() {
               <pre
                 ref={jsonOverlayRef}
                 aria-hidden
-                className="pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words bg-zinc-950 p-3 font-mono text-xs leading-[18px] text-zinc-100"
+                className={`pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs leading-[18px] ${resolvedDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'}`}
                 dangerouslySetInnerHTML={{ __html: jsonHighlightedHtml }}
               />
               <textarea
                 ref={jsonTextareaRef}
-                className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-3 font-mono text-xs leading-[18px] text-transparent caret-white"
+                className={`absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-3 font-mono text-xs leading-[18px] text-transparent ${resolvedDarkMode ? 'caret-white' : 'caret-zinc-900'}`}
                 value={jsonDraft}
                 onScroll={(event) => {
                   if (jsonOverlayRef.current) {
