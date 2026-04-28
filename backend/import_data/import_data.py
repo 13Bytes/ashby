@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from .filter import *
+from .filter import filter_data
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -30,7 +30,7 @@ def import_data(dataframe, frame, Sorted_data):
     if dataframe.get('teable_url',None) != None:
         data = import_teable(dataframe['teable_url'], dataframe['API_Key'], frame['layers'], frame.get('filter', None), [Sorted_data.absolute.columns[0], Sorted_data.absolute.columns[1], Sorted_data.relative.columns[0], Sorted_data.relative.columns[1]])
     elif dataframe.get('import_file_name',None) != None:
-        data = import_excel(dataframe['import_file_name'], dataframe.get('import_sheet',0))
+        data = import_excel(dataframe['import_file_name'], dataframe.get('import_sheet',0), frame.get('filter', None))
     else:
         raise FileNotFoundError("no datasource selected. set teable_url or import_file_name in config")
     return data
@@ -93,12 +93,15 @@ def collums_list(axes, layers):  # returns a list of all columns that should be 
 
 
 
-def import_excel(import_file_name, import_sheet):
+def import_excel(import_file_name, import_sheet, filter_clause=None):
     file_path = _resolve_import_file_path(import_file_name)
     data = pd.read_excel(
         file_path,
         sheet_name = import_sheet
     )
 
-    # & filter
+    if filter_clause:
+        filtered = filter_data(data.to_dict(orient='records'), filter_clause)
+        return pd.DataFrame(filtered, columns=data.columns)
+
     return data
