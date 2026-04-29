@@ -26,8 +26,8 @@ const WHITELIST_OPTIONS: MultiOption[] = [
   { value: 'PETG', label: 'PETG' },
 ]
 
-const DEFAULT_THEME = 'system'
-type ThemeMode = 'light' | 'dark' | 'system'
+const DEFAULT_THEME = 'light'
+type ThemeMode = 'light' | 'dark'
 
 const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
 const parseNumberList = (value: string): number[] =>
@@ -350,7 +350,7 @@ function MultiSelectInput({
           ) : null}
         </div>
       </div>
-      <div className={`${expanded ? 'max-h-64' : 'max-h-28'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
+      <div className={`${expanded ? 'max-h-64' : 'h-full min-h-28'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
         {options.length > 0 ? (
           options.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
@@ -415,12 +415,14 @@ function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return DEFAULT_THEME
     const stored = window.localStorage.getItem('ui-theme')
-    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : DEFAULT_THEME
+    return stored === 'light' || stored === 'dark' ? stored : DEFAULT_THEME
   })
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
   const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
   const [expandedFrameTitleInputs, setExpandedFrameTitleInputs] = useState(false)
+  const [expandedLegendTitleInputs, setExpandedLegendTitleInputs] = useState(false)
+  const [expandedAxisLabelInputs, setExpandedAxisLabelInputs] = useState<Record<number, boolean>>({})
   const [importedDatabaseStatus, setImportedDatabaseStatus] = useState<Record<number, { imported: boolean; source: SourceMode }>>({})
   const [plotActionNonce, setPlotActionNonce] = useState(0)
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
@@ -428,8 +430,7 @@ function App() {
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const sourceMode = getSourceMode(activeDataframe)
-  const darkPreferred = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : false
-  const resolvedDarkMode = themeMode === 'dark' || (themeMode === 'system' && darkPreferred)
+  const resolvedDarkMode = themeMode === 'dark'
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
   const activePlotLanguage = activeDataframe.language
   const availableAxisColumns = useMemo(
@@ -506,8 +507,7 @@ function App() {
 
   useEffect(() => {
     const html = document.documentElement
-    const darkPreferred = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const useDark = themeMode === 'dark' || (themeMode === 'system' && darkPreferred)
+    const useDark = themeMode === 'dark'
     html.classList.toggle('dark', useDark)
     html.style.colorScheme = useDark ? 'dark' : 'light'
     window.localStorage.setItem('ui-theme', themeMode)
@@ -556,7 +556,7 @@ function App() {
     setPlotConfig((current) => {
       const nextIndex = current.dataframes.length
       const source = structuredClone(current.dataframes[0])
-      source.name = getNextTabName(current.dataframes.map((df) => df.name), 'Dataframe')
+      source.name = getNextTabName(current.dataframes.map((df, index) => df.name ?? `Dataframe ${index + 1}`), 'Dataframe')
       source.frames = source.frames.map((frame, frameIndex) => ({ ...frame, name: `Frame ${frameIndex + 1}` }))
       setActiveDataframeIndex(nextIndex)
       setActiveFrameIndex(0)
@@ -739,7 +739,7 @@ function App() {
   const addLayer = () => {
     patchActiveFrame((frame) => ({
       ...frame,
-      layers: [...frame.layers, { name: `Layer ${frame.layers.length + 1}`, whitelistFlag: false, whitelist: [], alpha: 0.4, linewidth: 1.5 }],
+      layers: [...frame.layers, { alphaPoints: undefined, alphaAreas: undefined }],
     }))
   }
 
@@ -1581,7 +1581,16 @@ function App() {
                     </Field>
                   ))
               : null}
-            <Field language={uiLanguage} key={`legend-${activePlotLanguage}`} label={`Legend title (${activePlotLanguage})`} jsonPath={`legend_title.${activePlotLanguage}`}><Input value={activeDataframe.legendTitle[activePlotLanguage] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [activePlotLanguage]: e.target.value } }))} /></Field>
+            <Field language={uiLanguage} key={`legend-${activePlotLanguage}`} label={`Legend title (${activePlotLanguage})`} jsonPath={`legend_title.${activePlotLanguage}`}><Input value={activeDataframe.legendTitle[activePlotLanguage] ?? ''} onFocus={() => setExpandedLegendTitleInputs(true)} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [activePlotLanguage]: e.target.value } }))} /></Field>
+            {expandedLegendTitleInputs
+              ? activeDataframe.plotLanguages
+                  .filter((lang) => lang !== activePlotLanguage)
+                  .map((lang) => (
+                    <Field key={`legend-${lang}`} language={uiLanguage} label={`Legend title (${lang})`} jsonPath={`legend_title.${lang}`}>
+                      <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} />
+                    </Field>
+                  ))
+              : null}
           </section>
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
@@ -1595,7 +1604,16 @@ function App() {
                 <div className="grid gap-2">
                   <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
                   <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
-                  <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label (${activePlotLanguage})`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
+                  <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label (${activePlotLanguage})`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onFocus={() => setExpandedAxisLabelInputs((current) => ({ ...current, [axisIndex]: true }))} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
+                  {expandedAxisLabelInputs[axisIndex]
+                    ? activeDataframe.plotLanguages
+                        .filter((lang) => lang !== activePlotLanguage)
+                        .map((lang) => (
+                          <Field key={`${axis.name}-${lang}`} language={uiLanguage} label={`Axis ${axisIndex + 1} Label (${lang})`} jsonPath={`axes[${axisIndex}].labels.${lang}`}>
+                            <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
+                          </Field>
+                        ))
+                    : null}
                 </div>
                 <MultiSelectInput
                   title={`Axis ${axisIndex + 1} Columns`}
@@ -1800,12 +1818,11 @@ function App() {
                   <option value="de">Deutsch</option>
                 </Select>
               </Field>
-              <Field language={uiLanguage} label="Theme" jsonPath="ui.theme">
-                <Select value={themeMode} onChange={(event) => setThemeMode(event.target.value as ThemeMode)}>
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </Select>
+              <Field language={uiLanguage} label="Dark mode" jsonPath="ui.dark_mode">
+                <label className="flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+                  <input type="checkbox" checked={themeMode === 'dark'} onChange={(event) => setThemeMode(event.target.checked ? 'dark' : 'light')} />
+                  <span>Enable dark mode</span>
+                </label>
               </Field>
             </div>
             <div className="mt-4 flex justify-end">

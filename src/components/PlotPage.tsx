@@ -47,7 +47,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
     return `${base}.${extension}`
   }
 
-  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex): Promise<string> => {
+  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex, includeInCreated = false): Promise<string> => {
     setLoading(true)
     setError(null)
     setMessages([])
@@ -93,15 +93,17 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
           return nextUrl
         })
       }
-      setCreatedPlots((current) => {
-        const existing = current.find((entry) => entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex)
-        if (existing) {
-          URL.revokeObjectURL(existing.url)
-        }
-        const rest = current.filter((entry) => !(entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex))
-        const exportFileName = plotConfig.dataframes[dataframeIndex]?.frames[frameIndex]?.exportFileName
-        return [...rest, { dataframeIndex, frameIndex, url: nextUrl, blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
-      })
+      if (includeInCreated) {
+        setCreatedPlots((current) => {
+          const existing = current.find((entry) => entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex)
+          if (existing) {
+            URL.revokeObjectURL(existing.url)
+          }
+          const rest = current.filter((entry) => !(entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex))
+          const exportFileName = plotConfig.dataframes[dataframeIndex]?.frames[frameIndex]?.exportFileName
+          return [...rest, { dataframeIndex, frameIndex, url: nextUrl, blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
+        })
+      }
       return nextUrl
     } catch (renderError) {
       setImageUrl((current) => {
@@ -118,6 +120,10 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
   }
 
   const createPlots = async () => {
+    setCreatedPlots((current) => {
+      current.forEach((entry) => URL.revokeObjectURL(entry.url))
+      return []
+    })
     const dataframeSelection =
       plotConfig.createAllDataframes === true
         ? plotConfig.dataframes.map((_, index) => index)
@@ -137,7 +143,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
       const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
       for (const frameIndex of frameSelection) {
         try {
-          await fetchPlot(dataframeIndex, frameIndex)
+          await fetchPlot(dataframeIndex, frameIndex, true)
         } catch {
           // errors are shown via alert state
         } finally {
