@@ -40,6 +40,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<string[]>([])
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
+  const [isBatchMode, setIsBatchMode] = useState(false)
 
   const getDownloadName = (entry: RenderedPlotEntry) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
@@ -120,6 +121,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
   }
 
   const createPlots = async () => {
+    setIsBatchMode(true)
     setCreatedPlots((current) => {
       current.forEach((entry) => URL.revokeObjectURL(entry.url))
       return []
@@ -153,6 +155,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
       }
     }
     setBatchProgress(null)
+    setIsBatchMode(false)
   }
 
 
@@ -250,7 +253,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
 
       <section className="min-h-[55vh] overflow-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         {loading && !imageUrl ? <p className="text-sm text-zinc-500">Rendering image from backend…</p> : null}
-        {imageUrl ? <img src={imageUrl} alt="Rendered Ashby plot" className="block h-auto max-w-full" /> : null}
+        {imageUrl && !isBatchMode ? <img src={imageUrl} alt="Rendered Ashby plot" className="block h-auto max-w-full" /> : null}
         {createdPlotsSorted.length > 0 ? (
           <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {createdPlotsSorted.map((entry) => (

@@ -26,8 +26,6 @@ const WHITELIST_OPTIONS: MultiOption[] = [
   { value: 'PETG', label: 'PETG' },
 ]
 
-const DEFAULT_THEME = 'light'
-type ThemeMode = 'light' | 'dark'
 
 const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
 const parseNumberList = (value: string): number[] =>
@@ -412,11 +410,6 @@ function App() {
   const [dataframeDropIndex, setDataframeDropIndex] = useState<number | null>(null)
   const [frameDropIndex, setFrameDropIndex] = useState<number | null>(null)
   const [moveFrameTargetDataframe, setMoveFrameTargetDataframe] = useState<string>('0')
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return DEFAULT_THEME
-    const stored = window.localStorage.getItem('ui-theme')
-    return stored === 'light' || stored === 'dark' ? stored : DEFAULT_THEME
-  })
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
   const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
@@ -430,7 +423,7 @@ function App() {
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const sourceMode = getSourceMode(activeDataframe)
-  const resolvedDarkMode = themeMode === 'dark'
+  const resolvedDarkMode = false
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
   const activePlotLanguage = activeDataframe.language
   const availableAxisColumns = useMemo(
@@ -507,11 +500,9 @@ function App() {
 
   useEffect(() => {
     const html = document.documentElement
-    const useDark = themeMode === 'dark'
-    html.classList.toggle('dark', useDark)
-    html.style.colorScheme = useDark ? 'dark' : 'light'
-    window.localStorage.setItem('ui-theme', themeMode)
-  }, [themeMode])
+    html.classList.remove('dark')
+    html.style.colorScheme = 'light'
+  }, [])
 
   useEffect(() => {
     setMoveFrameTargetDataframe(String(activeDataframeIndex))
@@ -1454,7 +1445,6 @@ function App() {
                 }
               />
             </Field>
-            <Field language={uiLanguage} label={t('dataframeDarkMode')} jsonPath="dataframes[i].dark_mode"><Select value={activeDataframe.darkMode ? 'true' : 'false'} onChange={(e) => patchActiveDataframe((c) => ({ ...c, darkMode: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Dummy value toggle" jsonPath="dataframes[i]._extensions.dummyValue">
               <Button type="button" variant="outline" onClick={toggleDummyValue}>
                 {activeDataframe._extensions.dummyValue === true ? 'Disable dummy_value' : 'Enable dummy_value'}
@@ -1555,7 +1545,6 @@ function App() {
             <Field language={uiLanguage} label="Legend enabled" jsonPath="legend_flag"><Select value={activeFrame.legendFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Legend above" jsonPath="legend_above"><Select value={activeFrame.legendAbove ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendAbove: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Frame language" jsonPath="language"><Select value={activeFrame.language} onChange={(e) => patchActiveFrame((c) => ({ ...c, language: e.target.value }))}>{activeDataframe.plotLanguages.map((lang) => <option key={`frame-${lang}`} value={lang}>{lang}</option>)}</Select></Field>
-            <Field language={uiLanguage} label="Frame dark mode" jsonPath="dark_mode"><Select value={activeFrame.darkMode ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, darkMode: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="X quantity" jsonPath="x_quantity"><Select value={activeFrame.xQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, xQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
             <Field language={uiLanguage} label="Y quantity" jsonPath="y_quantity"><Select value={activeFrame.yQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
             <Field language={uiLanguage} label="Relative X quantity" jsonPath="x_rel_quantity"><Input value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))} /></Field>
@@ -1565,10 +1554,10 @@ function App() {
             <Field language={uiLanguage} label="X limits (json)" jsonPath="x_lim"><Input value={JSON.stringify(activeFrame.xLim ?? null)} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: parseJsonField<[number, number] | undefined>(e.target.value, c.xLim) }))} /></Field>
             <Field language={uiLanguage} label="Y limits (json)" jsonPath="y_lim"><Input value={JSON.stringify(activeFrame.yLim ?? null)} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: parseJsonField<[number, number] | undefined>(e.target.value, c.yLim) }))} /></Field>
             <Field language={uiLanguage} label="Automatic display area margin" jsonPath="automatic_Display_Area_margin"><Input type="number" step="0.01" value={activeFrame.automaticDisplayAreaMargin} onChange={(e) => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin) }))} /></Field>
-            <Field language={uiLanguage} key={activePlotLanguage} label={`Title (${activePlotLanguage})`} jsonPath={`title.${activePlotLanguage}`}>
+            <Field language={uiLanguage} key={activePlotLanguage} label="Title" jsonPath={`title.${activePlotLanguage}`}>
               <Input
                 value={activeFrame.title[activePlotLanguage] ?? ''}
-                onFocus={() => setExpandedFrameTitleInputs(true)}
+                onClick={() => setExpandedFrameTitleInputs((current) => !current)}
                 onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [activePlotLanguage]: e.target.value } }))}
               />
             </Field>
@@ -1581,7 +1570,7 @@ function App() {
                     </Field>
                   ))
               : null}
-            <Field language={uiLanguage} key={`legend-${activePlotLanguage}`} label={`Legend title (${activePlotLanguage})`} jsonPath={`legend_title.${activePlotLanguage}`}><Input value={activeDataframe.legendTitle[activePlotLanguage] ?? ''} onFocus={() => setExpandedLegendTitleInputs(true)} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [activePlotLanguage]: e.target.value } }))} /></Field>
+            <Field language={uiLanguage} key={`legend-${activePlotLanguage}`} label="Legend title" jsonPath={`legend_title.${activePlotLanguage}`}><Input value={activeDataframe.legendTitle[activePlotLanguage] ?? ''} onClick={() => setExpandedLegendTitleInputs((current) => !current)} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [activePlotLanguage]: e.target.value } }))} /></Field>
             {expandedLegendTitleInputs
               ? activeDataframe.plotLanguages
                   .filter((lang) => lang !== activePlotLanguage)
@@ -1604,7 +1593,7 @@ function App() {
                 <div className="grid gap-2">
                   <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
                   <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
-                  <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label (${activePlotLanguage})`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onFocus={() => setExpandedAxisLabelInputs((current) => ({ ...current, [axisIndex]: true }))} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
+                  <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onClick={() => setExpandedAxisLabelInputs((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
                   {expandedAxisLabelInputs[axisIndex]
                     ? activeDataframe.plotLanguages
                         .filter((lang) => lang !== activePlotLanguage)
@@ -1817,12 +1806,6 @@ function App() {
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
                 </Select>
-              </Field>
-              <Field language={uiLanguage} label="Dark mode" jsonPath="ui.dark_mode">
-                <label className="flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-                  <input type="checkbox" checked={themeMode === 'dark'} onChange={(event) => setThemeMode(event.target.checked ? 'dark' : 'light')} />
-                  <span>Enable dark mode</span>
-                </label>
               </Field>
             </div>
             <div className="mt-4 flex justify-end">
