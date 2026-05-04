@@ -99,3 +99,54 @@ npm run test:backend
 
 - Config explanation: [backend/docs/config_explanation.jsonc](backend/docs/config_explanation.jsonc)
 - Legacy plotting code: `backend/plot.py` plus `backend/plotting/*`
+
+
+## Docker run guide
+
+This project is designed to run as **two containers** (frontend + backend) on one Docker network so you actually test the same boundaries as production-style deployments.
+
+### 1) Build images
+
+```bash
+docker build -t ashby-frontend -f Dockerfile.frontend .
+docker build -t ashby-backend -f Dockerfile.backend .
+```
+
+### 2) Create an isolated network
+
+```bash
+docker network create ashby-net
+```
+
+### 3) Run backend container
+
+```bash
+docker run --rm -d \
+  --name ashby-backend \
+  --network ashby-net \
+  -p 8000:8000 \
+  ashby-backend
+```
+
+### 4) Run frontend container
+
+```bash
+docker run --rm -d \
+  --name ashby-frontend \
+  --network ashby-net \
+  -e VITE_BACKEND_URL=http://ashby-backend:8000 \
+  -p 5173:5173 \
+  ashby-frontend
+```
+
+### 5) Verify both containers
+
+```bash
+docker ps
+docker logs ashby-backend --tail 50
+docker logs ashby-frontend --tail 50
+```
+
+Then open `http://127.0.0.1:5173`.
+
+> If the repository does not yet include `Dockerfile.frontend` and `Dockerfile.backend`, add them first or adapt commands to your existing Dockerfiles / compose file.

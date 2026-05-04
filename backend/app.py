@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import io
 import re
+import zipfile
 from urllib.parse import quote
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,16 @@ class RenderPlotRequest(BaseModel):
     config: dict[str, Any]
     dataframe_index: int = 0
     frame_index: int = 0
+
+
+class DownloadPlotItem(BaseModel):
+    dataframe_index: int
+    frame_index: int
+
+
+class DownloadPlotsRequest(BaseModel):
+    config: dict[str, Any]
+    plots: list[DownloadPlotItem]
 
 
 def _sanitize_filename(filename: str) -> str:
@@ -76,6 +87,26 @@ def render_plot(payload: RenderPlotRequest) -> Response:
     if rendered_plot.messages:
         response.headers['X-Ashby-Messages'] = _encode_messages_header(rendered_plot.messages)
     return response
+
+
+@app.post('/api/download-plots')
+def download_plots(payload: DownloadPlotsRequest) -> Response:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
+        for plot in payload.plots:
+            rendered_plot = render_plot_image(
+                payload.config,
+                dataframe_index=plot.dataframe_index,
+                frame_index=plot.frame_index,
+            )
+            dataframe = payload.config.get('dataframes', [])[plot.dataframe_index]
+            frame = dataframe.get('frames', [])[plot.frame_index] if isinstance(dataframe, dict) else {}
+            export_name = frame.get('export_file_name') if isinstance(frame, dict) else None
+            extension = '.png' if rendered_plot.media_type == 'image/png' else '.svg'
+            filename_root = export_name or f'ashby-df{plot.dataframe_index + 1}-frame{plot.frame_index + 1}'
+            archive.writestr(f'{filename_root}{extension}', rendered_plot.content)
+
+    return Response(content=output.getvalue(), media_type='application/zip')
 
 
 @app.post('/api/import-database')
