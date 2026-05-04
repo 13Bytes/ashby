@@ -348,7 +348,7 @@ function MultiSelectInput({
           ) : null}
         </div>
       </div>
-      <div className={`${expanded ? 'max-h-64' : 'h-full min-h-28'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
+      <div className={`${expanded ? 'h-full min-h-28' : 'max-h-64'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
         {options.length > 0 ? (
           options.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
@@ -413,9 +413,6 @@ function App() {
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
   const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
-  const [expandedFrameTitleInputs, setExpandedFrameTitleInputs] = useState(false)
-  const [expandedLegendTitleInputs, setExpandedLegendTitleInputs] = useState(false)
-  const [expandedAxisLabelInputs, setExpandedAxisLabelInputs] = useState<Record<number, boolean>>({})
   const [importedDatabaseStatus, setImportedDatabaseStatus] = useState<Record<number, { imported: boolean; source: SourceMode }>>({})
   const [plotActionNonce, setPlotActionNonce] = useState(0)
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
@@ -423,9 +420,7 @@ function App() {
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const sourceMode = getSourceMode(activeDataframe)
-  const resolvedDarkMode = false
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
-  const activePlotLanguage = activeDataframe.language
   const availableAxisColumns = useMemo(
     () => getAxisBasesFromColumns(availableColumns).map((column) => ({ value: column, label: column })),
     [availableColumns],
@@ -575,7 +570,7 @@ function App() {
       const original = current.dataframes[index]
       if (!original) return current
       const clone = structuredClone(original)
-      clone.name = getNextTabName(current.dataframes.map((df) => df.name), original.name?.trim() || 'Dataframe')
+      clone.name = getNextTabName(current.dataframes.map((df) => df.name), 'Dataframe')
       const nextDataframes = [...current.dataframes]
       nextDataframes.splice(index + 1, 0, clone)
       setActiveDataframeIndex(index + 1)
@@ -593,7 +588,7 @@ function App() {
       const original = df.frames[index]
       if (!original) return df
       const clone = structuredClone(original)
-      clone.name = getNextTabName(df.frames.map((frame) => frame.name), original.name?.trim() || 'Frame')
+      clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
       const nextFrames = [...df.frames]
       nextFrames.splice(index + 1, 0, clone)
       setActiveFrameIndex(index + 1)
@@ -1554,32 +1549,24 @@ function App() {
             <Field language={uiLanguage} label="X limits (json)" jsonPath="x_lim"><Input value={JSON.stringify(activeFrame.xLim ?? null)} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: parseJsonField<[number, number] | undefined>(e.target.value, c.xLim) }))} /></Field>
             <Field language={uiLanguage} label="Y limits (json)" jsonPath="y_lim"><Input value={JSON.stringify(activeFrame.yLim ?? null)} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: parseJsonField<[number, number] | undefined>(e.target.value, c.yLim) }))} /></Field>
             <Field language={uiLanguage} label="Automatic display area margin" jsonPath="automatic_Display_Area_margin"><Input type="number" step="0.01" value={activeFrame.automaticDisplayAreaMargin} onChange={(e) => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin) }))} /></Field>
-            <Field language={uiLanguage} key={activePlotLanguage} label="Title" jsonPath={`title.${activePlotLanguage}`}>
-              <Input
-                value={activeFrame.title[activePlotLanguage] ?? ''}
-                onClick={() => setExpandedFrameTitleInputs((current) => !current)}
-                onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [activePlotLanguage]: e.target.value } }))}
-              />
-            </Field>
-            {expandedFrameTitleInputs
-              ? activeDataframe.plotLanguages
-                  .filter((lang) => lang !== activePlotLanguage)
-                  .map((lang) => (
-                    <Field key={`title-${lang}`} language={uiLanguage} label={`Title (${lang})`} jsonPath={`title.${lang}`}>
-                      <Input value={activeFrame.title[lang] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} />
-                    </Field>
-                  ))
-              : null}
-            <Field language={uiLanguage} key={`legend-${activePlotLanguage}`} label="Legend title" jsonPath={`legend_title.${activePlotLanguage}`}><Input value={activeDataframe.legendTitle[activePlotLanguage] ?? ''} onClick={() => setExpandedLegendTitleInputs((current) => !current)} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [activePlotLanguage]: e.target.value } }))} /></Field>
-            {expandedLegendTitleInputs
-              ? activeDataframe.plotLanguages
-                  .filter((lang) => lang !== activePlotLanguage)
-                  .map((lang) => (
-                    <Field key={`legend-${lang}`} language={uiLanguage} label={`Legend title (${lang})`} jsonPath={`legend_title.${lang}`}>
-                      <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} />
-                    </Field>
-                  ))
-              : null}
+            <div className="sm:col-span-2 grid gap-2">
+              <label className="font-medium text-zinc-900 dark:text-zinc-100">Title</label>
+              {activeDataframe.plotLanguages.map((lang) => (
+                <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+                  <span className="text-xs uppercase text-zinc-600">{lang}</span>
+                  <Input value={activeFrame.title[lang] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} />
+                </div>
+              ))}
+            </div>
+            <div className="sm:col-span-2 grid gap-2">
+              <label className="font-medium text-zinc-900 dark:text-zinc-100">Legend title</label>
+              {activeDataframe.plotLanguages.map((lang) => (
+                <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+                  <span className="text-xs uppercase text-zinc-600">{lang}</span>
+                  <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} />
+                </div>
+              ))}
+            </div>
           </section>
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
@@ -1593,16 +1580,15 @@ function App() {
                 <div className="grid gap-2">
                   <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
                   <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
-                  <Field language={uiLanguage} key={`${axis.name}-${activePlotLanguage}`} label={`Axis ${axisIndex + 1} Label`} jsonPath={`axes[${axisIndex}].labels.${activePlotLanguage}`}><Input value={axis.labels[activePlotLanguage] ?? ''} onClick={() => setExpandedAxisLabelInputs((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [activePlotLanguage]: e.target.value } }))} /></Field>
-                  {expandedAxisLabelInputs[axisIndex]
-                    ? activeDataframe.plotLanguages
-                        .filter((lang) => lang !== activePlotLanguage)
-                        .map((lang) => (
-                          <Field key={`${axis.name}-${lang}`} language={uiLanguage} label={`Axis ${axisIndex + 1} Label (${lang})`} jsonPath={`axes[${axisIndex}].labels.${lang}`}>
-                            <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
-                          </Field>
-                        ))
-                    : null}
+                  <div className="grid gap-2">
+                    <label className="font-medium text-zinc-900 dark:text-zinc-100">Axis {axisIndex + 1} Label</label>
+                    {activeDataframe.plotLanguages.map((lang) => (
+                      <div key={`${axis.name}-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+                        <span className="text-xs uppercase text-zinc-600">{lang}</span>
+                        <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 <MultiSelectInput
                   title={`Axis ${axisIndex + 1} Columns`}
@@ -1846,12 +1832,12 @@ function App() {
               <pre
                 ref={jsonOverlayRef}
                 aria-hidden
-                className={`pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs leading-[18px] ${resolvedDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-100 text-zinc-900'}`}
+                className={`pointer-events-none absolute inset-0 overflow-auto whitespace-pre-wrap break-words p-3 font-mono text-xs leading-[18px] bg-white text-zinc-950`}
                 dangerouslySetInnerHTML={{ __html: jsonHighlightedHtml }}
               />
               <textarea
                 ref={jsonTextareaRef}
-                className={`absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-3 font-mono text-xs leading-[18px] text-transparent ${resolvedDarkMode ? 'caret-white' : 'caret-zinc-900'}`}
+                className={`absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-3 font-mono text-xs leading-[18px] text-transparent caret-zinc-900`}
                 value={jsonDraft}
                 onScroll={(event) => {
                   if (jsonOverlayRef.current) {
