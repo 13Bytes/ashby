@@ -384,6 +384,7 @@ function RemoveIconButton({ onClick }: { onClick: () => void }) {
 
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
+  const [configBaseName, setConfigBaseName] = useState('ashby-config')
   const [activePage, setActivePage] = useState<AppPage>('config')
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
@@ -928,6 +929,7 @@ function App() {
         }),
       }
       setPlotConfig(normalizedWithLanguages)
+      setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setAvailableColumns(getConfigAxisColumns(normalizedWithLanguages))
       setAvailableWhitelistKeywords(getConfigWhitelistKeywords(normalizedWithLanguages).map((entry) => ({ value: entry, label: entry })))
       setAlert({ tone: 'success', message: `Imported ${file.name} successfully.` })
@@ -1540,14 +1542,30 @@ function App() {
             <Field language={uiLanguage} label="Legend enabled" jsonPath="legend_flag"><Select value={activeFrame.legendFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Legend above" jsonPath="legend_above"><Select value={activeFrame.legendAbove ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendAbove: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Frame language" jsonPath="language"><Select value={activeFrame.language} onChange={(e) => patchActiveFrame((c) => ({ ...c, language: e.target.value }))}>{activeDataframe.plotLanguages.map((lang) => <option key={`frame-${lang}`} value={lang}>{lang}</option>)}</Select></Field>
-            <Field language={uiLanguage} label="X quantity" jsonPath="x_quantity"><Select value={activeFrame.xQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, xQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
-            <Field language={uiLanguage} label="Y quantity" jsonPath="y_quantity"><Select value={activeFrame.yQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
-            <Field language={uiLanguage} label="Relative X quantity" jsonPath="x_rel_quantity"><Input value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))} /></Field>
-            <Field language={uiLanguage} label="Relative Y quantity" jsonPath="y_rel_quantity"><Input value={activeFrame.yRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yRelQuantity: e.target.value || undefined }))} /></Field>
-            <Field language={uiLanguage} label="Log X" jsonPath="log_x_flag"><Select value={activeFrame.logXFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logXFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
-            <Field language={uiLanguage} label="Log Y" jsonPath="log_y_flag"><Select value={activeFrame.logYFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logYFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
-            <Field language={uiLanguage} label="X limits (json)" jsonPath="x_lim"><Input value={JSON.stringify(activeFrame.xLim ?? null)} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: parseJsonField<[number, number] | undefined>(e.target.value, c.xLim) }))} /></Field>
-            <Field language={uiLanguage} label="Y limits (json)" jsonPath="y_lim"><Input value={JSON.stringify(activeFrame.yLim ?? null)} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: parseJsonField<[number, number] | undefined>(e.target.value, c.yLim) }))} /></Field>
+            <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
+              <h4 className="m-0 text-sm font-semibold">X-Axis (label)</h4>
+              <div className="grid gap-2 sm:grid-cols-4">
+                <Field language={uiLanguage} label="quantity" jsonPath="x_quantity"><Select value={activeFrame.xQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, xQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
+                <Field language={uiLanguage} label="relative quantity" jsonPath="x_rel_quantity"><Select value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))}><option value="">none</option>{activeDataframe.axes.map((axis) => <option key={`x-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}</Select></Field>
+                <Field language={uiLanguage} label="Logarithmic" jsonPath="log_x_flag"><Select value={activeFrame.logXFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logXFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field language={uiLanguage} label="min" jsonPath="x_lim[0]"><Input type="number" value={activeFrame.xLim?.[0] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: [numberValue(e.target.valueAsNumber, c.xLim?.[0] ?? 0), c.xLim?.[1] ?? 0] }))} /></Field>
+                  <Field language={uiLanguage} label="max" jsonPath="x_lim[1]"><Input type="number" value={activeFrame.xLim?.[1] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: [c.xLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.xLim?.[1] ?? 0)] }))} /></Field>
+                </div>
+              </div>
+            </div>
+            <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
+              <h4 className="m-0 text-sm font-semibold">Y-Axis (label)</h4>
+              <div className="grid gap-2 sm:grid-cols-4">
+                <Field language={uiLanguage} label="quantity" jsonPath="y_quantity"><Select value={activeFrame.yQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
+                <Field language={uiLanguage} label="relative quantity" jsonPath="y_rel_quantity"><Select value={activeFrame.yRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yRelQuantity: e.target.value || undefined }))}><option value="">none</option>{activeDataframe.axes.map((axis) => <option key={`y-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}</Select></Field>
+                <Field language={uiLanguage} label="Logarithmic" jsonPath="log_y_flag"><Select value={activeFrame.logYFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logYFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field language={uiLanguage} label="min" jsonPath="y_lim[0]"><Input type="number" value={activeFrame.yLim?.[0] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: [numberValue(e.target.valueAsNumber, c.yLim?.[0] ?? 0), c.yLim?.[1] ?? 0] }))} /></Field>
+                  <Field language={uiLanguage} label="max" jsonPath="y_lim[1]"><Input type="number" value={activeFrame.yLim?.[1] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: [c.yLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.yLim?.[1] ?? 0)] }))} /></Field>
+                </div>
+              </div>
+            </div>
             <Field language={uiLanguage} label="Automatic display area margin" jsonPath="automatic_Display_Area_margin"><Input type="number" step="0.01" value={activeFrame.automaticDisplayAreaMargin} onChange={(e) => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin) }))} /></Field>
             <div className="sm:col-span-2 grid gap-2">
               <label className="font-medium text-zinc-900 dark:text-zinc-100">Title</label>
@@ -1567,6 +1585,22 @@ function App() {
                 </div>
               ))}
             </div>
+          </section>
+          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <h3 className="m-0 text-sm font-semibold">Colored areas</h3>
+              <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
+            </div>
+            {activeFrame.coloredAreas.map((area, areaIndex) => (
+              <div key={areaIndex} className="relative grid gap-2 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:col-span-2 sm:grid-cols-2">
+                <RemoveIconButton onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
+                <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}><Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}><Input value={area.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: e.target.value } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="alpha" jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
+              </div>
+            ))}
           </section>
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
@@ -1739,28 +1773,13 @@ function App() {
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{uiLanguage === 'en' ? 'Advanced JSON fields' : 'Erweiterte JSON-Felder'}</h3>
             <Field language={uiLanguage} label="Filter" jsonPath="filter"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" value={JSON.stringify(activeFrame.filter ?? {}, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, filter: parseJsonField<Record<string, unknown>>(e.target.value, f.filter ?? {}) }))} /></Field>
-            <div className="sm:col-span-2 grid gap-3">
-              <div className="flex items-center gap-2">
-                <h4 className="m-0 text-sm font-semibold">Colored areas</h4>
-                <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
-              </div>
-              {activeFrame.coloredAreas.map((area, areaIndex) => (
-                <div key={areaIndex} className="relative grid gap-2 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:grid-cols-2">
-                  <RemoveIconButton onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
-                  <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}><Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
-                  <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                  <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                  <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}><Input value={area.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: e.target.value } : entry) }))} /></Field>
-                  <Field language={uiLanguage} label="alpha" jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
-                </div>
-              ))}
-            </div>
             <Field language={uiLanguage} label="Highlighted hulls" jsonPath="highlighted_hulls"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" value={JSON.stringify(activeFrame.highlightedHulls, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, highlightedHulls: parseJsonField(e.target.value, f.highlightedHulls) }))} /></Field>
           </section>
         </main>
       ) : (
         <PlotPage
           plotConfig={plotConfig}
+          configBaseName={configBaseName}
           activeDataframeIndex={activeDataframeIndex}
           activeFrameIndex={activeFrameIndex}
           plotAction={plotAction}
