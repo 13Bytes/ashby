@@ -19,12 +19,7 @@ type PlotAction = 'preview-current' | 'create-all'
 type MultiOption = { value: string; label: string }
 type ImportDatabaseResponse = { columns?: string[]; import_file_name?: string; message?: string; success?: boolean }
 
-const WHITELIST_OPTIONS: MultiOption[] = [
-  { value: 'ABS', label: 'ABS' },
-  { value: 'PA12', label: 'PA12' },
-  { value: 'PEEK', label: 'PEEK' },
-  { value: 'PETG', label: 'PETG' },
-]
+const WHITELIST_OPTIONS: MultiOption[] = []
 
 
 const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
@@ -213,7 +208,7 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     globalDataframe: 'Global + Dataframe',
     createAllDataframes: 'Create all dataframes',
     dataframeName: 'Dataframe name',
-    dataframeLanguage: 'Dataframe language',
+    frameLanguage: 'Frame language',
     imageRatio: 'Image ratio',
     resolution: 'Resolution',
     dataframeDarkMode: 'Dataframe dark mode',
@@ -221,7 +216,6 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     fontStyle: 'Font style',
     fontFamily: 'Font family',
     fontSize: 'Font size',
-    dataSourceLanguage: 'Data source + language set',
     sourceMode: 'Source mode',
     importSheet: 'Import sheet',
     apiKey: 'API key',
@@ -230,6 +224,7 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     upload: 'Upload',
     uploadAndImport: 'Upload & import',
     plotLanguages: 'Plot languages',
+    Logarithmic: 'scale',
     add: 'Add',
     axisColumnsPlaceholder: 'Select axis columns.',
     axisColumnsPlaceholderEmpty: 'Load a datasource or import a config to see selectable axis columns.',
@@ -244,7 +239,7 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     globalDataframe: 'Global + Datenrahmen',
     createAllDataframes: 'Alle Datenrahmen erstellen',
     dataframeName: 'Name des Datenrahmens',
-    dataframeLanguage: 'Sprache des Datenrahmens',
+    frameLanguage: 'Sprache des Frames',
     imageRatio: 'Bildverhältnis',
     resolution: 'Auflösung',
     dataframeDarkMode: 'Dunkelmodus Datenrahmen',
@@ -252,7 +247,6 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     fontStyle: 'Schriftstil',
     fontFamily: 'Schriftfamilie',
     fontSize: 'Schriftgröße',
-    dataSourceLanguage: 'Datenquelle + Sprachsatz',
     sourceMode: 'Quellmodus',
     importSheet: 'Importblatt',
     apiKey: 'API-Schlüssel',
@@ -262,6 +256,7 @@ const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     uploadAndImport: 'Hochladen & importieren',
     plotLanguages: 'Plot-Sprachen',
     add: 'Hinzufügen',
+    Logarithmic: 'Skallierung',
     axisColumnsPlaceholder: 'Achsenspalten auswählen.',
     axisColumnsPlaceholderEmpty: 'Lade eine Datenquelle oder importiere eine Konfiguration, um auswählbare Achsenspalten zu sehen.',
     whitelistPlaceholder: 'Schlüsselwörter auswählen.',
@@ -689,7 +684,7 @@ function App() {
       if (keys.length === 0) return df
       const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
         const hue = (index / keys.length) * 360
-        const brightness = index % 2 === 0 ? 0.78 : 0.62
+        const brightness = index % 2 === 0 ? 0.80 : 0.60
         acc[key] = hsvToHex(hue, 0.75, brightness)
         return acc
       }, {})
@@ -698,15 +693,6 @@ function App() {
     setShowGenerateColorsConfirm(false)
   }
 
-  const toggleDummyValue = () => {
-    patchActiveDataframe((df) => ({
-      ...df,
-      _extensions: {
-        ...df._extensions,
-        dummyValue: !(df._extensions.dummyValue === true),
-      },
-    }))
-  }
 
   const addAxis = () => {
     patchActiveDataframe((df) => ({
@@ -1060,9 +1046,9 @@ function App() {
         .replace(/>/g, '&gt;')
     const pushToken = (buffer: string, mode: 'plain' | 'string' | 'number' | 'keyword') => {
       if (!buffer) return ''
-      if (mode === 'string') return `<span class="text-emerald-400">${escapeHtml(buffer)}</span>`
-      if (mode === 'number') return `<span class="text-sky-400">${escapeHtml(buffer)}</span>`
-      if (mode === 'keyword') return `<span class="text-purple-400">${escapeHtml(buffer)}</span>`
+      if (mode === 'string') return `<span class="text-emerald-800">${escapeHtml(buffer)}</span>`
+      if (mode === 'number') return `<span class="text-sky-800">${escapeHtml(buffer)}</span>`
+      if (mode === 'keyword') return `<span class="text-purple-800">${escapeHtml(buffer)}</span>`
       return escapeHtml(buffer)
     }
 
@@ -1134,6 +1120,7 @@ function App() {
   }, [jsonDraft, jsonMarker])
 
   return (
+// + header 
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 p-4 text-left dark:border-zinc-800">
         <div className="flex items-center gap-5 text-sm">
@@ -1182,6 +1169,7 @@ function App() {
       </header>
 
       {activePage === 'config' ? (
+// + Tabbar 
         <main className="mx-auto grid min-h-0 w-full max-w-[1800px] flex-1 grid-cols-1 gap-4 p-5 text-left">
           <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -1416,13 +1404,9 @@ function App() {
             </Alert>
           ) : null}
 
+{/* + Dataframe */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
-            <Field language={uiLanguage} label={t('dataframeLanguage')} jsonPath="dataframes[i].language">
-              <Select value={activeDataframe.language} onChange={(e) => patchActiveDataframe((c) => ({ ...c, language: e.target.value }))}>
-                {activeDataframe.plotLanguages.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
-              </Select>
-            </Field>
             <Field language={uiLanguage} label={t('imageRatio')} jsonPath="dataframes[i].image_ratio"><Input type="number" step="0.01" value={activeDataframe.imageRatio} onChange={(e) => patchActiveDataframe((c) => ({ ...c, imageRatio: numberValue(e.target.valueAsNumber, c.imageRatio) }))} /></Field>
             <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution">
               <Input
@@ -1442,67 +1426,52 @@ function App() {
                 }
               />
             </Field>
-            <Field language={uiLanguage} label="Dummy value toggle" jsonPath="dataframes[i]._extensions.dummyValue">
-              <Button type="button" variant="outline" onClick={toggleDummyValue}>
-                {activeDataframe._extensions.dummyValue === true ? 'Disable dummy_value' : 'Enable dummy_value'}
-              </Button>
-            </Field>
             <Field language={uiLanguage} label={t('fontStyle')} jsonPath="font.font_style"><Input value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value } }))} /></Field>
             <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"><Input value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
             <Field language={uiLanguage} label={t('fontSize')} jsonPath="font.font_size"><Input type="number" value={activeDataframe.font.fontSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
-          </section>
-
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-            <h3 className="sm:col-span-2 text-sm font-semibold">{t('dataSourceLanguage')}</h3>
-            <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
-              <Select
-                value={sourceMode}
-                onChange={(e) =>
-                  patchActiveDataframe((c) => ({
-                    ...c,
-                    _extensions: { ...c._extensions, sourceMode: e.target.value as SourceMode },
-                  }))
-                }
-              >
-                <option value="file">Upload .xlsx</option>
-                <option value="teable">Teable URL + API key</option>
-              </Select>
-            </Field>
-            <Field language={uiLanguage} label={t('importSheet')} jsonPath="import_sheet"><Input type="number" value={activeDataframe.importSheet} onChange={(e) => patchActiveDataframe((c) => ({ ...c, importSheet: numberValue(e.target.valueAsNumber, c.importSheet) }))} /></Field>
-            {sourceMode === 'teable' ? (
-              <>
-            <Field language={uiLanguage} label={t('apiKey')} jsonPath="API_Key"><Input value={activeDataframe.apiKey ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, apiKey: e.target.value || undefined }))} /></Field>
-                <Field language={uiLanguage} label={t('teableUrl')} jsonPath="teable_url"><Input value={activeDataframe.teableUrl ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, teableUrl: e.target.value || undefined }))} /></Field>
-              </>
-            ) : (
-            <Field language={uiLanguage} label={t('uploadXlsx')} jsonPath="import_file_name">
-                <div className="flex gap-2">
-                  <Input value={activeDataframe.importFileName ?? ''} readOnly placeholder="No file selected" />
-                    <Button type="button" variant="outline" onClick={() => uploadInputRef.current?.click()} disabled={importInProgress}>
-                      {importInProgress ? 'Importing…' : t('uploadAndImport')}
-                    </Button>
-                  <input
-                    ref={uploadInputRef}
-                    type="file"
-                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    className="hidden"
-                    onChange={handleSpreadsheetSelection}
-                  />
-                </div>
+          
+            {/* ~ import */}
+            <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+              <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
+                <Select
+                  value={sourceMode}
+                  onChange={(e) =>
+                    patchActiveDataframe((c) => ({
+                      ...c,
+                      _extensions: { ...c._extensions, sourceMode: e.target.value as SourceMode },
+                    }))
+                  }
+                >
+                  <option value="file">Upload .xlsx</option>
+                  <option value="teable">Teable URL + API key</option>
+                </Select>
               </Field>
-            )}
-            <Field language={uiLanguage} label={t('plotLanguages')} jsonPath="dataframes[i].plot_languages">
-              <div className="flex items-center gap-2">
-                <Input
-                  value={plotLanguageDraft}
-                  placeholder="Add language and press comma"
-                  onChange={(e) => setPlotLanguageDraft(e.target.value)}
-                  onKeyDown={handlePlotLanguageKeyDown}
-                />
-                <Button type="button" variant="outline" onClick={() => addPlotLanguage(plotLanguageDraft)}>{t('add')}</Button>
-              </div>
-            </Field>
-            {sourceMode === 'teable' ? (
+              {sourceMode === 'teable' ? (
+                <>
+              <Field language={uiLanguage} label={t('apiKey')} jsonPath="API_Key"><Input value={activeDataframe.apiKey ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, apiKey: e.target.value || undefined }))} /></Field>
+              <Field language={uiLanguage} label={t('teableUrl')} jsonPath="teable_url"><Input value={activeDataframe.teableUrl ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, teableUrl: e.target.value || undefined }))} /></Field>
+                </>
+              ) : (
+                <>
+              <Field language={uiLanguage} label={t('uploadXlsx')} jsonPath="import_file_name">
+                  <div className="flex gap-2">
+                    <Input value={activeDataframe.importFileName ?? ''} readOnly placeholder="No file selected" />
+                      <Button type="button" variant="outline" onClick={() => uploadInputRef.current?.click()} disabled={importInProgress}>
+                        {importInProgress ? 'Importing…' : t('uploadAndImport')}
+                      </Button>
+                    <input
+                      ref={uploadInputRef}
+                      type="file"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                      className="hidden"
+                      onChange={handleSpreadsheetSelection}
+                    />
+                  </div>
+                </Field>
+                <Field language={uiLanguage} label={t('importSheet')} jsonPath="import_sheet"><Input type="number" value={activeDataframe.importSheet} onChange={(e) => patchActiveDataframe((c) => ({ ...c, importSheet: numberValue(e.target.valueAsNumber, c.importSheet) }))} /></Field>
+                </>
+              )}
+                          {sourceMode === 'teable' ? (
               <div className="sm:col-span-2 flex items-center gap-2">
                 <Button
                   type="button"
@@ -1523,7 +1492,20 @@ function App() {
                 </strong>
               </p>
             </div>
-            <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+            </section>
+
+            <Field language={uiLanguage} label={t('plotLanguages')} jsonPath="dataframes[i].plot_languages">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={plotLanguageDraft}
+                  placeholder="Add language and press comma"
+                  onChange={(e) => setPlotLanguageDraft(e.target.value)}
+                  onKeyDown={handlePlotLanguageKeyDown}
+                />
+                <Button type="button" variant="outline" onClick={() => addPlotLanguage(plotLanguageDraft)}>{t('add')}</Button>
+              </div>
+            </Field>
+            <div className="flex flex-wrap items-center gap-2">
               {activeDataframe.plotLanguages.map((lang) => (
                 <button key={lang} type="button" className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${activeDataframe.language === lang ? 'border-violet-500 bg-violet-100' : 'border-zinc-300'}`} onClick={() => patchActiveDataframe((c) => ({ ...c, language: lang }))}>
                   <span>{lang}</span>
@@ -1535,39 +1517,58 @@ function App() {
             </div>
           </section>
 
+{/* + Frame */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">Frame</h3>
+            <Field language={uiLanguage} label={t('frameLanguage')} jsonPath="dataframes[i].language">
+              <Select value={activeFrame.language} onChange={(e) => patchActiveFrame((c) => ({ ...c, language: e.target.value }))}>
+                {activeFrame.language.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
+              </Select>
+            </Field>
             <Field language={uiLanguage} label="Export file name" jsonPath="frames[j].export_file_name"><Input value={activeFrame.exportFileName ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, exportFileName: e.target.value || undefined }))} /></Field>
             <Field language={uiLanguage} label="Algorithm" jsonPath="frames[j].algorithm"><Select value={activeFrame.algorithm} onChange={(e) => patchActiveFrame((c) => ({ ...c, algorithm: e.target.value as FrameConfig['algorithm'] }))}>{PLOT_ALGORITHMS.map((a) => <option key={a} value={a}>{a}</option>)}</Select></Field>
             <Field language={uiLanguage} label="Legend enabled" jsonPath="legend_flag"><Select value={activeFrame.legendFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Legend above" jsonPath="legend_above"><Select value={activeFrame.legendAbove ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, legendAbove: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
             <Field language={uiLanguage} label="Frame language" jsonPath="language"><Select value={activeFrame.language} onChange={(e) => patchActiveFrame((c) => ({ ...c, language: e.target.value }))}>{activeDataframe.plotLanguages.map((lang) => <option key={`frame-${lang}`} value={lang}>{lang}</option>)}</Select></Field>
+            <Field language={uiLanguage} label="Automatic display area margin" jsonPath="automatic_Display_Area_margin"><Input type="number" step="0.01" value={activeFrame.automaticDisplayAreaMargin} onChange={(e) => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin) }))} /></Field>
             <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
-              <h4 className="m-0 text-sm font-semibold">X-Axis (label)</h4>
+              <h4 className="m-0 text-sm font-semibold">X-Axis</h4>
               <div className="grid gap-2 sm:grid-cols-4">
                 <Field language={uiLanguage} label="quantity" jsonPath="x_quantity"><Select value={activeFrame.xQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, xQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
                 <Field language={uiLanguage} label="relative quantity" jsonPath="x_rel_quantity"><Select value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))}><option value="">none</option>{activeDataframe.axes.map((axis) => <option key={`x-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}</Select></Field>
-                <Field language={uiLanguage} label="Logarithmic" jsonPath="log_x_flag"><Select value={activeFrame.logXFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logXFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
+                {/* <Field language={uiLanguage} label="Logarithmic" jsonPath="log_x_flag"><Select value={activeFrame.logXFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logXFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field> */}
+                
+                  <Field  language={uiLanguage} 
+                          label={t('Logarithmic')} 
+                          jsonPath="log_x_flag">
+                    <Button type="button" 
+                            variant="outline" 
+                            onClick={() => {
+                              activeFrame.logXFlag = !activeFrame.logXFlag}}>
+                      {activeFrame.logXFlag === true ? 'logarithmic' : 'linear'}
+                    </Button>
+                  </Field>
                 <div className="grid grid-cols-2 gap-2">
+
                   <Field language={uiLanguage} label="min" jsonPath="x_lim[0]"><Input type="number" value={activeFrame.xLim?.[0] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: [numberValue(e.target.valueAsNumber, c.xLim?.[0] ?? 0), c.xLim?.[1] ?? 0] }))} /></Field>
                   <Field language={uiLanguage} label="max" jsonPath="x_lim[1]"><Input type="number" value={activeFrame.xLim?.[1] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: [c.xLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.xLim?.[1] ?? 0)] }))} /></Field>
                 </div>
               </div>
             </div>
             <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
-              <h4 className="m-0 text-sm font-semibold">Y-Axis (label)</h4>
+              <h4 className="m-0 text-sm font-semibold">Y-Axis</h4>
               <div className="grid gap-2 sm:grid-cols-4">
                 <Field language={uiLanguage} label="quantity" jsonPath="y_quantity"><Select value={activeFrame.yQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
                 <Field language={uiLanguage} label="relative quantity" jsonPath="y_rel_quantity"><Select value={activeFrame.yRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yRelQuantity: e.target.value || undefined }))}><option value="">none</option>{activeDataframe.axes.map((axis) => <option key={`y-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}</Select></Field>
-                <Field language={uiLanguage} label="Logarithmic" jsonPath="log_y_flag"><Select value={activeFrame.logYFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logYFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
+                {/* <Field language={uiLanguage} label="Logarithmic" jsonPath="log_y_flag"><Select value={activeFrame.logYFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logYFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field> */}
+                <Field language={uiLanguage} label={t('Logarithmic')} jsonPath="log_y_flag"><Button type="button" variant="outline" onClick={(e) => {activeFrame.logYFlag = !activeFrame.logYFlag}}>{activeFrame.logYFlag === true ? 'logarithmic' : 'linear'}</Button></Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field language={uiLanguage} label="min" jsonPath="y_lim[0]"><Input type="number" value={activeFrame.yLim?.[0] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: [numberValue(e.target.valueAsNumber, c.yLim?.[0] ?? 0), c.yLim?.[1] ?? 0] }))} /></Field>
                   <Field language={uiLanguage} label="max" jsonPath="y_lim[1]"><Input type="number" value={activeFrame.yLim?.[1] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: [c.yLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.yLim?.[1] ?? 0)] }))} /></Field>
                 </div>
               </div>
             </div>
-            <Field language={uiLanguage} label="Automatic display area margin" jsonPath="automatic_Display_Area_margin"><Input type="number" step="0.01" value={activeFrame.automaticDisplayAreaMargin} onChange={(e) => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin) }))} /></Field>
-            <div className="sm:col-span-2 grid gap-2">
+            <div className="grid gap-2">
               <label className="font-medium text-zinc-900 dark:text-zinc-100">Title</label>
               {activeDataframe.plotLanguages.map((lang) => (
                 <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
@@ -1576,7 +1577,7 @@ function App() {
                 </div>
               ))}
             </div>
-            <div className="sm:col-span-2 grid gap-2">
+            <div className="grid gap-2">
               <label className="font-medium text-zinc-900 dark:text-zinc-100">Legend title</label>
               {activeDataframe.plotLanguages.map((lang) => (
                 <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
@@ -1585,56 +1586,6 @@ function App() {
                 </div>
               ))}
             </div>
-          </section>
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-            <div className="sm:col-span-2 flex items-center gap-2">
-              <h3 className="m-0 text-sm font-semibold">Colored areas</h3>
-              <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
-            </div>
-            {activeFrame.coloredAreas.map((area, areaIndex) => (
-              <div key={areaIndex} className="relative grid gap-2 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:col-span-2 sm:grid-cols-2">
-                <RemoveIconButton onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
-                <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}><Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}><Input value={area.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: e.target.value } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="alpha" jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
-              </div>
-            ))}
-          </section>
-
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Axes' : 'Achsen'}</h3>
-              <Button variant="outline" size="sm" onClick={addAxis}>+ Axes</Button>
-            </div>
-            {activeDataframe.axes.map((axis, axisIndex) => (
-              <div key={`${axis.name}-${axisIndex}`} className="relative grid gap-3 rounded-lg border border-zinc-300 bg-zinc-50 p-3 pr-12 dark:border-zinc-700 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <RemoveIconButton onClick={() => removeAxis(axisIndex)} />
-                <div className="grid gap-2">
-                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
-                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
-                  <div className="grid gap-2">
-                    <label className="font-medium text-zinc-900 dark:text-zinc-100">Axis {axisIndex + 1} Label</label>
-                    {activeDataframe.plotLanguages.map((lang) => (
-                      <div key={`${axis.name}-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-                        <span className="text-xs uppercase text-zinc-600">{lang}</span>
-                        <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <MultiSelectInput
-                  title={`Axis ${axisIndex + 1} Columns`}
-                  value={axis.columns}
-                  options={availableAxisColumns}
-                  expanded={expandedAxisColumns[axisIndex] === true}
-                  onToggleExpanded={() => setExpandedAxisColumns((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))}
-                  hideModeToggle
-                  onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))}
-                />
-              </div>
-            ))}
           </section>
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
@@ -1692,6 +1643,23 @@ function App() {
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <div className="sm:col-span-2 flex items-center gap-2">
+              <h3 className="m-0 text-sm font-semibold">Colored areas</h3>
+              <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
+            </div>
+            {activeFrame.coloredAreas.map((area, areaIndex) => (
+              <div key={areaIndex} className="relative grid gap-2 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:col-span-2 sm:grid-cols-2">
+                <RemoveIconButton onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
+                <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}><Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}><Input value={area.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: e.target.value } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="alpha" jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
+              </div>
+            ))}
+          </section>
+          
+          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+            <div className="sm:col-span-2 flex items-center gap-2">
               <h3 className="m-0 text-sm font-semibold">Annotations</h3>
               <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: { x: 0, y: 0 }, marker: { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' } }] }))}>+ Annotation</Button>
             </div>
@@ -1708,6 +1676,40 @@ function App() {
                 <Field language={uiLanguage} label="Anchor axis Y value" jsonPath={`annotations[${annotationIndex}].axes.y`}><Input type="number" value={annotation.axes?.y ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, axes: { ...(entry.axes ?? {}), y: numberValue(e.target.valueAsNumber, 0) } } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Marker symbol" jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker?.markerSymbol ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: entry.marker?.color ?? 'default', markerSymbol: e.target.value, sizeFactor: entry.marker?.sizeFactor ?? 1, linewidths: entry.marker?.linewidths ?? 0, edgecolors: entry.marker?.edgecolors ?? 'black' } } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Marker color" jsonPath={`annotations[${annotationIndex}].marker.color`}><Input value={annotation.marker?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { color: e.target.value, markerSymbol: entry.marker?.markerSymbol ?? 'o', sizeFactor: entry.marker?.sizeFactor ?? 1, linewidths: entry.marker?.linewidths ?? 0, edgecolors: entry.marker?.edgecolors ?? 'black' } } : entry) }))} /></Field>
+              </div>
+            ))}
+          </section>
+
+          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Axes' : 'Achsen'}</h3>
+              <Button variant="outline" size="sm" onClick={addAxis}>+ Axes</Button>
+            </div>
+            {activeDataframe.axes.map((axis, axisIndex) => (
+              <div key={`${axis.name}-${axisIndex}`} className="relative grid gap-3 rounded-lg border border-zinc-300 bg-zinc-50 p-3 pr-12 dark:border-zinc-700 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <RemoveIconButton onClick={() => removeAxis(axisIndex)} />
+                <div className="grid gap-2">
+                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
+                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
+                  <div className="grid gap-2">
+                    <label className="font-medium text-zinc-900 dark:text-zinc-100">Axis {axisIndex + 1} Label</label>
+                    {activeDataframe.plotLanguages.map((lang) => (
+                      <div key={`${axis.name}-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+                        <span className="text-xs uppercase text-zinc-600">{lang}</span>
+                        <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <MultiSelectInput
+                  title={`Axis ${axisIndex + 1} Columns`}
+                  value={axis.columns}
+                  options={availableAxisColumns}
+                  expanded={expandedAxisColumns[axisIndex] === true}
+                  onToggleExpanded={() => setExpandedAxisColumns((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))}
+                  hideModeToggle
+                  onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))}
+                />
               </div>
             ))}
           </section>
@@ -1764,9 +1766,7 @@ function App() {
                     return { ...df, materialColors: { ...df.materialColors, [key]: '#000000' } }
                   })
                 }
-              >
-                Add material color
-              </Button>
+              >Add material color</Button>
             </Field>
           </section>
 
@@ -1792,7 +1792,11 @@ function App() {
           <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <h3 className="mt-0 text-lg">About</h3>
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              Ashby Plot Builder helps create and edit plotting configs with live backend SVG rendering.
+              Program to create versatile Ashybyplots. 
+              credits & copyrights:
+              <li>Foundation by <a href="https://github.com/walgren/Ashby-plots">walgren</a> </li>
+              <li>major rework by afffe18 as part of <a href="https://aerospace-lab.de/repolysat/">RePloySat</a> </li>
+              <li>Ui by OpenAI'S Codex (supervised by afffe18 & 13Bytes)</li>
             </p>
             <div className="mt-4 flex justify-end">
               <Button variant="outline" onClick={() => setShowAbout(false)}>Close</Button>
