@@ -7,12 +7,12 @@ import { AXIS_MODES, PLOT_ALGORITHMS, createDefaultPlotConfig, type AxisConfig, 
 import { exportConfig, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Input } from './components/ui/input'
 import { Select } from './components/ui/select'
+import { UI_LABELS, type UILanguage } from './uiTranslations'
 
 type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'
 interface AlertState { tone: AlertTone; message: string }
 type SourceMode = 'teable' | 'file'
-type UILanguage = 'en' | 'de'
 type JsonRenderTarget = { dataframeIndex: number; frameIndex: number }
 type PlotAction = 'preview-current' | 'create-all'
 
@@ -196,71 +196,6 @@ const getUniqueMaterialKey = (materialColors: Record<string, string>, seed = 'ne
     index += 1
   }
   return `${seed}_${index}`
-}
-
-const UI_LABELS: Record<UILanguage, Record<string, string>> = {
-  en: {
-    json: 'JSON',
-    showPlot: 'Preview Plot',
-    showConfig: 'Show Config',
-    dataframe: 'Dataframe',
-    frame: 'Frame',
-    globalDataframe: 'Global + Dataframe',
-    createAllDataframes: 'Create all dataframes',
-    dataframeName: 'Dataframe name',
-    frameLanguage: 'Frame language',
-    imageRatio: 'Image ratio',
-    resolution: 'Resolution',
-    dataframeDarkMode: 'Dataframe dark mode',
-    createAllFrames: 'Create all frames',
-    fontStyle: 'Font style',
-    fontFamily: 'Font family',
-    fontSize: 'Font size',
-    sourceMode: 'Source mode',
-    importSheet: 'Import sheet',
-    apiKey: 'API key',
-    teableUrl: 'Teable URL',
-    uploadXlsx: 'Upload .xlsx',
-    upload: 'Upload',
-    uploadAndImport: 'Upload & import',
-    plotLanguages: 'Plot languages',
-    Logarithmic: 'scale',
-    add: 'Add',
-    axisColumnsPlaceholder: 'Select axis columns.',
-    axisColumnsPlaceholderEmpty: 'Load a datasource or import a config to see selectable axis columns.',
-    whitelistPlaceholder: 'Select keywords.',
-  },
-  de: {
-    json: 'JSON',
-    showPlot: 'Plot-Vorschau',
-    showConfig: 'Konfiguration anzeigen',
-    dataframe: 'Datenrahmen',
-    frame: 'Frame',
-    globalDataframe: 'Global + Datenrahmen',
-    createAllDataframes: 'Alle Datenrahmen erstellen',
-    dataframeName: 'Name des Datenrahmens',
-    frameLanguage: 'Sprache des Frames',
-    imageRatio: 'Bildverhältnis',
-    resolution: 'Auflösung',
-    dataframeDarkMode: 'Dunkelmodus Datenrahmen',
-    createAllFrames: 'Alle Frames erstellen',
-    fontStyle: 'Schriftstil',
-    fontFamily: 'Schriftfamilie',
-    fontSize: 'Schriftgröße',
-    sourceMode: 'Quellmodus',
-    importSheet: 'Importblatt',
-    apiKey: 'API-Schlüssel',
-    teableUrl: 'Teable-URL',
-    uploadXlsx: '.xlsx hochladen',
-    upload: 'Hochladen',
-    uploadAndImport: 'Hochladen & importieren',
-    plotLanguages: 'Plot-Sprachen',
-    add: 'Hinzufügen',
-    Logarithmic: 'Skallierung',
-    axisColumnsPlaceholder: 'Achsenspalten auswählen.',
-    axisColumnsPlaceholderEmpty: 'Lade eine Datenquelle oder importiere eine Konfiguration, um auswählbare Achsenspalten zu sehen.',
-    whitelistPlaceholder: 'Schlüsselwörter auswählen.',
-  },
 }
 
 const FIELD_DESCRIPTIONS: Record<UILanguage, Array<{ match: RegExp; description: string }>> = {
@@ -1426,13 +1361,15 @@ function App() {
                 }
               />
             </Field>
-            <Field language={uiLanguage} label={t('fontStyle')} jsonPath="font.font_style"><Input value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value } }))} /></Field>
-            <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"><Input value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
-            <Field language={uiLanguage} label={t('fontSize')} jsonPath="font.font_size"><Input type="number" value={activeDataframe.font.fontSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
-          
+            <div className="sm:col-span-2 grid gap-3 md:grid-cols-3">
+              <Field language={uiLanguage} label={t('fontStyle')} jsonPath="font.font_style"><Input value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value } }))} /></Field>
+              <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"><Input value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
+              <Field language={uiLanguage} label={t('fontSize')} jsonPath="font.font_size"><Input type="number" value={activeDataframe.font.fontSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
+            </div>
+
             {/* ~ import */}
             <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-              <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
+            <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
                 <Select
                   value={sourceMode}
                   onChange={(e) =>
@@ -1522,7 +1459,7 @@ function App() {
             <h3 className="sm:col-span-2 text-sm font-semibold">Frame</h3>
             <Field language={uiLanguage} label={t('frameLanguage')} jsonPath="dataframes[i].language">
               <Select value={activeFrame.language} onChange={(e) => patchActiveFrame((c) => ({ ...c, language: e.target.value }))}>
-                {activeFrame.language.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
+                {activeDataframe.plotLanguages.map((lang) => <option key={lang} value={lang}>{lang}</option>)}
               </Select>
             </Field>
             <Field language={uiLanguage} label="Export file name" jsonPath="frames[j].export_file_name"><Input value={activeFrame.exportFileName ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, exportFileName: e.target.value || undefined }))} /></Field>
@@ -1538,16 +1475,11 @@ function App() {
                 <Field language={uiLanguage} label="relative quantity" jsonPath="x_rel_quantity"><Select value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))}><option value="">none</option>{activeDataframe.axes.map((axis) => <option key={`x-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}</Select></Field>
                 {/* <Field language={uiLanguage} label="Logarithmic" jsonPath="log_x_flag"><Select value={activeFrame.logXFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logXFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field> */}
                 
-                  <Field  language={uiLanguage} 
-                          label={t('Logarithmic')} 
-                          jsonPath="log_x_flag">
-                    <Button type="button" 
-                            variant="outline" 
-                            onClick={() => {
-                              activeFrame.logXFlag = !activeFrame.logXFlag}}>
-                      {activeFrame.logXFlag === true ? 'logarithmic' : 'linear'}
-                    </Button>
-                  </Field>
+                <Field language={uiLanguage} label={t('Logarithmic')} jsonPath="log_x_flag">
+                  <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, logXFlag: !c.logXFlag }))}>
+                    {activeFrame.logXFlag === true ? t('scaleLog') : t('scaleLinear')}
+                  </Button>
+                </Field>
                 <div className="grid grid-cols-2 gap-2">
 
                   <Field language={uiLanguage} label="min" jsonPath="x_lim[0]"><Input type="number" value={activeFrame.xLim?.[0] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xLim: [numberValue(e.target.valueAsNumber, c.xLim?.[0] ?? 0), c.xLim?.[1] ?? 0] }))} /></Field>
@@ -1561,7 +1493,7 @@ function App() {
                 <Field language={uiLanguage} label="quantity" jsonPath="y_quantity"><Select value={activeFrame.yQuantity} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value }))}>{activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}</Select></Field>
                 <Field language={uiLanguage} label="relative quantity" jsonPath="y_rel_quantity"><Select value={activeFrame.yRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yRelQuantity: e.target.value || undefined }))}><option value="">none</option>{activeDataframe.axes.map((axis) => <option key={`y-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}</Select></Field>
                 {/* <Field language={uiLanguage} label="Logarithmic" jsonPath="log_y_flag"><Select value={activeFrame.logYFlag ? 'true' : 'false'} onChange={(e) => patchActiveFrame((c) => ({ ...c, logYFlag: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field> */}
-                <Field language={uiLanguage} label={t('Logarithmic')} jsonPath="log_y_flag"><Button type="button" variant="outline" onClick={(e) => {activeFrame.logYFlag = !activeFrame.logYFlag}}>{activeFrame.logYFlag === true ? 'logarithmic' : 'linear'}</Button></Field>
+                <Field language={uiLanguage} label={t('Logarithmic')} jsonPath="log_y_flag"><Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, logYFlag: !c.logYFlag }))}>{activeFrame.logYFlag === true ? t('scaleLog') : t('scaleLinear')}</Button></Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field language={uiLanguage} label="min" jsonPath="y_lim[0]"><Input type="number" value={activeFrame.yLim?.[0] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: [numberValue(e.target.valueAsNumber, c.yLim?.[0] ?? 0), c.yLim?.[1] ?? 0] }))} /></Field>
                   <Field language={uiLanguage} label="max" jsonPath="y_lim[1]"><Input type="number" value={activeFrame.yLim?.[1] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yLim: [c.yLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.yLim?.[1] ?? 0)] }))} /></Field>
@@ -1790,16 +1722,20 @@ function App() {
       {showAbout ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
           <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-            <h3 className="mt-0 text-lg">About</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              Program to create versatile Ashybyplots. 
-              credits & copyrights:
-              <li>Foundation by <a href="https://github.com/walgren/Ashby-plots">walgren</a> </li>
-              <li>major rework by afffe18 as part of <a href="https://aerospace-lab.de/repolysat/">RePloySat</a> </li>
-              <li>Ui by OpenAI'S Codex (supervised by afffe18 & 13Bytes)</li>
-            </p>
+            <h3 className="mt-0 text-lg">{t('about')}</h3>
+            <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
+              <p>{t('aboutIntro')}</p>
+              <div>
+                <p className="font-medium text-zinc-800 dark:text-zinc-100">{t('credits')}</p>
+                <ul className="ml-5 list-disc space-y-1">
+                  <li>{t('aboutFoundation')} <a className="underline" href="https://github.com/walgren/Ashby-plots" target="_blank" rel="noreferrer">walgren</a></li>
+                  <li>{t('aboutRework')} <a className="underline" href="https://aerospace-lab.de/repolysat/" target="_blank" rel="noreferrer">RePloySat</a></li>
+                  <li>{t('aboutUi')}</li>
+                </ul>
+              </div>
+            </div>
             <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setShowAbout(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setShowAbout(false)}>{t('close')}</Button>
             </div>
           </div>
         </div>
@@ -1808,9 +1744,9 @@ function App() {
       {showSettings ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
           <div className="w-full max-w-md rounded-lg border border-zinc-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-            <h3 className="mt-0 text-lg">Settings</h3>
+            <h3 className="mt-0 text-lg">{t('settings')}</h3>
             <div className="grid gap-2">
-              <Field language={uiLanguage} label="UI language" jsonPath="ui.language">
+              <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
                 <Select value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
                   <option value="en">English</option>
                   <option value="de">Deutsch</option>
@@ -1818,7 +1754,7 @@ function App() {
               </Field>
             </div>
             <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setShowSettings(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setShowSettings(false)}>{t('close')}</Button>
             </div>
           </div>
         </div>
@@ -1848,7 +1784,7 @@ function App() {
                 <Button variant="outline" size="sm" onClick={() => setJsonFullscreen((current) => !current)}>
                   {jsonFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setShowJson(false)}>Close</Button>
+                <Button variant="outline" size="sm" onClick={() => setShowJson(false)}>{t('close')}</Button>
               </div>
             </div>
             <div className={`${jsonFullscreen ? 'h-[calc(96vh-7.5rem)]' : 'h-[70vh]'} relative`}>
