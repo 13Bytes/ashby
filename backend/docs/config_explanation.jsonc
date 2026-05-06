@@ -113,7 +113,7 @@
             },
             "axes":{                        // define position
                 "": 0,                      // axes name (#151) [str] : position [num]
-                "": 0, //...
+                "": 0,                      //...
             },
             "marker":{                      // [none] for no marker  {none}
                 "color":"",                 // color (#12), material_colors (#146)  [str]  {'default'}

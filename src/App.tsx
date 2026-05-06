@@ -1186,7 +1186,7 @@ function App() {
                       </span>
                       <button
                         type="button"
-                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        className="rounded px-1 text-xs leading-none hover:bg-green-600 aspect-square"
                         onClick={(event) => {
                           event.stopPropagation()
                           duplicateDataframe(index)
@@ -1197,7 +1197,7 @@ function App() {
                       </button>
                       <button
                         type="button"
-                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        className="rounded px-1 text-xs leading-none hover:bg-red-600 aspect-square"
                         onClick={(event) => {
                           event.stopPropagation()
                           removeDataframe(index)
@@ -1288,7 +1288,7 @@ function App() {
                       </span>
                       <button
                         type="button"
-                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        className="rounded px-1 text-xs leading-none hover:bg-green-600 aspect-square"
                         onClick={(event) => {
                           event.stopPropagation()
                           duplicateFrame(index)
@@ -1299,7 +1299,7 @@ function App() {
                       </button>
                       <button
                         type="button"
-                        className="rounded px-1 text-xs leading-none hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                        className="rounded px-1 text-xs leading-none hover:bg-red-600 aspect-square"
                         onClick={(event) => {
                           event.stopPropagation()
                           removeFrame(index)
@@ -1340,7 +1340,7 @@ function App() {
           ) : null}
 
 {/* + Dataframe */}
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
             <Field language={uiLanguage} label={t('imageRatio')} jsonPath="dataframes[i].image_ratio"><Input type="number" step="0.01" value={activeDataframe.imageRatio} onChange={(e) => patchActiveDataframe((c) => ({ ...c, imageRatio: numberValue(e.target.valueAsNumber, c.imageRatio) }))} /></Field>
             <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution">
@@ -1368,7 +1368,7 @@ function App() {
             </div>
 
             {/* ~ import */}
-            <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+            <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
                 <Select
                   value={sourceMode}
@@ -1455,7 +1455,7 @@ function App() {
           </section>
 
 {/* + Frame */}
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">Frame</h3>
             <Field language={uiLanguage} label={t('frameLanguage')} jsonPath="dataframes[i].language">
               <Select value={activeFrame.language} onChange={(e) => patchActiveFrame((c) => ({ ...c, language: e.target.value }))}>
@@ -1520,7 +1520,7 @@ function App() {
             </div>
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
             <div className="flex items-center gap-2"><h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Layers' : 'Layer'}</h3><Button variant="outline" size="sm" onClick={addLayer}>+ Layer</Button></div>
             {activeFrame.layers.map((layer, layerIndex) => (
               <div key={layerIndex} className="relative grid gap-3 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:grid-cols-2">
@@ -1553,7 +1553,7 @@ function App() {
             ))}
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
             <div className="flex items-center gap-2"><h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Guidelines' : 'Leitlinien'}</h3><Button variant="outline" size="sm" onClick={addGuideline}>+ Guideline</Button></div>
             {activeFrame.guidelines.map((guideline, index) => (
               <div key={index} className="relative grid gap-3 rounded-lg border border-zinc-300 p-3 pr-12 dark:border-zinc-700 sm:grid-cols-2">
@@ -1573,7 +1573,7 @@ function App() {
             ))}
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <div className="sm:col-span-2 flex items-center gap-2">
               <h3 className="m-0 text-sm font-semibold">Colored areas</h3>
               <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
@@ -1590,7 +1590,7 @@ function App() {
             ))}
           </section>
           
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <div className="sm:col-span-2 flex items-center gap-2">
               <h3 className="m-0 text-sm font-semibold">Annotations</h3>
               <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: { x: 0, y: 0 }, marker: { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' } }] }))}>+ Annotation</Button>
@@ -1612,7 +1612,7 @@ function App() {
             ))}
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Axes' : 'Achsen'}</h3>
               <Button variant="outline" size="sm" onClick={addAxis}>+ Axes</Button>
@@ -1646,7 +1646,7 @@ function App() {
             ))}
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <div className="sm:col-span-2 flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">{uiLanguage === 'en' ? 'Material colors' : 'Materialfarben'}</h3>
               <Button type="button" variant="outline" size="sm" onClick={() => setShowGenerateColorsConfirm(true)}>
@@ -1672,7 +1672,7 @@ function App() {
                   />
                   <button
                     type="button"
-                    className="rounded px-2 text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                    className="rounded px-2 text-sm hover:bg-red-600 dark:hover:bg-zinc-700 aspect-square"
                     onClick={() =>
                       patchActiveDataframe((df) => {
                         const rest = Object.fromEntries(Object.entries(df.materialColors).filter(([key]) => key !== material))
@@ -1688,7 +1688,6 @@ function App() {
                 <Input value={color} onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
               </div>
             ))}
-            <Field language={uiLanguage} label="Add color key" jsonPath="material_colors">
               <Button
                 type="button"
                 variant="outline"
@@ -1699,10 +1698,9 @@ function App() {
                   })
                 }
               >Add material color</Button>
-            </Field>
           </section>
 
-          <section className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{uiLanguage === 'en' ? 'Advanced JSON fields' : 'Erweiterte JSON-Felder'}</h3>
             <Field language={uiLanguage} label="Filter" jsonPath="filter"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" value={JSON.stringify(activeFrame.filter ?? {}, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, filter: parseJsonField<Record<string, unknown>>(e.target.value, f.filter ?? {}) }))} /></Field>
             <Field language={uiLanguage} label="Highlighted hulls" jsonPath="highlighted_hulls"><textarea className="min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" value={JSON.stringify(activeFrame.highlightedHulls, null, 2)} onChange={(e) => patchActiveFrame((f) => ({ ...f, highlightedHulls: parseJsonField(e.target.value, f.highlightedHulls) }))} /></Field>
