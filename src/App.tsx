@@ -261,9 +261,9 @@ function MultiSelectInput({
   const allSelected = options.length > 0 && value.length === options.length
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 h-full">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium">{title}</span>
+        <span className="font-medium text-zinc-900 dark:text-zinc-100">{title}</span>
         <div className="flex items-center gap-2">
           {!hideModeToggle && onModeChange ? (
             <Button type="button" size="sm" variant="outline" onClick={() => onModeChange(!(modeValue ?? false))}>
@@ -280,7 +280,7 @@ function MultiSelectInput({
           ) : null}
         </div>
       </div>
-      <div className={`${expanded ? 'h-full min-h-28' : 'max-h-64'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
+      <div className={`${expanded ? 'h-full min-h-28' : 'h-44'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
         {options.length > 0 ? (
           options.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
@@ -351,6 +351,8 @@ function App() {
   const [importedDatabaseStatus, setImportedDatabaseStatus] = useState<Record<number, { imported: boolean; source: SourceMode }>>({})
   const [plotActionNonce, setPlotActionNonce] = useState(0)
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
+  const [dummySelector, setDummySelector] = useState('1')
+  const [dummyCustomValue, setDummyCustomValue] = useState('')
 
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
@@ -427,6 +429,17 @@ function App() {
     params.set('frame', String(activeFrameIndex))
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
   }, [activeDataframeIndex, activeFrameIndex])
+
+  useEffect(() => {
+    if (!alert) return
+    const timeout = window.setTimeout(() => setAlert(null), 15000)
+    return () => window.clearTimeout(timeout)
+  }, [alert])
+
+  useEffect(() => {
+    const keywords = getConfigWhitelistKeywords(plotConfig)
+    setAvailableWhitelistKeywords(keywords.map((entry) => ({ value: entry, label: entry })))
+  }, [plotConfig])
 
   useEffect(() => {
     const html = document.documentElement
@@ -764,7 +777,7 @@ function App() {
       }
       patchActiveDataframe((df) => ({
         ...df,
-        importFileName: payload.import_file_name ?? df.importFileName,
+                importFileName: file?.name ?? payload.import_file_name ?? df.importFileName,
         axes: df.axes.map((axis) => ({
           ...axis,
           columns: axis.columns.filter((column) => axisBases.includes(column)),
@@ -1362,7 +1375,10 @@ function App() {
 {/* + Dataframe */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
-            <div onClick={() => setaspectRatioSplitMode((prev) => !prev)}><Field language={uiLanguage} label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio">
+            <Field language={uiLanguage} label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio">
+              <Button type="button" size="sm" variant="outline" className="justify-self-start" onClick={() => setaspectRatioSplitMode((prev) => !prev)}>
+                Toggle ratio mode
+              </Button>
               {aspectRatioSplitMode ? (
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                   <Input
@@ -1385,7 +1401,7 @@ function App() {
               ) : (
                 <Input type="number" step="0.01" value={activeDataframe.aspectRatio} onChange={(e) => patchActiveDataframe((c) => ({ ...c, aspectRatio: numberValue(e.target.valueAsNumber, c.aspectRatio) }))} />
               )}  
-            </Field></div>
+            </Field>
 
             <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution">
               <Input
@@ -1646,6 +1662,18 @@ function App() {
               </div>
             ))}
           </section>
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+            <h3 className="sm:col-span-2 text-sm font-semibold">Dummy selector</h3>
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <Select value={dummySelector} onChange={(e) => setDummySelector(e.target.value)} className={dummySelector === 'custom' ? 'w-24' : 'w-40'}>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="custom">custom</option>
+              </Select>
+              {dummySelector === 'custom' ? <Input value={dummyCustomValue} onChange={(e) => setDummyCustomValue(e.target.value)} placeholder="custom value" /> : null}
+            </div>
+          </section>
 {/* ~ Axes */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
             <div className="flex items-center gap-2">
@@ -1698,24 +1726,27 @@ function App() {
                 Generate colors
               </Button>
             </div>
-            {Object.entries(activeDataframe.materialColors).map(([material, color]) => (
+            {Object.entries(activeDataframe.materialColors).map(([material, color]) => {
+              const allKeywords = getConfigWhitelistKeywords(plotConfig).filter((entry) => entry !== 'default')
+              const isDefault = material === 'default'
+              return (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                 <div className="flex items-center gap-2">
-                  <Input
-                    value={material}
-                    onChange={(e) =>
-                      patchActiveDataframe((df) => {
-                        const nextKey = e.target.value.trim()
-                        if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
-                        const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
-                          acc[key === material ? nextKey : key] = value
-                          return acc
-                        }, {})
-                        return { ...df, materialColors: nextColors }
-                      })
-                    }
-                  />
-                  <button
+                  {isDefault ? <Input value={material} readOnly /> : <Select value={material} onChange={(e) =>
+                    patchActiveDataframe((df) => {
+                      const nextKey = e.target.value.trim()
+                      if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
+                      const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
+                        acc[key === material ? nextKey : key] = value
+                        return acc
+                      }, {})
+                      return { ...df, materialColors: nextColors }
+                    })
+                  }>
+                    <option value={material}>{material}</option>
+                    {allKeywords.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
+                  </Select>}
+                  {!isDefault ? <button
                     type="button"
                     className="rounded px-2 text-sm hover:bg-red-500 dark:hover:bg-zinc-700 aspect-square"
                     onClick={() =>
@@ -1727,12 +1758,12 @@ function App() {
                     aria-label={`Remove ${material}`}
                   >
                     ✕
-                  </button>
+                  </button> : null}
                 </div>
-                <Input type="color" value={color} className="h-10 w-16 p-1" onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
+                <Input type="color" value={color} className="h-10 w-12 rounded-md border-0 p-0" onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
                 <Input value={color} onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
               </div>
-            ))}
+            )})}
           </section>
 
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
