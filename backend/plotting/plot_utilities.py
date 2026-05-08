@@ -201,8 +201,7 @@ class parse_data():   # relative & absolute separate
                     break
             
             if self.quantities[dim] != import_quantities[dim]:
-                axis_name = ['x', 'y'][dim]
-                raise KeyError(f"{axis_name}-quantity '{import_quantities[dim]}' not found. please check the config.json and datasource")
+                raise KeyError(f"{["x","y"][dim]}-quantity '{import_quantities[dim]}' not found. please check the config.json and datasource")
 
     def clear_unused_columns(self, data:pd.DataFrame) -> None:
         for dim in [0,1]:

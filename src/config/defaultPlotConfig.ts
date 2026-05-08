@@ -17,17 +17,21 @@ export interface PlotConfig {
 
 export interface DataframeConfig {
   name?: string
+  excelImport:boolean
   apiKey?: string
   teableUrl?: string
   importFileName?: string
-  importSheet: number
-  imageRatio: number
-  resolution: number | 'svg'
+  importSheet?: number
+  aspectRatio: number
+  resolution: number | "svg"
   legendTitle: Record<string, string>
   font: {
-    fontStyle: string
+    fontStyle: "serif" | "sans-serif" | "cursive" | "fantasy" | "monospace"
     font: string
     fontSize: number
+    tickSize : number
+    titleSize: number
+    axisLabelSize: number
   }
   language: string
   plotLanguages: string[]
@@ -41,11 +45,9 @@ export interface DataframeConfig {
 
 export interface FrameConfig {
   name?: string
-  legendFlag: boolean
   title: Record<string, string>
   darkMode: boolean
-  legendAbove?: boolean
-  language: string
+  legendAbove: boolean|null
   exportFileName?: string
   xQuantity: string
   xRelQuantity?: string
@@ -102,6 +104,7 @@ export interface AnnotationConfig {
     fontSize?: number
   }
   axes?: Record<string, number>
+  marker_flag?: boolean
   marker?: {
     color: string
     markerSymbol: string
@@ -109,6 +112,7 @@ export interface AnnotationConfig {
     linewidths: number
     edgecolors: string
   }
+  arrow_flag?: boolean
   arrow?: {
     width: number
     facecolor: string
@@ -146,14 +150,18 @@ export function createDefaultPlotConfig(): PlotConfig {
     createAllDataframes: true,
     dataframes: [
       {
+        excelImport: false,
         importSheet: 0,
-        imageRatio: 16 / 9,
+        aspectRatio: 16 / 9,
         resolution: 'svg',
         legendTitle: { en: '' },
         font: {
           fontStyle: 'sans-serif',
           font: 'Arial',
           fontSize: 22,
+          tickSize :0,
+          titleSize:0,
+          axisLabelSize:0,
         },
         language: 'en',
         plotLanguages: ['en'],
@@ -161,22 +169,20 @@ export function createDefaultPlotConfig(): PlotConfig {
         createAllFrames: true,
         frames: [
           {
-            legendFlag: true,
-            title: { en: 'Ashby plot' },
+            title: { en: '' },
             darkMode: false,
             legendAbove: false,
-            language: 'en',
-            xQuantity: 'undefined',
+            xQuantity: undefined,
             logXFlag: false,
-            xLim: undefined,
-            yQuantity: 'undefined',
+            xLim: [undefined, undefined],
+            yQuantity: undefined,
             logYFlag: false,
-            yLim: undefined,
+            yLim: [undefined, undefined],
             automaticDisplayAreaMargin: 0.12,
             algorithm: 'cubic',
             layers: [
               {
-                name: 'Material',
+                name: undefined,
                 whitelistFlag: false,
                 whitelist: [],
                 alpha: 0.4,

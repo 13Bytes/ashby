@@ -13,7 +13,7 @@ from plotting      import *
 from eventhandling import *
 
 
-CONFIG_NAME = "Zwischenbericht.json"
+CONFIG_NAME = "Tobi-26-04-19.json"
 
 
 def main(dataframe:dict, interactive:bool) -> None:
@@ -37,7 +37,7 @@ def main(dataframe:dict, interactive:bool) -> None:
         if not (create_frames == True or frame_index +1 in create_frames):
             continue
 
-        cprint(f"\n::::::::::::::::::::::::::::  creating frame {frame_index + 1} of {len(dataframe['frames'])} {frame.get('name', '')} :::::::::::::::::::::::::::: \n","blue")
+        cprint(f"\n::::::::::::::::::::::::::::  creating frame {frame_index + 1} of {len(dataframe['frames'])} {frame.get('name',"")} :::::::::::::::::::::::::::: \n","blue")
 
 
         # : General setup :
@@ -54,14 +54,14 @@ def main(dataframe:dict, interactive:bool) -> None:
             # fig = mpl_fig.figure
             # ax = fig.add_subplot(1,1, 1)        # & no subplots
         fig, ax = plt.subplots(1,1, figsize=figure_size)
-        if frame.get('legend_flag',True) == True:
+        if frame.get('legend_above',True) != None:
             plt.subplots_adjust(left=0.09, right=0.86)
         
-        ax.tick_params(colors=font_color, labelsize=15)
+        ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
         ax.spines[:].set_color(font_color)
 
         plt.rcParams.update({'font.family': df_font.get('font_style',"sans-serif")})
-        plt.rcParams.update({f"font.{df_font.get('font_style', 'sans-serif')}": df_font.get('font', 'Arial')})
+        plt.rcParams.update({f'font.{df_font.get('font_style',"sans-serif")}':df_font.get('font',"Arial")})
         plt.rcParams.update({'font.size': df_font.get('font_size',22)})
         # & weight, stretch, variant, style
         # plt.rc('text',usetex='False')
@@ -72,7 +72,7 @@ def main(dataframe:dict, interactive:bool) -> None:
         # : class init :
         Legend  = legend(dataframe.get('legend_title',""))          # § class §
 
-        Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"cubic"))       # plot_hull.py   → legend()  # § class §
+        Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"alpha"))       # plot_hull.py   → legend()  # § class §
 
         Sorted_data = data_handling(Graphics, dataframe, frame, language)   # plot_utilities.py # § class §
 
@@ -96,10 +96,11 @@ def main(dataframe:dict, interactive:bool) -> None:
         Plot_size = plot_size(frame, DATA, Marker, image_ratio) # § class §
                     
 
-        if frame.get('legend_flag',True):
+        if frame.get('legend_above',True) != None:
             Graphics.legend.create_legend(
                 language = language,
                 font_color = font_color,
+                font_size = df_font.get('axis_label_size',15),
                 above = frame.get("legend_above",False)
             )
 
@@ -126,7 +127,7 @@ def main(dataframe:dict, interactive:bool) -> None:
                     font_color=font_color,
                     Marker = Marker,
                     ax = ax,
-                    )
+                )
         except:
             cprint("❗ERROR drawing guidelines. Check config.json! continuing...","red")
 
@@ -145,9 +146,19 @@ def main(dataframe:dict, interactive:bool) -> None:
             ax.set_yscale('log')
         
         # ~ set x- and y-labels 
-        ax.set_xlabel(axe_label(Sorted_data, 0), color=font_color, fontsize=18, labelpad=10)
-        ax.set_ylabel(axe_label(Sorted_data, 1), color=font_color, fontsize=18, labelpad=5 )
+        ax.set_xlabel(axe_label(Sorted_data, 0), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=10)
+        ax.set_ylabel(axe_label(Sorted_data, 1), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=5 )
 
+        # ~ copyright
+        # ax.text(
+        #     x=100,
+        #     y=10,
+        #     s="copy",
+        #     fontsize = 8,
+        #     rotation = 90,
+        #     rotation_mode = 'anchor',
+        #     transform_rotates_text = True
+        # )
 
         # ~ add grid lines 
         ax.grid(
@@ -161,41 +172,39 @@ def main(dataframe:dict, interactive:bool) -> None:
         cprint(f"skipped a total of {Sorted_data.point_count['skipped']} Datapoints due to missing entries.  {Sorted_data.point_count['plotted']} were plotted.","green")
 
         # : export :
-        if not interactive: 
-            return fig
-        else:
-            if frame.get('export_file_name',None) == None:
-                frame_title = title(frame.get('title',""), language)
-                plt.title(frame_title, loc='center', size=40, pad=15)
-                # fig.canvas.manager.set_window_title(figurename(frame, dataframe_index, frame_index))
-                watermark(fig, alpha=0.5, pos=[0.72, 0.13], size=.13)       # & add copyright text
+        if frame.get('export_file_name',None) == None:
+            frame_title = title(frame.get('title',""), language)
+            plt.title(frame_title, loc='center', size=df_font.get('title_size',40), pad=15)
+            # fig.canvas.manager.set_window_title(figurename(frame, dataframe_index, frame_index))
+            watermark(fig, alpha=0.5, pos=[0.72, 0.13], size=.13)       # & add copyright text
 
-                # + event handling +
+            # + event handling +
+            if interactive:
                 handler.append(pick_event_handing(fig, ax, Graphics))
-                # +                +
+            # +                +
 
-                plt.show(block=False)
-                cprint(f"⇒ plot displayed \n","green")
-                plt.pause(.3)
+            plt.show(block=False)
+            cprint(f"⇒ plot displayed \n","green")
+            plt.pause(.3)
 
-            else:
-                os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
-                plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution/10, transparent=True) # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename
-                cprint(f"⇒ plot saved as ./export/{frame['export_file_name']} \n","green")
-                plt.close()
+        else:
+            os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
+            plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution/10, transparent=True) # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename
+            cprint(f"⇒ plot saved as ./export/{frame['export_file_name']} \n","green")
+            plt.close()
 
         # mpl_fig.update()
 
 
 if __name__ == '__main__':
-    print(f"\n\n{colored(' starting Ashby-Plot Generator                     Ⓒ afffe18 @ RPS (ASL) 2025 ', on_color='on_blue')}")
+    print(f"\n\n{colored(" starting Ashby-Plot Generator                     Ⓒ afffe18 @ RPS (ASL) 2025 ", on_color="on_blue")}")
 
     config = import_json(CONFIG_NAME) # + input config +
     create_dataframes  = config.get('create_all_dataframes', True)
 
     for dataframe_index, dataframe in enumerate(config.get('dataframes',[])):
         if create_dataframes == True or dataframe_index +1 in create_dataframes:
-            cprint(f"\n::::::::::::::::::::::::::::::::::::  loading dataframe {dataframe_index + 1} of {len(config['dataframes'])} {dataframe.get('name', '')} ::::::::::::::::::::::::::::::::::::","blue", ["bold"])
+            cprint(f"\n::::::::::::::::::::::::::::::::::::  loading dataframe {dataframe_index + 1} of {len(config['dataframes'])} {dataframe.get('name',"")} ::::::::::::::::::::::::::::::::::::","blue", ["bold"])
             main(dataframe, True)
             
     cprint(f" all selected plots displayed or saved ",color="white",on_color="on_green")

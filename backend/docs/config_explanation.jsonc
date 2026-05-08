@@ -42,7 +42,6 @@
     "frames":[{
         "name":null,                    // title to show in output and window header on popout {""}
         
-        "legend_flag":true,             // [true]/[ false] schold a legend be printed  {true}
         "title":{                       // plot title for popout only [str]/[dict] {""}    // & implement
             "en":""                     // language : tiltle [str]   (#31)
         },                     
@@ -127,7 +126,7 @@
                 "facecolor": "blue",        // arrow color: (#12), material_colors (#146)  [str] {}
                 "headlength": 0,            // headdimensions in points [num] {}
                 "headwidth": 0,             //   "       
-                "linewidth":0               // outline linewidth
+                "linewidth": 0              // outline linewidth
             }
         }],
             

@@ -19,7 +19,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
       teable_url: dataframe.teableUrl ?? null,
       import_file_name: dataframe.importFileName ?? null,
       import_sheet: dataframe.importSheet,
-      image_ratio: dataframe.imageRatio,
+      image_ratio: dataframe.aspectRatio,
       resolution: dataframe.resolution,
       legend_title: dataframe.legendTitle,
       font: {
