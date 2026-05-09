@@ -1476,8 +1476,8 @@ function App() {
             </Field>
             <div className="flex flex-wrap items-center gap-2 self-end-safe">
               {activeDataframe.plotLanguages.map((lang) => (
-                <button key={lang} type="button" className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${'border-zinc-300'}`} onClick={() => patchActiveDataframe((c) => ({ ...c, language: lang }))}>
-                  <span>{lang}</span>
+                <button key={lang} type="button" className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${activeDataframe.language === lang ? 'border-violet-600 bg-violet-400' : 'border-zinc-300'}`} onClick={() => patchActiveDataframe((c) => ({ ...c, language: lang }))}>
+                <span>{lang}</span>
                   <span role="button" tabIndex={0} className="font-semibold" onClick={(event) => { event.stopPropagation(); updateLanguages(activeDataframe.plotLanguages.filter((entry) => entry !== lang)) }}>
                     ×
                   </span>
@@ -1669,7 +1669,10 @@ function App() {
                 <option value="3">3</option>
                 <option value="custom">custom</option>
               </Select>
-              {dummySelector === 'custom' ? <Input value={dummyCustomValue} onChange={(e) => setDummyCustomValue(e.target.value)} placeholder="custom value" /> : null}
+              {dummySelector === 'custom' ? 
+                <Input value={dummyCustomValue} onChange={(e) => setDummyCustomValue(e.target.value)} placeholder="custom value" /> 
+                // <Button onClick={() => window.open("htps://matplotlib.com", '_blank', 'noopener,noreferrer')}></Button>
+              : null}
             </div>
           </section>
 {/* ~ Axes */}
