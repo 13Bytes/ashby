@@ -363,31 +363,34 @@ function ColorOrMaterialInput({
 }
 
 const MARKER_SYMBOL_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '.', label: 'point [.]' },
-  { value: ',', label: 'pixel [,]' },
-  { value: 'o', label: 'circle [o]' },
-  { value: 'v', label: 'triangle_down [v]' },
-  { value: '^', label: 'triangle_up [^]' },
-  { value: '<', label: 'triangle_left [<]' },
-  { value: '>', label: 'triangle_right [>]' },
-  { value: '1', label: 'tri_down [1]' },
-  { value: '2', label: 'tri_up [2]' },
-  { value: '3', label: 'tri_left [3]' },
-  { value: '4', label: 'tri_right [4]' },
-  { value: '8', label: 'octagon [8]' },
-  { value: 's', label: 'square [s]' },
-  { value: 'p', label: 'pentagon [p]' },
-  { value: 'P', label: 'plus_filled [P]' },
-  { value: '*', label: 'star [*]' },
-  { value: 'h', label: 'hexagon1 [h]' },
-  { value: 'H', label: 'hexagon2 [H]' },
-  { value: '+', label: 'plus [+]' },
-  { value: 'x', label: 'x [x]' },
-  { value: 'X', label: 'x_filled [X]' },
-  { value: 'D', label: 'diamond [D]' },
-  { value: 'd', label: 'thin_diamond [d]' },
-  { value: '|', label: 'vline [|]' },
+  { value: '.', label: '. point' },
+  { value: ',', label: ', pixel' },
+  { value: 'o', label: 'o circle' },
+  { value: 'v', label: 'v triangle_down' },
+  { value: '^', label: '^ triangle_up' },
+  { value: '<', label: '< triangle_left' },
+  { value: '>', label: '> triangle_right' },
+  { value: '1', label: '1 tri_down' },
+  { value: '2', label: '2 tri_up' },
+  { value: '3', label: '3 tri_left' },
+  { value: '4', label: '4 tri_right' },
+  { value: '8', label: '8 octagon' },
+  { value: 's', label: 's square' },
+  { value: 'p', label: 'p pentagon' },
+  { value: 'P', label: 'P plus_filled' },
+  { value: '*', label: '* star' },
+  { value: 'h', label: 'h hexagon1' },
+  { value: 'H', label: 'H hexagon2' },
+  { value: '+', label: '+ plus' },
+  { value: 'x', label: 'x x' },
+  { value: 'X', label: 'X x_filled' },
+  { value: 'D', label: 'D diamond' },
+  { value: 'd', label: 'd thin_diamond' },
+  { value: '|', label: '| vline' },
 ]
+const LINE_STYLE_OPTIONS = ['-', '--', '-.', ':', 'None', ' ', '']
+const FONT_STYLE_OPTIONS: Array<DataframeConfig['font']['fontStyle']> = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monospace']
+const FONT_FAMILY_OPTIONS = ['DejaVu Sans', 'DejaVu Serif', 'DejaVu Sans Mono', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New']
 
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
@@ -1508,8 +1511,8 @@ function App() {
               />
             </Field>
             <div className="sm:col-span-2 grid gap-3 md:grid-cols-3">
-              <Field language={uiLanguage} label={t('fontStyle' )} jsonPath="font.font_style"><Input               value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value as DataframeConfig['font']['fontStyle'] } }))} /></Field>
-              <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"      ><Input               value={activeDataframe.font.font}      onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
+              <Field language={uiLanguage} label={t('fontStyle' )} jsonPath="font.font_style"><Select value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value as DataframeConfig['font']['fontStyle'] } }))}>{FONT_STYLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</Select></Field>
+              <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"      ><Select value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))}>{FONT_FAMILY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</Select></Field>
               <Field language={uiLanguage} label={t('fontSize' )} jsonPath="font.font_size"  ><Input type="number" value={activeDataframe.font.fontSize}  onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
             </div>
             <div className='sm:col-span-2 grid gap-3 md:grid-cols-4'>
@@ -1682,7 +1685,7 @@ function App() {
                 <Field language={uiLanguage} label="x" jsonPath={`guidelines[${guidelineIndex}].x`}><Input type="number" value={guideline.x ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} /></Field>
                 <Field language={uiLanguage} label="y" jsonPath={`guidelines[${guidelineIndex}].y`}><Input type="number" value={guideline.y ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} /></Field>
                 <Field language={uiLanguage} label="m" jsonPath={`guidelines[${guidelineIndex}].m`}><Input type="number" value={guideline.m} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} /></Field>
-                <Field language={uiLanguage} label="line_props.linestyle" jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`}><Input value={guideline.lineProps.linestyle} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linestyle: e.target.value } }))} /></Field>
+                <Field language={uiLanguage} label="line_props.linestyle" jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`}><Select value={guideline.lineProps.linestyle} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linestyle: e.target.value } }))}>{LINE_STYLE_OPTIONS.map((option) => <option key={`linestyle-${option || 'empty'}`} value={option}>{option === '' ? 'empty string' : option === ' ' ? 'space' : option}</option>)}</Select></Field>
                 <Field language={uiLanguage} label="line_props.color" jsonPath={`guidelines[${guidelineIndex}].line_props.color`}>
                   <ColorOrMaterialInput materialOptions={materialColorOptions} value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, color: next } }))} />
                 </Field>
