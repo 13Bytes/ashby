@@ -319,23 +319,64 @@ function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => void; onH
 
 function FancyColorInput({ value, onChange }: { value: string; onChange: (next: string) => void }) {
   const [open, setOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement | null>(null)
   const normalized = /^#([0-9A-Fa-f]{6})$/.test(value) ? value : '#000000'
-  const [hue, setHue] = useState(220)
-  const [sat, setSat] = useState(70)
-  const [light, setLight] = useState(50)
-  const hslColor = `hsl(${hue} ${sat}% ${light}%)`
+
+  useEffect(() => {
+    if (!open) return
+    const handleOutside = (event: MouseEvent | globalThis.MouseEvent) => {
+      if (pickerRef.current && event.target instanceof Node && !pickerRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [open])
+
   return (
-    <div className="relative">
-      <button type="button" className="h-10 w-16 rounded-md border border-zinc-300 p-1" onClick={() => setOpen((v) => !v)}>
+    <div className="relative" ref={pickerRef}>
+      <button
+        type="button"
+        className="group relative h-10 w-16 overflow-hidden rounded-md border border-zinc-300 p-1 transition hover:scale-[1.02] hover:shadow-md dark:border-zinc-700"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Open color picker"
+      >
         <span className="block h-full w-full rounded" style={{ backgroundColor: normalized }} />
+        <span className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-transparent transition group-hover:ring-violet-400/30" />
       </button>
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
-          <div className="w-56 space-y-3">
-            <div className="h-20 rounded-md border border-zinc-300" style={{ background: `linear-gradient(to right, #fff, ${hslColor}, #000)` }} />
-            <label className="grid gap-1 text-xs">Hue<input type="range" min={0} max={360} value={hue} onChange={(e) => { const next = Number(e.target.value); setHue(next); onChange(`hsl(${next} ${sat}% ${light}%)`) }} /></label>
-            <label className="grid gap-1 text-xs">Saturation<input type="range" min={0} max={100} value={sat} onChange={(e) => { const next = Number(e.target.value); setSat(next); onChange(`hsl(${hue} ${next}% ${light}%)`) }} /></label>
-            <label className="grid gap-1 text-xs">Lightness<input type="range" min={0} max={100} value={light} onChange={(e) => { const next = Number(e.target.value); setLight(next); onChange(`hsl(${hue} ${sat}% ${next}%)`) }} /></label>
+        <div className="absolute right-0 z-20 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-4 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="space-y-3">
+            <div className="grid grid-cols-6 gap-2">
+              {['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#6b7280'].map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => onChange(chip)}
+                  className={`h-8 w-8 rounded-md border transition hover:scale-105 ${normalized.toLowerCase() === chip ? 'border-zinc-900 dark:border-zinc-100' : 'border-zinc-300 dark:border-zinc-700'}`}
+                  style={{ backgroundColor: chip }}
+                  aria-label={`Pick ${chip}`}
+                />
+              ))}
+            </div>
+            <label className="grid gap-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+              Hex color
+              <Input
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="#3b82f6"
+                className="font-mono"
+              />
+            </label>
+            <label className="grid gap-1 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+              Native picker
+              <input
+                type="color"
+                value={normalized}
+                onChange={(e) => onChange(e.target.value)}
+                className="h-10 w-full cursor-pointer rounded-md border border-zinc-300 bg-transparent p-1 dark:border-zinc-700"
+              />
+            </label>
           </div>
         </div>
       ) : null}
