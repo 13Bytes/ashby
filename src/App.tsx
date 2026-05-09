@@ -17,7 +17,13 @@ type JsonRenderTarget = { dataframeIndex: number; frameIndex: number }
 type PlotAction = 'preview-current' | 'create-all'
 
 type MultiOption = { value: string; label: string }
-type ImportDatabaseResponse = { columns?: string[]; import_file_name?: string; message?: string; success?: boolean }
+type ImportDatabaseResponse = {
+  columns?: string[]
+  keywords_by_column?: Record<string, string[]>
+  import_file_name?: string
+  message?: string
+  success?: boolean
+}
 
 const WHITELIST_OPTIONS: MultiOption[] = []
 
@@ -317,6 +323,39 @@ function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => void; onH
   )
 }
 
+function ColorOrMaterialInput({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (next: string) => void
+}) {
+  const isHexColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim())
+  const mode: 'color' | 'material' = isHexColor ? 'color' : 'material'
+  return (
+    <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2">
+      <Select
+        value={mode}
+        onChange={(event) => {
+          const nextMode = event.target.value as 'color' | 'material'
+          onChange(nextMode === 'color' ? '#000000' : 'default')
+        }}
+      >
+        <option value="color">Color</option>
+        <option value="material">Material</option>
+      </Select>
+      {mode === 'color' ? (
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+          <Input type="color" value={isHexColor ? value : '#000000'} className="h-10 w-16 p-1" onChange={(e) => onChange(e.target.value)} />
+          <Input value={value} onChange={(e) => onChange(e.target.value)} />
+        </div>
+      ) : (
+        <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder="material key (e.g. default)" />
+      )}
+    </div>
+  )
+}
+
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
   const [configBaseName, setConfigBaseName] = useState('ashby-config')
@@ -337,6 +376,7 @@ function App() {
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
   const [availableWhitelistKeywords, setAvailableWhitelistKeywords] = useState<MultiOption[]>(WHITELIST_OPTIONS)
+  const [availableKeywordsByColumn, setAvailableKeywordsByColumn] = useState<Record<string, string[]>>({})
   const [importInProgress, setImportInProgress] = useState(false)
   const [tabRename, setTabRename] = useState<{ type: 'dataframe' | 'frame'; index: number; value: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -382,6 +422,23 @@ function App() {
       .sort((a, b) => a.localeCompare(b))
       .map((column) => ({ value: column, label: column }))
   }, [availableColumns])
+  const materialKeywordOptions = useMemo(() => {
+    const layerColumns = new Set(
+      activeDataframe.frames.flatMap((frame) =>
+        frame.layers.map((layer) => layer.name?.trim()).filter((entry): entry is string => Boolean(entry)),
+      ),
+    )
+    const keywords = new Set<string>()
+    for (const column of layerColumns) {
+      for (const keyword of availableKeywordsByColumn[column] ?? []) {
+        const normalized = keyword.trim()
+        if (normalized) {
+          keywords.add(normalized)
+        }
+      }
+    }
+    return [...keywords].sort((a, b) => a.localeCompare(b))
+  }, [activeDataframe.frames, availableKeywordsByColumn])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -762,6 +819,7 @@ function App() {
       }
 
       const columns = parseColumnsFromImportResult(payload.columns)
+      const keywordsByColumn = payload.keywords_by_column ?? {}
       const axisBases = getAxisBasesFromColumns(columns)
       const suffixColumns = new Set<string>(axisBases.flatMap((base) => [`${base} low`, `${base} high`, `${base} unit`]))
       const allowedLayerColumns = new Set(columns.filter((column) => !suffixColumns.has(column)))
@@ -798,6 +856,7 @@ function App() {
         [activeDataframeIndex]: { imported: true, source: sourceMode },
       }))
       setAvailableColumns(columns)
+      setAvailableKeywordsByColumn(keywordsByColumn)
       setAvailableWhitelistKeywords(
         [...new Set([...activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))])]
           .sort((a, b) => a.localeCompare(b))
@@ -1562,7 +1621,11 @@ function App() {
                 <MultiSelectInput
                   title="Whitelist keywords"
                   value={layer.whitelist ?? []}
-                  options={availableWhitelistKeywords}
+                  options={!layer.name
+                    ? []
+                    : (availableKeywordsByColumn[layer.name] ?? []).length > 0
+                      ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry }))
+                      : availableWhitelistKeywords}
                   expanded={expandedLayerKeywords[layerIndex] === true}
                   onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
                   modeValue={layer.whitelistFlag ?? false}
@@ -1584,10 +1647,14 @@ function App() {
                 <Field language={uiLanguage} label="y" jsonPath={`guidelines[${guidelineIndex}].y`}><Input type="number" value={guideline.y ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} /></Field>
                 <Field language={uiLanguage} label="m" jsonPath={`guidelines[${guidelineIndex}].m`}><Input type="number" value={guideline.m} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} /></Field>
                 <Field language={uiLanguage} label="line_props.linestyle" jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`}><Input value={guideline.lineProps.linestyle} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linestyle: e.target.value } }))} /></Field>
-                <Field language={uiLanguage} label="line_props.color" jsonPath={`guidelines[${guidelineIndex}].line_props.color`}><Input value={guideline.lineProps.color} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, color: e.target.value } }))} /></Field>
+                <Field language={uiLanguage} label="line_props.color" jsonPath={`guidelines[${guidelineIndex}].line_props.color`}>
+                  <ColorOrMaterialInput value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, color: next } }))} />
+                </Field>
                 <Field language={uiLanguage} label="line_props.linewidth" jsonPath={`guidelines[${guidelineIndex}].line_props.linewidth`}><Input type="number" value={guideline.lineProps.linewidth} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linewidth: numberValue(e.target.valueAsNumber, g.lineProps.linewidth) } }))} /></Field>
                 <Field language={uiLanguage} label="fontsize" jsonPath={`guidelines[${guidelineIndex}].fontsize`}><Input type="number" value={guideline.fontsize} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontsize: numberValue(e.target.valueAsNumber, g.fontsize) }))} /></Field>
-                <Field language={uiLanguage} label="font_color" jsonPath={`guidelines[${guidelineIndex}].font_color`}><Input value={guideline.fontColor} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: e.target.value }))} /></Field>
+                <Field language={uiLanguage} label="font_color" jsonPath={`guidelines[${guidelineIndex}].font_color`}>
+                  <ColorOrMaterialInput value={guideline.fontColor} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
+                </Field>
                 <Field language={uiLanguage} label="label" jsonPath={`guidelines[${guidelineIndex}].label`}><Input value={guideline.label} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, label: e.target.value }))} /></Field>
                 <Field language={uiLanguage} label="label_above" jsonPath={`guidelines[${guidelineIndex}].label_above`}><Select value={guideline.labelAbove ? 'true' : 'false'} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select></Field>
                 <Field language={uiLanguage} label="label_padding" jsonPath={`guidelines[${guidelineIndex}].label_padding`}><Input type="number" value={guideline.labelPadding} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelPadding: numberValue(e.target.valueAsNumber, g.labelPadding) }))} /></Field>
@@ -1606,7 +1673,9 @@ function App() {
                 <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}><Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}><Input value={area.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: e.target.value } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}>
+                  <ColorOrMaterialInput value={area.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: next } : entry) }))} />
+                </Field>
                 <Field language={uiLanguage} label="alpha" jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
               </div>
             ))}
@@ -1629,18 +1698,66 @@ function App() {
                   <Input type="number" value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: [numberValue(e.target.valueAsNumber, entry.text?.relPos?.[0] ?? 0), entry.text?.relPos?.[1] ?? 0], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Text offset Y" jsonPath={`annotations[${annotationIndex}].text.rel_pos[1]`}>
                   <Input type="number" value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: [entry.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, entry.text?.relPos?.[1] ?? 0)], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="Text color" jsonPath={`annotations[${annotationIndex}].text.color`} className='grid grid-cols-[1fr_auto_auto] items-center gap-2'>
-                  <Input type="color" value={annotation.text?.color ?? ''} className="h-10 w-16 p-1" onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} />
-                  <Input value={annotation.text?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} /> </Field>
+                <Field language={uiLanguage} label="Text color" jsonPath={`annotations[${annotationIndex}].text.color`}>
+                  <ColorOrMaterialInput value={annotation.text?.color ?? '#111827'} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: next, fontSize: entry.text?.fontSize } } : entry) }))} />
+                </Field>
 
 
-                <Button type="button" size="sm" variant="outline" onClick={() => {}}>Marker</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => {}}>Arrow</Button>
+                <div className="sm:col-span-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Extras</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={annotation.marker ? 'default' : 'outline'}
+                    onClick={() =>
+                      patchActiveFrame((f) => ({
+                        ...f,
+                        annotations: f.annotations.map((entry, i) =>
+                          i === annotationIndex
+                            ? {
+                                ...entry,
+                                marker: entry.marker
+                                  ? undefined
+                                  : { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' },
+                              }
+                            : entry,
+                        ),
+                      }))
+                    }
+                  >
+                    Marker
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={annotation.arrow ? 'default' : 'outline'}
+                    onClick={() =>
+                      patchActiveFrame((f) => ({
+                        ...f,
+                        annotations: f.annotations.map((entry, i) =>
+                          i === annotationIndex
+                            ? {
+                                ...entry,
+                                arrow: entry.arrow
+                                  ? undefined
+                                  : { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 },
+                              }
+                            : entry,
+                        ),
+                      }))
+                    }
+                  >
+                    Arrow
+                  </Button>
+                </div>
 
                 {annotation.marker ? 
                 <>
+                  <div className="sm:col-span-4 mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Marker settings</div>
                   <Field language={uiLanguage} label="Marker symbol"      jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker.markerSymbol} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: e.target.value } } : entry) }))}/></Field>
-                  <Field language={uiLanguage} label="Marker color"       jsonPath={`annotations[${annotationIndex}].marker.color`        }><Input value={annotation.marker.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: e.target.value } } : entry) }))} /></Field>
+                  <Field language={uiLanguage} label="Marker color" jsonPath={`annotations[${annotationIndex}].marker.color`}>
+                    <ColorOrMaterialInput value={annotation.marker.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: next } } : entry) }))} />
+                  </Field>
                   
                   
                   <Field language={uiLanguage} label="Marker linewidth" jsonPath={`annotations[${annotationIndex}].marker.linewidths`}><Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), linewidths: numberValue(e.target.valueAsNumber, annotation.marker.linewidths) } } : entry) }))}/></Field><Field language={uiLanguage} label="Marker edgecolors" jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}><Input value={annotation.marker.edgecolors} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), edgecolors: e.target.value } } : entry) }))}/></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`  }><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, annotation.marker.sizeFactor) } } : entry) }))}/></Field> 
@@ -1650,8 +1767,11 @@ function App() {
 
                 {annotation.arrow ? (
                   <>
+                    <div className="sm:col-span-4 mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Arrow settings</div>
                     <Field language={uiLanguage} label="Arrow width" jsonPath={`annotations[${annotationIndex}].arrow.width`}><Input type="number" value={annotation.arrow.width} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), width: numberValue(e.target.valueAsNumber, annotation.arrow?.width ?? 1) } } : entry) }))} /></Field>
-                    <Field language={uiLanguage} label="Arrow facecolor" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field>
+                    <Field language={uiLanguage} label="Arrow facecolor" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}>
+                      <ColorOrMaterialInput value={annotation.arrow.facecolor} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: next } } : entry) }))} />
+                    </Field>
                     <Field language={uiLanguage} label="Arrow headlength" jsonPath={`annotations[${annotationIndex}].arrow.headlength`}><Input type="number" value={annotation.arrow.headlength} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), headlength: numberValue(e.target.valueAsNumber, annotation.arrow?.headlength ?? 10) } } : entry) }))} /></Field>
                     <Field language={uiLanguage} label="Arrow headwidth" jsonPath={`annotations[${annotationIndex}].arrow.headwidth`}><Input type="number" value={annotation.arrow.headwidth} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), headwidth: numberValue(e.target.valueAsNumber, annotation.arrow?.headwidth ?? 6) } } : entry) }))} /></Field>
                     <Field language={uiLanguage} label="Arrow linewidth" jsonPath={`annotations[${annotationIndex}].arrow.linewidth`}><Input type="number" value={annotation.arrow.linewidth} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), linewidth: numberValue(e.target.valueAsNumber, annotation.arrow?.linewidth ?? 1) } } : entry) }))} /></Field>
@@ -1716,7 +1836,10 @@ function App() {
                 <h3 className="text-sm font-semibold">{t('materialColors')}</h3>
                 <Button type="button" variant="outline" size='sm' onClick={() =>
                   patchActiveDataframe((df) => {
-                    const key = getUniqueMaterialKey(df.materialColors)
+                    let key = ''
+                    while (df.materialColors[key] !== undefined) {
+                      key += ' '
+                    }
                     return { ...df, materialColors: { ...df.materialColors, [key]: '#000000' } }
                   })}>
                   + {t('color')}
@@ -1728,12 +1851,11 @@ function App() {
               </Button>
             </div>
             {Object.entries(activeDataframe.materialColors).map(([material, color]) => {
-              const allKeywords = getConfigWhitelistKeywords(plotConfig).filter((entry) => entry !== 'default')
               const isDefault = material === 'default'
               return (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                 <div className="flex items-center gap-2">
-                  {isDefault ? <Input value={material} readOnly className="w-full" /> : <Select value={material} onChange={(e) =>
+                  {isDefault ? <Input value={material} readOnly tabIndex={-1} onMouseDown={(event) => event.preventDefault()} className="w-full cursor-default text-zinc-900 dark:text-zinc-100" /> : <Select className="w-full" value={material} onChange={(e) =>
                     patchActiveDataframe((df) => {
                       const nextKey = e.target.value.trim()
                       if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
@@ -1745,7 +1867,7 @@ function App() {
                     })
                   }>
                     <option value={material}>{material}</option>
-                    {allKeywords.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
+                    {materialKeywordOptions.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
                   </Select>}
                   {!isDefault ? <button
                     type="button"
@@ -1759,7 +1881,7 @@ function App() {
                     aria-label={`Remove ${material}`}
                   >
                     ✕
-                  </button> : null}
+                  </button> : <span aria-hidden="true" className="inline-block w-8" />}
                 </div>
                 <Input type="color" value={color} className="h-10 w-16 cursor-pointer rounded-md border border-zinc-300 p-1" onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
                 <Input value={color} onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />

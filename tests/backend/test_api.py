@@ -143,6 +143,8 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('application/json', self.header(headers, 'Content-Type'))
         self.assertTrue(payload['success'])
         self.assertGreater(len(payload['columns']), 0)
+        self.assertIn('keywords_by_column', payload)
+        self.assertIsInstance(payload['keywords_by_column'], dict)
         self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
 
     def test_extract_columns_from_filament_xlsx_source(self) -> None:
@@ -169,6 +171,9 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('Bed Temp low', payload['columns'])
         self.assertIn('Bed Temp high', payload['columns'])
         self.assertIn('Bed Temp unit', payload['columns'])
+        self.assertIn('keywords_by_column', payload)
+        self.assertIn('Material', payload['keywords_by_column'])
+        self.assertGreater(len(payload['keywords_by_column']['Material']), 0)
         self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
 
     def test_uploaded_import_file_name_can_be_rendered(self) -> None:

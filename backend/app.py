@@ -66,6 +66,30 @@ def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]
     return [str(column).strip() for column in selected.columns if str(column).strip()]
 
 
+def _extract_keywords_by_column_from_xlsx(file_bytes: bytes, sheet_index: int) -> dict[str, list[str]]:
+    dataframes = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None)
+    sheet_names = list(dataframes.keys())
+    if not sheet_names:
+        return {}
+    index = min(max(sheet_index, 0), len(sheet_names) - 1)
+    selected = dataframes[sheet_names[index]]
+
+    keywords_by_column: dict[str, list[str]] = {}
+    for raw_column in selected.columns:
+        column = str(raw_column).strip()
+        if not column:
+            continue
+        series = selected[raw_column].dropna()
+        keywords = sorted({
+            str(entry).strip()
+            for entry in series
+            if isinstance(entry, str) and str(entry).strip()
+        }, key=lambda entry: entry.lower())
+        keywords_by_column[column] = keywords
+
+    return keywords_by_column
+
+
 def _encode_messages_header(messages: list[str]) -> str:
     return quote(json.dumps(messages, ensure_ascii=False), safe='')
 
@@ -132,5 +156,11 @@ async def import_database(
 
     file_bytes = await file.read()
     columns = _extract_columns_from_xlsx(file_bytes, import_sheet)
+    keywords_by_column = _extract_keywords_by_column_from_xlsx(file_bytes, import_sheet)
     stored_import_file_name = _store_uploaded_xlsx(file_bytes, file.filename or 'uploaded.xlsx')
-    return JSONResponse({'success': True, 'columns': columns, 'import_file_name': stored_import_file_name})
+    return JSONResponse({
+        'success': True,
+        'columns': columns,
+        'keywords_by_column': keywords_by_column,
+        'import_file_name': stored_import_file_name,
+    })
