@@ -1760,7 +1760,7 @@ function App() {
               return (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                 <div className="flex items-center gap-2">
-                  {isDefault ? <Input value={material} readOnly className="w-full" /> : <Select value={material} onChange={(e) =>
+                  {isDefault ? <Input value={material} readOnly disabled className="w-48 cursor-default" /> : <Select className="w-48" value={material} onChange={(e) =>
                     patchActiveDataframe((df) => {
                       const nextKey = e.target.value.trim()
                       if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
