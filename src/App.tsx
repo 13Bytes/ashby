@@ -391,6 +391,7 @@ const MARKER_SYMBOL_OPTIONS: Array<{ value: string; label: string }> = [
 const LINE_STYLE_OPTIONS = ['-', '--', '-.', ':', 'None', ' ', '']
 const FONT_STYLE_OPTIONS: Array<DataframeConfig['font']['fontStyle']> = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monospace']
 const FONT_FAMILY_OPTIONS = ['DejaVu Sans', 'DejaVu Serif', 'DejaVu Sans Mono', 'Arial', 'Helvetica', 'Times New Roman', 'Courier New']
+const CUSTOM_SELECT_VALUE = '__custom__'
 
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
@@ -1512,7 +1513,18 @@ function App() {
             </Field>
             <div className="sm:col-span-2 grid gap-3 md:grid-cols-3">
               <Field language={uiLanguage} label={t('fontStyle' )} jsonPath="font.font_style"><Select value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value as DataframeConfig['font']['fontStyle'] } }))}>{FONT_STYLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</Select></Field>
-              <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"      ><Select value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))}>{FONT_FAMILY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</Select></Field>
+              <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"      >
+                <div className="grid gap-2">
+                  <Select value={FONT_FAMILY_OPTIONS.includes(activeDataframe.font.font) ? activeDataframe.font.font : CUSTOM_SELECT_VALUE} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value === CUSTOM_SELECT_VALUE ? '' : e.target.value } }))}>
+                    {FONT_FAMILY_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                    <option disabled>──────────</option>
+                    <option value={CUSTOM_SELECT_VALUE}>custom…</option>
+                  </Select>
+                  {( !FONT_FAMILY_OPTIONS.includes(activeDataframe.font.font)) ? (
+                    <Input value={activeDataframe.font.font} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} placeholder="custom font family" />
+                  ) : null}
+                </div>
+              </Field>
               <Field language={uiLanguage} label={t('fontSize' )} jsonPath="font.font_size"  ><Input type="number" value={activeDataframe.font.fontSize}  onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
             </div>
             <div className='sm:col-span-2 grid gap-3 md:grid-cols-4'>
@@ -1811,7 +1823,8 @@ function App() {
                         {MARKER_SYMBOL_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
-                        <option value="custom">custom</option>
+                        <option disabled>──────────</option>
+                        <option value="custom">custom…</option>
                       </Select>
                       {dummySelector === 'custom' ? (
                         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
