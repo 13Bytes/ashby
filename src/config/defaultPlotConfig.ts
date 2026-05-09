@@ -22,7 +22,7 @@ export interface DataframeConfig {
   teableUrl?: string
   importFileName?: string
   importSheet?: number
-  aspectRatio: number
+  aspectRatio: [number, number]
   resolution: number | "svg"
   legendTitle: Record<string, string>
   font: {
@@ -153,7 +153,7 @@ export function createDefaultPlotConfig(): PlotConfig {
       {
         excelImport: false,
         importSheet: 0,
-        aspectRatio: 16 / 9,
+        aspectRatio: [16, 9],
         resolution: 'svg',
         legendTitle: { en: '' },
         font: {

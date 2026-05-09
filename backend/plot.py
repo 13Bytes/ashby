@@ -29,7 +29,10 @@ def main(dataframe:dict, interactive:bool) -> None:
         resolution = 100
     else:
         fileformat = "png"
-    df_image_ratio = dataframe.get('image_ratio', 16/9)
+
+    ratio = dataframe.get('image_ratio', [16,9])
+    df_image_ratio = ratio[0] / ratio[1]
+    
     create_frames  = dataframe.get('create_all_frames', True)
 
     # : FRAME                                                                               :

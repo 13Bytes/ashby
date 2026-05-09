@@ -1379,31 +1379,21 @@ function App() {
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
             <Field language={uiLanguage} label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" className="grid grid-cols-[1fr_auto] items-center gap-2">
-              <Button type="button" size="sm" variant="outline" className="justify-self-start inline-flex" onClick={() => setaspectRatioSplitMode((prev) => !prev)}>
-                Toggle ratio mode
-              </Button>
-              {aspectRatioSplitMode ? (
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={activeDataframe.aspectRatio}
-                    onChange={(e) => patchActiveDataframe((c) => ({ ...c, aspectRatio: numberValue(e.target.valueAsNumber, c.aspectRatio) }))}
-                  />
-                  <span>/</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={1}
-                    onChange={(e) => {
-                      const denominator = numberValue(e.target.valueAsNumber, 1)
-                      patchActiveDataframe((c) => ({ ...c, aspectRatio: denominator !== 0 ? c.aspectRatio / denominator : c.aspectRatio }))
-                    }}
-                  />
-                </div>
-              ) : (
-                <Input type="number" step="0.01" value={activeDataframe.aspectRatio} onChange={(e) => patchActiveDataframe((c) => ({ ...c, aspectRatio: numberValue(e.target.valueAsNumber, c.aspectRatio) }))} />
-              )}  
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={activeDataframe.aspectRatio[0]}
+                  onChange={(e) => patchActiveDataframe((c) => ({ ...c, aspectRatio: numberValue(e.target.valueAsNumber, c.aspectRatio[0])}))}
+                />
+                <span> / </span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={activeDataframe.aspectRatio[1]}
+                  onChange={(e) => patchActiveDataframe((c) => ({ ...c, aspectRatio: numberValue(e.target.valueAsNumber, c.aspectRatio[1])}))}
+                />
+              </div>
             </Field>
 
             <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution">
