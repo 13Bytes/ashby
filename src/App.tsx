@@ -362,6 +362,33 @@ function ColorOrMaterialInput({
   )
 }
 
+const MARKER_SYMBOL_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '.', label: 'point [.]' },
+  { value: ',', label: 'pixel [,]' },
+  { value: 'o', label: 'circle [o]' },
+  { value: 'v', label: 'triangle_down [v]' },
+  { value: '^', label: 'triangle_up [^]' },
+  { value: '<', label: 'triangle_left [<]' },
+  { value: '>', label: 'triangle_right [>]' },
+  { value: '1', label: 'tri_down [1]' },
+  { value: '2', label: 'tri_up [2]' },
+  { value: '3', label: 'tri_left [3]' },
+  { value: '4', label: 'tri_right [4]' },
+  { value: '8', label: 'octagon [8]' },
+  { value: 's', label: 'square [s]' },
+  { value: 'p', label: 'pentagon [p]' },
+  { value: 'P', label: 'plus_filled [P]' },
+  { value: '*', label: 'star [*]' },
+  { value: 'h', label: 'hexagon1 [h]' },
+  { value: 'H', label: 'hexagon2 [H]' },
+  { value: '+', label: 'plus [+]' },
+  { value: 'x', label: 'x [x]' },
+  { value: 'X', label: 'x_filled [X]' },
+  { value: 'D', label: 'diamond [D]' },
+  { value: 'd', label: 'thin_diamond [d]' },
+  { value: '|', label: 'vline [|]' },
+]
+
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
   const [configBaseName, setConfigBaseName] = useState('ashby-config')
@@ -1763,7 +1790,47 @@ function App() {
                 {annotation.marker ? 
                 <>
                   <div className="sm:col-span-4 mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Marker settings</div>
-                  <Field language={uiLanguage} label="Marker symbol"      jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker.markerSymbol} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: e.target.value } } : entry) }))}/></Field>
+                  <Field language={uiLanguage} label="Marker symbol"      jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}>
+                    <div className="grid gap-2">
+                      <Select
+                        value={dummySelector}
+                        onChange={(e) => {
+                          const nextSelection = e.target.value
+                          setDummySelector(nextSelection)
+                          if (nextSelection !== 'custom') {
+                            patchActiveFrame((f) => ({
+                              ...f,
+                              annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: nextSelection } } : entry),
+                            }))
+                          }
+                        }}
+                      >
+                        {MARKER_SYMBOL_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                        <option value="custom">custom</option>
+                      </Select>
+                      {dummySelector === 'custom' ? (
+                        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                          <Input
+                            value={dummyCustomValue}
+                            onChange={(e) => {
+                              const nextCustomValue = e.target.value
+                              setDummyCustomValue(nextCustomValue)
+                              patchActiveFrame((f) => ({
+                                ...f,
+                                annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: nextCustomValue } } : entry),
+                              }))
+                            }}
+                            placeholder="custom marker symbol"
+                          />
+                          <a href="https://matplotlib.org/stable/api/markers_api.html" target="_blank" rel="noreferrer">
+                            <Button type="button" size="sm" variant="outline">Help</Button>
+                          </a>
+                        </div>
+                      ) : null}
+                    </div>
+                  </Field>
                   <Field language={uiLanguage} label="Marker color" jsonPath={`annotations[${annotationIndex}].marker.color`}>
                     <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.marker.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: next } } : entry) }))} />
                   </Field>
@@ -1790,23 +1857,6 @@ function App() {
                 ) : null}
               </div>
             ))}
-          </section>
-          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-            <h3 className="sm:col-span-2 text-sm font-semibold">Dummy selector</h3>
-            <div className="sm:col-span-2 flex items-center gap-2">
-              <Select value={dummySelector} onChange={(e) => setDummySelector(e.target.value)} className={dummySelector === 'custom' ? 'w-24' : 'w-40'}>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="custom">custom</option>
-              </Select>
-              {dummySelector === 'custom' ? 
-                <div>
-                  <Input value={dummyCustomValue} onChange={(e) => setDummyCustomValue(e.target.value)} placeholder="custom value" /> 
-                  {/* ToDo: Help Button that redirects to url */}
-                </div>
-              : null}
-            </div>
           </section>
 {/* ~ Axes */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
