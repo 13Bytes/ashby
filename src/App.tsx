@@ -17,7 +17,13 @@ type JsonRenderTarget = { dataframeIndex: number; frameIndex: number }
 type PlotAction = 'preview-current' | 'create-all'
 
 type MultiOption = { value: string; label: string }
-type ImportDatabaseResponse = { columns?: string[]; import_file_name?: string; message?: string; success?: boolean }
+type ImportDatabaseResponse = {
+  columns?: string[]
+  keywords_by_column?: Record<string, string[]>
+  import_file_name?: string
+  message?: string
+  success?: boolean
+}
 
 const WHITELIST_OPTIONS: MultiOption[] = []
 
@@ -337,6 +343,7 @@ function App() {
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
   const [availableWhitelistKeywords, setAvailableWhitelistKeywords] = useState<MultiOption[]>(WHITELIST_OPTIONS)
+  const [availableKeywordsByColumn, setAvailableKeywordsByColumn] = useState<Record<string, string[]>>({})
   const [importInProgress, setImportInProgress] = useState(false)
   const [tabRename, setTabRename] = useState<{ type: 'dataframe' | 'frame'; index: number; value: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -762,6 +769,7 @@ function App() {
       }
 
       const columns = parseColumnsFromImportResult(payload.columns)
+      const keywordsByColumn = payload.keywords_by_column ?? {}
       const axisBases = getAxisBasesFromColumns(columns)
       const suffixColumns = new Set<string>(axisBases.flatMap((base) => [`${base} low`, `${base} high`, `${base} unit`]))
       const allowedLayerColumns = new Set(columns.filter((column) => !suffixColumns.has(column)))
@@ -798,6 +806,7 @@ function App() {
         [activeDataframeIndex]: { imported: true, source: sourceMode },
       }))
       setAvailableColumns(columns)
+      setAvailableKeywordsByColumn(keywordsByColumn)
       setAvailableWhitelistKeywords(
         [...new Set([...activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))])]
           .sort((a, b) => a.localeCompare(b))
@@ -1562,7 +1571,9 @@ function App() {
                 <MultiSelectInput
                   title="Whitelist keywords"
                   value={layer.whitelist ?? []}
-                  options={availableWhitelistKeywords}
+                  options={((layer.name && availableKeywordsByColumn[layer.name]) ?? []).length > 0
+                    ? (availableKeywordsByColumn[layer.name] ?? []).map((entry) => ({ value: entry, label: entry }))
+                    : availableWhitelistKeywords}
                   expanded={expandedLayerKeywords[layerIndex] === true}
                   onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
                   modeValue={layer.whitelistFlag ?? false}
