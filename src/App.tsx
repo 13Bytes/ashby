@@ -1744,7 +1744,7 @@ function App() {
                 <h3 className="text-sm font-semibold">{t('materialColors')}</h3>
                 <Button type="button" variant="outline" size='sm' onClick={() =>
                   patchActiveDataframe((df) => {
-                    const key = getUniqueMaterialKey(df.materialColors)
+                    const key = df.materialColors[''] === undefined ? '' : getUniqueMaterialKey(df.materialColors)
                     return { ...df, materialColors: { ...df.materialColors, [key]: '#000000' } }
                   })}>
                   + {t('color')}
