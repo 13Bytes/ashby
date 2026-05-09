@@ -1760,7 +1760,7 @@ function App() {
               return (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                 <div className="flex items-center gap-2">
-                  {isDefault ? <Input value={material} readOnly disabled className="w-48 cursor-default" /> : <Select className="w-48" value={material} onChange={(e) =>
+                  {isDefault ? <Input value={material} readOnly tabIndex={-1} onMouseDown={(event) => event.preventDefault()} className="w-full cursor-default text-zinc-900 dark:text-zinc-100" /> : <Select className="w-full" value={material} onChange={(e) =>
                     patchActiveDataframe((df) => {
                       const nextKey = e.target.value.trim()
                       if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
@@ -1786,7 +1786,7 @@ function App() {
                     aria-label={`Remove ${material}`}
                   >
                     ✕
-                  </button> : null}
+                  </button> : <span aria-hidden="true" className="inline-block w-8" />}
                 </div>
                 <Input type="color" value={color} className="h-10 w-16 cursor-pointer rounded-md border border-zinc-300 p-1" onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
                 <Input value={color} onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
