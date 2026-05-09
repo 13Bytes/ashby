@@ -86,6 +86,7 @@ const normalizeFrame = (
   const xLim = partial.xLim ?? partial.x_lim
   const yLim = partial.yLim ?? partial.y_lim
 
+  const automaticDisplayAreaMarginSource = partial.automaticDisplayAreaMargin ?? partial.automatic_Display_Area_margin
   return {
     ...structuredClone(fallback),
     name: asOptionalString(partial.name),
@@ -119,10 +120,14 @@ const normalizeFrame = (
       Array.isArray(yLim) && yLim.length === 2 && yLim.every((item) => typeof item === 'number')
         ? [yLim[0], yLim[1]]
         : undefined,
-    automaticDisplayAreaMargin: coerceNumber(
-      partial.automaticDisplayAreaMargin ?? partial.automatic_Display_Area_margin,
-      fallback.automaticDisplayAreaMargin,
-    ),
+    automaticDisplayAreaMargin: isRecord(automaticDisplayAreaMarginSource)
+      ? {
+          left: coerceNumber(automaticDisplayAreaMarginSource.left, fallback.automaticDisplayAreaMargin?.left ?? 0),
+          right: coerceNumber(automaticDisplayAreaMarginSource.right, fallback.automaticDisplayAreaMargin?.right ?? 0),
+          top: coerceNumber(automaticDisplayAreaMarginSource.top, fallback.automaticDisplayAreaMargin?.top ?? 0),
+          bottom: coerceNumber(automaticDisplayAreaMarginSource.bottom, fallback.automaticDisplayAreaMargin?.bottom ?? 0),
+        }
+      : fallback.automaticDisplayAreaMargin,
     algorithm: normalizedAlgorithm,
     layers: Array.isArray(partial.layers) ? partial.layers : fallback.layers,
     filter: isRecord(partial.filter) ? partial.filter : fallback.filter,
