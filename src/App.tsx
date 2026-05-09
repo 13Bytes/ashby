@@ -1664,53 +1664,57 @@ function App() {
                   <Input value={annotation.text?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} /> </Field>
 
 
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    patchActiveFrame((f) => ({
-                      ...f,
-                      annotations: f.annotations.map((entry, i) =>
-                        i === annotationIndex
-                          ? {
-                              ...entry,
-                              marker: entry.marker
-                                ? undefined
-                                : { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' },
-                            }
-                          : entry,
-                      ),
-                    }))
-                  }
-                >
-                  Marker
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    patchActiveFrame((f) => ({
-                      ...f,
-                      annotations: f.annotations.map((entry, i) =>
-                        i === annotationIndex
-                          ? {
-                              ...entry,
-                              arrow: entry.arrow
-                                ? undefined
-                                : { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 },
-                            }
-                          : entry,
-                      ),
-                    }))
-                  }
-                >
-                  Arrow
-                </Button>
+                <div className="sm:col-span-4 flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Extras</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={annotation.marker ? 'default' : 'outline'}
+                    onClick={() =>
+                      patchActiveFrame((f) => ({
+                        ...f,
+                        annotations: f.annotations.map((entry, i) =>
+                          i === annotationIndex
+                            ? {
+                                ...entry,
+                                marker: entry.marker
+                                  ? undefined
+                                  : { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' },
+                              }
+                            : entry,
+                        ),
+                      }))
+                    }
+                  >
+                    Marker
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={annotation.arrow ? 'default' : 'outline'}
+                    onClick={() =>
+                      patchActiveFrame((f) => ({
+                        ...f,
+                        annotations: f.annotations.map((entry, i) =>
+                          i === annotationIndex
+                            ? {
+                                ...entry,
+                                arrow: entry.arrow
+                                  ? undefined
+                                  : { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 },
+                              }
+                            : entry,
+                        ),
+                      }))
+                    }
+                  >
+                    Arrow
+                  </Button>
+                </div>
 
                 {annotation.marker ? 
                 <>
+                  <div className="sm:col-span-4 mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Marker settings</div>
                   <Field language={uiLanguage} label="Marker symbol"      jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker.markerSymbol} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: e.target.value } } : entry) }))}/></Field>
                   <Field language={uiLanguage} label="Marker color"       jsonPath={`annotations[${annotationIndex}].marker.color`        }><Input value={annotation.marker.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: e.target.value } } : entry) }))} /></Field>
                   
@@ -1722,6 +1726,7 @@ function App() {
 
                 {annotation.arrow ? (
                   <>
+                    <div className="sm:col-span-4 mt-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">Arrow settings</div>
                     <Field language={uiLanguage} label="Arrow width" jsonPath={`annotations[${annotationIndex}].arrow.width`}><Input type="number" value={annotation.arrow.width} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), width: numberValue(e.target.valueAsNumber, annotation.arrow?.width ?? 1) } } : entry) }))} /></Field>
                     <Field language={uiLanguage} label="Arrow facecolor" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field>
                     <Field language={uiLanguage} label="Arrow headlength" jsonPath={`annotations[${annotationIndex}].arrow.headlength`}><Input type="number" value={annotation.arrow.headlength} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), headlength: numberValue(e.target.valueAsNumber, annotation.arrow?.headlength ?? 10) } } : entry) }))} /></Field>
