@@ -19,7 +19,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
       teable_url: dataframe.teableUrl ?? null,
       import_file_name: dataframe.importFileName ?? null,
       import_sheet: dataframe.importSheet,
-      image_ratio: dataframe.imageRatio,
+      image_ratio: dataframe.aspectRatio,
       resolution: dataframe.resolution,
       legend_title: dataframe.legendTitle,
       font: {
@@ -51,14 +51,27 @@ export function toExternalConfig(config: PlotConfig): unknown {
         algorithm: frame.algorithm,
         layers: frame.layers.map((layer) => {
           const normalizedName = layer.name?.trim()
+          const hasPrimaryFields = Boolean(
+            normalizedName
+            || layer.whitelist !== undefined
+            || layer.alpha !== undefined
+            || layer.linewidth !== undefined
+            || layer.whitelistFlag !== undefined,
+          )
+
+          if (!hasPrimaryFields) {
+            return {
+              alpha_points: layer.alphaPoints ?? null,
+              alpha_areas: layer.alphaAreas ?? null,
+            }
+          }
+
           return {
             ...(normalizedName ? { name: normalizedName } : {}),
             whitelist_flag: layer.whitelistFlag ?? false,
             whitelist: layer.whitelist ?? null,
             alpha: layer.alpha ?? null,
             linewidth: layer.linewidth ?? 1.5,
-            alpha_points: layer.alphaPoints ?? null,
-            alpha_areas: layer.alphaAreas ?? null,
           }
         }),
         filter: frame.filter ?? {},

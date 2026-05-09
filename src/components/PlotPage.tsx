@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 
 interface Props {
   plotConfig: PlotConfig
+  configBaseName: string
   activeDataframeIndex: number
   activeFrameIndex: number
   plotAction: 'preview-current' | 'create-all'
@@ -33,13 +34,14 @@ function parseBackendMessages(headerValue: string | null): string[] {
   }
 }
 
-export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce }: Props) {
+export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<string[]>([])
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
+  const [isBatchMode, setIsBatchMode] = useState(false)
 
   const getDownloadName = (entry: RenderedPlotEntry) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
@@ -120,6 +122,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
   }
 
   const createPlots = async () => {
+    setIsBatchMode(true)
     setCreatedPlots((current) => {
       current.forEach((entry) => URL.revokeObjectURL(entry.url))
       return []
@@ -153,6 +156,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
       }
     }
     setBatchProgress(null)
+    setIsBatchMode(false)
   }
 
 
@@ -180,7 +184,8 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
     const zipUrl = URL.createObjectURL(zipBlob)
     const anchor = document.createElement('a')
     anchor.href = zipUrl
-    anchor.download = 'ashby-plots.zip'
+    const zipBaseName = configBaseName.trim() || 'ashby-plots'
+    anchor.download = `${zipBaseName}.zip`
     anchor.click()
     URL.revokeObjectURL(zipUrl)
   }
@@ -221,7 +226,9 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
       <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
         <div>
           <h3 className="m-0 text-sm font-semibold">Backend plot preview</h3>
-          <p className="m-0 mt-1 text-xs text-zinc-500">The selected dataframe/frame config is rendered by the Python backend.</p>
+          <p className="m-0 mt-1 text-xs text-zinc-500">
+            {`Showing dataframe ${activeDataframeIndex + 1}, frame ${activeFrameIndex + 1}. The selected dataframe/frame config is rendered by the Python backend.`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading} title="Refresh preview">
@@ -250,7 +257,7 @@ export function PlotPage({ plotConfig, activeDataframeIndex, activeFrameIndex, p
 
       <section className="min-h-[55vh] overflow-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         {loading && !imageUrl ? <p className="text-sm text-zinc-500">Rendering image from backend…</p> : null}
-        {imageUrl ? <img src={imageUrl} alt="Rendered Ashby plot" className="block h-auto max-w-full" /> : null}
+        {imageUrl && !isBatchMode ? <img src={imageUrl} alt="Rendered Ashby plot" className="block h-auto max-w-full" /> : null}
         {createdPlotsSorted.length > 0 ? (
           <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {createdPlotsSorted.map((entry) => (

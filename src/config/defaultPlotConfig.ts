@@ -17,17 +17,22 @@ export interface PlotConfig {
 
 export interface DataframeConfig {
   name?: string
+  excelImport:boolean
   apiKey?: string
   teableUrl?: string
   importFileName?: string
-  importSheet: number
-  imageRatio: number
-  resolution: number | 'svg'
+  importSheet?: number
+  aspectRatio: [number, number]
+  resolution: number | "svg"
   legendTitle: Record<string, string>
   font: {
-    fontStyle: string
+    fontStyle: "serif" | "sans-serif" | "cursive" | "fantasy" | "monospace"
     font: string
     fontSize: number
+    tickSize : number
+    titleSize: number
+    axisLabelSize: number
+    legendSize: number
   }
   language: string
   plotLanguages: string[]
@@ -41,11 +46,9 @@ export interface DataframeConfig {
 
 export interface FrameConfig {
   name?: string
-  legendFlag: boolean
   title: Record<string, string>
   darkMode: boolean
-  legendAbove?: boolean
-  language: string
+  legendAbove: boolean|null
   exportFileName?: string
   xQuantity: string
   xRelQuantity?: string
@@ -102,6 +105,7 @@ export interface AnnotationConfig {
     fontSize?: number
   }
   axes?: Record<string, number>
+  marker_flag?: boolean
   marker?: {
     color: string
     markerSymbol: string
@@ -109,6 +113,7 @@ export interface AnnotationConfig {
     linewidths: number
     edgecolors: string
   }
+  arrow_flag?: boolean
   arrow?: {
     width: number
     facecolor: string
@@ -146,14 +151,19 @@ export function createDefaultPlotConfig(): PlotConfig {
     createAllDataframes: true,
     dataframes: [
       {
+        excelImport: false,
         importSheet: 0,
-        imageRatio: 16 / 9,
+        aspectRatio: [16, 9],
         resolution: 'svg',
         legendTitle: { en: '' },
         font: {
           fontStyle: 'sans-serif',
           font: 'Arial',
           fontSize: 22,
+          tickSize: 5,
+          titleSize: 40,
+          axisLabelSize: 15,
+          legendSize: 20,
         },
         language: 'en',
         plotLanguages: ['en'],
@@ -161,22 +171,20 @@ export function createDefaultPlotConfig(): PlotConfig {
         createAllFrames: true,
         frames: [
           {
-            legendFlag: true,
-            title: { en: 'Ashby plot' },
+            title: { en: '' },
             darkMode: false,
             legendAbove: false,
-            language: 'en',
-            xQuantity: 'deftemp',
+            xQuantity: undefined,
             logXFlag: false,
-            xLim: undefined,
-            yQuantity: 'Rm',
+            xLim: [undefined, undefined],
+            yQuantity: undefined,
             logYFlag: false,
-            yLim: undefined,
+            yLim: [undefined, undefined],
             automaticDisplayAreaMargin: 0.12,
             algorithm: 'cubic',
             layers: [
               {
-                name: 'Material',
+                name: undefined,
                 whitelistFlag: false,
                 whitelist: [],
                 alpha: 0.4,
@@ -201,50 +209,10 @@ export function createDefaultPlotConfig(): PlotConfig {
           },
         ],
         axes: [
-          {
-            name: 'deftemp',
-            columns: ['Deflection Temperature at 18 MPa 264 psi'],
-            mode: 'default',
-            labels: {
-              de: 'Verformungstemperatur [°C] @ 1,8 MPa',
-              en: 'Deflection Temperature $HDT$ [°C] @ 1.8 MPa',
-            },
-          },
-          {
-            name: 'Rm',
-            columns: [
-              'Tensile Strength Yield',
-              'Tensile Strength Ultimate',
-              'Tensile Strength at Break',
-              'Tensile Strength',
-            ],
-            mode: 'max',
-            labels: {
-              de: 'Zugfestigkeit $R_m$ [MPa]',
-              en: 'Tensile Strength $R_m$ [MPa]',
-            },
-          },
-          {
-            name: 'dens',
-            columns: ['Density'],
-            mode: 'default',
-            labels: {
-              de: 'Dichte $[\\frac{\\text{g}}{\\text{cm}^3}]$',
-              en: 'Density $[\\frac{\\text{g}}{\\text{cm}^3}]$',
-            },
-          },
         ],
         materialColors: {
           default: '#000000',
-          ABS: '#219DD3',
-          PA12: '#7BBFD9',
-          PEEK: '#D69D20',
-          PLA: '#E3B768',
-          PET: '#3BD420',
-          PETG: '#85E064',
-          PPSU: '#B52ED6',
-          PPS: '#CE82E0',
-        },
+          },
         _extensions: {},
       },
     ],

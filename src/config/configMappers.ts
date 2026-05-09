@@ -142,6 +142,11 @@ const normalizeFrame = (
   }
 }
 
+
+
+
+
+
 const normalizeDataframe = (
   partial: unknown,
   fallback: DataframeConfig,
@@ -168,7 +173,7 @@ const normalizeDataframe = (
     'import_sheet',
     'importSheet',
     'image_ratio',
-    'imageRatio',
+    'aspectRatio',
     'image_width',
     'image_height',
     'resolution',
@@ -205,10 +210,10 @@ const normalizeDataframe = (
     teableUrl: asOptionalString(partial.teableUrl ?? partial.teable_url),
     importFileName: asOptionalString(partial.importFileName ?? partial.import_file_name),
     importSheet: coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet),
-    imageRatio:
+    aspectRatio:
       legacyImageWidth > 0 && legacyImageHeight > 0
         ? legacyImageWidth / legacyImageHeight
-        : coerceNumber(partial.imageRatio ?? partial.image_ratio, fallback.imageRatio),
+        : coerceNumber(partial.aspectRatio ?? partial.image_ratio, fallback.aspectRatio),
     resolution:
       typeof (partial.resolution ?? partial.image_dpi) === 'number' ||
       (partial.resolution ?? partial.image_dpi) === 'svg'
@@ -277,6 +282,10 @@ const normalizeDataframe = (
     _extensions: extensions,
   }
 }
+
+
+
+
 
 export function normalizePlotConfig(input?: unknown): PlotConfig {
   const fallback = createDefaultPlotConfig()

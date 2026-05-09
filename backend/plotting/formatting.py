@@ -1,12 +1,8 @@
-from pathlib import Path
-
+import os
 import matplotlib.pyplot as plt
 from matplotlib import patches
 from PIL import Image
 import numpy as np
-
-
-BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
 class legend():
@@ -35,7 +31,7 @@ class legend():
     #                 print(item.label_pos[1])
                 
 
-    def create_legend(self, language, font_color, above):
+    def create_legend(self, language, font_color, font_size, above):
         legend_title = title(self.legend_title, language)     
 
         if above:
@@ -45,7 +41,7 @@ class legend():
                 loc  = 'lower left',
                 mode = 'expand',
                 borderaxespad = 0,
-                fontsize = 15,
+                fontsize = font_size,
                 labelcolor = font_color,
                 facecolor = 'none',
                 edgecolor = 'none',
@@ -59,7 +55,7 @@ class legend():
                 loc  = 'center left',
                 labelspacing = 1.05,
                 mode = 'expand',
-                fontsize = 15,
+                fontsize = font_size,
                 alignment = 'left',
                 labelcolor = font_color,
                 facecolor = 'none',
@@ -92,7 +88,11 @@ def axe_label(sorted_data, axe):
 
 
 def watermark(fig, alpha, pos, size):
-    logo = BACKEND_DIR / 'media' / 'watermark.png'
+    logo =  os.path.join(
+            os.getcwd(),
+            'media',
+            'watermark.png'
+        )
 
     # change alpha value
     img = Image.open(logo).convert("RGBA")
@@ -118,21 +118,32 @@ def figurename(frame, dateframe_index, frame_index):
 
 class plot_size():
     def __init__(self, frame, DATA, marker, image_ratio):
-        self.margin         = frame.get("automatic_Display_Area_margin",0.12)
-        self.DATA           = DATA                                                                      
-        self.x = dimension(self, 0, marker, frame.get('log_x_flag',False), frame.get("x_lim",None), image_ratio**(-0.7)) # § class § 
-        self.y = dimension(self, 1, marker, frame.get('log_y_flag',False), frame.get("y_lim",None), 1                  ) # § class §
+        margin       = self.margin(frame.get("automatic_Display_Area_margin",0.12))
+        self.DATA    = DATA                                                                      
+        self.x = dimension(DATA, 0, marker, frame.get('log_x_flag',False), frame.get("x_lim",None), margin['left'  ],margin['right'], image_ratio**(-0.7)) # § class §
+        self.y = dimension(DATA, 1, marker, frame.get('log_y_flag',False), frame.get("y_lim",None), margin['bottom'],margin['top'  ], 1                  ) # § class §
+    
+    def margin(self, m:float|dict) -> [float]:
+        keys = ["left","right","top","bottom"]
+        margin = {key:0 for key in keys}
+        if type(m) == dict:
+            for key in keys:
+                margin[key] = m.get(key, 0.12)
+        else:
+            for key in keys:
+                margin[key] = m
+        return margin
 
 class dimension():
-    def __init__(self, head, dim, marker, log_flag, limit, shrink):
+    def __init__(self, DATA, dim, marker, log_flag, limit, margin_1, margin_2, shrink):
         self.log_flag = log_flag
         if limit == None:
-            self.plot_padding(float(np.nanmin(head.DATA[:,dim])), float(np.nanmax(head.DATA[:,dim])), head.margin, marker.limits(dim), shrink)
+            self.plot_padding(float(np.nanmin(DATA[:,dim])), float(np.nanmax(DATA[:,dim])), margin_1, margin_2, marker.limits(dim), shrink)
         else:
             self.plot_padding(limit[0], limit[1], 0, marker.limits(dim), shrink)
 
         
-    def plot_padding(self, min, max, margin, marker, shrink):
+    def plot_padding(self, min, max, margin_1, margin_2, marker, shrink):
         low  = np.nanmin([marker[0], min])
         high = np.nanmax([marker[1], max])
         # & take hull splines into account
@@ -140,18 +151,16 @@ class dimension():
         if self.log_flag:
             low_log  = np.log10(low )
             high_log = np.log10(high)
-            margin = (high_log - low_log) * margin * shrink    # & e^()
-            self.low  = 10 ** (low_log  - margin)
-            self.high = 10 ** (high_log + margin)
+            self.low  = 10 ** (low_log  - margin_1 * (high_log - low_log) * shrink)
+            self.high = 10 ** (high_log + margin_2 * (high_log - low_log) * shrink)
             self.space = (np.log10(self.high) - np.log10(self.low)) / 100
         else:
-            margin = (high - low) * margin * shrink
-            self.low  = low  - margin
-            self.high = high + margin
+            self.low  = low    -   margin_1 * (high - low) * shrink
+            self.high = high   +   margin_2 * (high - low) * shrink
             self.space = (self.high - self.low) /100
     
     
-    def offset(self, pos, diff):
+    def offset(self, pos, diff) -> float:   # for relative annotation placement
         if self.log_flag:
             return 10**(np.log10(pos) + self.space * diff)
         else:
