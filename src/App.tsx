@@ -36,10 +36,18 @@ const parseNumberList = (value: string): number[] =>
     .filter((entry) => Number.isFinite(entry))
 const toCommaList = (values: number[] | undefined): string => (values ?? []).join(', ')
 const parseColumnsFromImportResult = (value: unknown): string[] => {
-  if (!Array.isArray(value)) {
-    return []
+  if (Array.isArray(value)) {
+    return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0).map((entry) => entry.trim()))]
   }
-  return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0).map((entry) => entry.trim()))]
+  if (value && typeof value === 'object') {
+    const fromKeys = Object.keys(value)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+    if (fromKeys.length > 0) {
+      return [...new Set(fromKeys)]
+    }
+  }
+  return []
 }
 
 const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
