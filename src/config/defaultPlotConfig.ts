@@ -32,6 +32,7 @@ export interface DataframeConfig {
     tickSize : number
     titleSize: number
     axisLabelSize: number
+    legendSize: number
   }
   language: string
   plotLanguages: string[]
@@ -162,6 +163,7 @@ export function createDefaultPlotConfig(): PlotConfig {
           tickSize: 5,
           titleSize: 40,
           axisLabelSize: 15,
+          legendSize: 20,
         },
         language: 'en',
         plotLanguages: ['en'],

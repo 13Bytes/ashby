@@ -177,8 +177,11 @@ const getConfigLanguages = (config: PlotConfig): string[] => {
   return [...languages].sort((a, b) => a.localeCompare(b))
 }
 
-const getConfigWhitelistKeywords = (config: PlotConfig): string[] =>
-  [...new Set(config.dataframes.flatMap((df) => df.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))))].sort((a, b) => a.localeCompare(b))
+const getConfigWhitelistKeywords = (config: PlotConfig): string[] => {
+  const fromLayers = config.dataframes.flatMap((df) => df.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? [])))
+  const fromAxisColumns = getAxisBasesFromColumns(getConfigAxisColumns(config))
+  return [...new Set([...fromLayers, ...fromAxisColumns])].sort((a, b) => a.localeCompare(b))
+}
 
 const getConfigAxisColumns = (config: PlotConfig): string[] =>
   [...new Set(config.dataframes.flatMap((df) => df.axes.flatMap((axis) => axis.columns)))].sort((a, b) => a.localeCompare(b))
@@ -311,6 +314,32 @@ function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => void; onH
     <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2 hover:bg-red-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Remove">
       ✕
     </Button>
+  )
+}
+
+function FancyColorInput({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const normalized = /^#([0-9A-Fa-f]{6})$/.test(value) ? value : '#000000'
+  const [hue, setHue] = useState(220)
+  const [sat, setSat] = useState(70)
+  const [light, setLight] = useState(50)
+  const hslColor = `hsl(${hue} ${sat}% ${light}%)`
+  return (
+    <div className="relative">
+      <button type="button" className="h-10 w-16 rounded-md border border-zinc-300 p-1" onClick={() => setOpen((v) => !v)}>
+        <span className="block h-full w-full rounded" style={{ backgroundColor: normalized }} />
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-20 mt-2 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="w-56 space-y-3">
+            <div className="h-20 rounded-md border border-zinc-300" style={{ background: `linear-gradient(to right, #fff, ${hslColor}, #000)` }} />
+            <label className="grid gap-1 text-xs">Hue<input type="range" min={0} max={360} value={hue} onChange={(e) => { const next = Number(e.target.value); setHue(next); onChange(`hsl(${next} ${sat}% ${light}%)`) }} /></label>
+            <label className="grid gap-1 text-xs">Saturation<input type="range" min={0} max={100} value={sat} onChange={(e) => { const next = Number(e.target.value); setSat(next); onChange(`hsl(${hue} ${next}% ${light}%)`) }} /></label>
+            <label className="grid gap-1 text-xs">Lightness<input type="range" min={0} max={100} value={light} onChange={(e) => { const next = Number(e.target.value); setLight(next); onChange(`hsl(${hue} ${sat}% ${next}%)`) }} /></label>
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -1375,7 +1404,7 @@ function App() {
 {/* + Dataframe */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
-            <Field language={uiLanguage} label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio">
+            <Field language={uiLanguage} label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" className="grid grid-cols-[1fr_auto] items-center gap-2">
               <Button type="button" size="sm" variant="outline" className="justify-self-start inline-flex" onClick={() => setaspectRatioSplitMode((prev) => !prev)}>
                 Toggle ratio mode
               </Button>
@@ -1422,9 +1451,13 @@ function App() {
               />
             </Field>
             <div className="sm:col-span-2 grid gap-3 md:grid-cols-3">
-              <Field language={uiLanguage} label={t('fontStyle' )} jsonPath="font.font_style"><Input               value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value } }))} /></Field>
+              <Field language={uiLanguage} label={t('fontStyle' )} jsonPath="font.font_style"><Input               value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value as DataframeConfig['font']['fontStyle'] } }))} /></Field>
               <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"      ><Input               value={activeDataframe.font.font}      onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
               <Field language={uiLanguage} label={t('fontSize' )} jsonPath="font.font_size"  ><Input type="number" value={activeDataframe.font.fontSize}  onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
+              <Field language={uiLanguage} label="Tick size" jsonPath="font.tick_size"><Input type="number" value={activeDataframe.font.tickSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, tickSize: numberValue(e.target.valueAsNumber, c.font.tickSize) } }))} /></Field>
+              <Field language={uiLanguage} label="Title size" jsonPath="font.title_size"><Input type="number" value={activeDataframe.font.titleSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, titleSize: numberValue(e.target.valueAsNumber, c.font.titleSize) } }))} /></Field>
+              <Field language={uiLanguage} label="Axis label size" jsonPath="font.axis_label_size"><Input type="number" value={activeDataframe.font.axisLabelSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, axisLabelSize: numberValue(e.target.valueAsNumber, c.font.axisLabelSize) } }))} /></Field>
+              <Field language={uiLanguage} label="Legend size" jsonPath="font.legend_size"><Input type="number" value={activeDataframe.font.legendSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, legendSize: numberValue(e.target.valueAsNumber, c.font.legendSize) } }))} /></Field>
             </div>
 
             {/* ~ import */}
@@ -1620,7 +1653,7 @@ function App() {
               <h3 className="m-0 text-sm font-semibold">{t('annotations')}</h3>
               <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: {}, marker: undefined, arrow: undefined }] }))}>+ Annotation</Button>
             </div>
-            {/* ToDo : Why do all buttons have the entire annotation definition inside? */}
+            
             <Field language={uiLanguage} label="Default marker size" jsonPath="annotations[0].marker_size"><Input type="number" value={activeFrame.annotations[0]?.markerSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === 0 ? { ...entry, markerSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : entry) }))} /></Field>
             <Field language={uiLanguage} label="Default font size" jsonPath="annotations[0].font_size"><Input type="number" value={activeFrame.annotations[0]?.fontSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === 0 ? { ...entry, fontSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : entry) }))} /></Field>
             {activeFrame.annotations.map((annotation, annotationIndex) => (
@@ -1633,7 +1666,7 @@ function App() {
                 <Field language={uiLanguage} label="Text offset Y" jsonPath={`annotations[${annotationIndex}].text.rel_pos[1]`}>
                   <Input type="number" value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: [entry.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, entry.text?.relPos?.[1] ?? 0)], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Text color" jsonPath={`annotations[${annotationIndex}].text.color`} className='grid grid-cols-[1fr_auto_auto] items-center gap-2'>
-                  <Input type="color" value={annotation.text?.color ?? ''} className="h-10 w-16 p-1" onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} />
+                  <FancyColorInput value={annotation.text?.color ?? ''} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: next, fontSize: entry.text?.fontSize } } : entry) }))} />
                   <Input value={annotation.text?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} /> </Field>
 
 
@@ -1642,25 +1675,24 @@ function App() {
 
                 {annotation.marker ? 
                 <>
-                  <Field language={uiLanguage} label="Marker symbol"      jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker.markerSymbol} onChange={() => {}}/></Field>
-                  <Field language={uiLanguage} label="Marker color"       jsonPath={`annotations[${annotationIndex}].marker.color`        }><Input value={annotation.marker.color} onChange={() => {}} /></Field>
-                  {/* ToDo: linewidth */}
-                  {/* ToDo: edgecolors */}
-                  <Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`  }><Input type="number" value={annotation.marker.sizeFactor} onChange={() => {}}/></Field> 
+                  <Field language={uiLanguage} label="Marker symbol"      jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}><Input value={annotation.marker.markerSymbol} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: e.target.value } } : entry) }))}/></Field>
+                  <Field language={uiLanguage} label="Marker color"       jsonPath={`annotations[${annotationIndex}].marker.color`        }><Input value={annotation.marker.color} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: e.target.value } } : entry) }))} /></Field>
+                  
+                  
+                  <Field language={uiLanguage} label="Marker linewidth" jsonPath={`annotations[${annotationIndex}].marker.linewidths`}><Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), linewidths: numberValue(e.target.valueAsNumber, annotation.marker.linewidths) } } : entry) }))}/></Field><Field language={uiLanguage} label="Marker edgecolors" jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}><Input value={annotation.marker.edgecolors} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), edgecolors: e.target.value } } : entry) }))}/></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`  }><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, annotation.marker.sizeFactor) } } : entry) }))}/></Field> 
 
                 </>
                 : null}
 
-                {annotation.arrow ? 
-                <>
-                {/* ToDo:  change correct values for following buttons  */}
-                  <Field language={uiLanguage} label="Width" jsonPath={`annotations[${annotationIndex}].arrow.width`}><Input value={annotation.arrow.width} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, 1) } } : entry) }))}/></Field> 
-                  <Field language={uiLanguage} label="Arrow facecolor" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, 1) } } : entry) }))}/></Field> 
-                  <Field language={uiLanguage} label="headlength" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, 1) } } : entry) }))}/></Field> 
-                  <Field language={uiLanguage} label="headwidth" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, 1) } } : entry) }))}/></Field> 
-                  <Field language={uiLanguage} label="linewidth" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, 1) } } : entry) }))}/></Field> 
-                </>
-                : null}
+                {annotation.arrow ? (
+                  <>
+                    <Field language={uiLanguage} label="Arrow width" jsonPath={`annotations[${annotationIndex}].arrow.width`}><Input type="number" value={annotation.arrow.width} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), width: numberValue(e.target.valueAsNumber, annotation.arrow?.width ?? 1) } } : entry) }))} /></Field>
+                    <Field language={uiLanguage} label="Arrow facecolor" jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}><Input value={annotation.arrow.facecolor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), facecolor: e.target.value } } : entry) }))} /></Field>
+                    <Field language={uiLanguage} label="Arrow headlength" jsonPath={`annotations[${annotationIndex}].arrow.headlength`}><Input type="number" value={annotation.arrow.headlength} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), headlength: numberValue(e.target.valueAsNumber, annotation.arrow?.headlength ?? 10) } } : entry) }))} /></Field>
+                    <Field language={uiLanguage} label="Arrow headwidth" jsonPath={`annotations[${annotationIndex}].arrow.headwidth`}><Input type="number" value={annotation.arrow.headwidth} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), headwidth: numberValue(e.target.valueAsNumber, annotation.arrow?.headwidth ?? 6) } } : entry) }))} /></Field>
+                    <Field language={uiLanguage} label="Arrow linewidth" jsonPath={`annotations[${annotationIndex}].arrow.linewidth`}><Input type="number" value={annotation.arrow.linewidth} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, arrow: { ...(entry.arrow ?? { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }), linewidth: numberValue(e.target.valueAsNumber, annotation.arrow?.linewidth ?? 1) } } : entry) }))} /></Field>
+                  </>
+                ) : null}
               </div>
             ))}
           </section>
@@ -1734,7 +1766,7 @@ function App() {
               return (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
                 <div className="flex items-center gap-2">
-                  {isDefault ? <Input value={material} readOnly /> : <Select value={material} onChange={(e) =>
+                  {isDefault ? <Input value={material} readOnly className="w-full" /> : <Select value={material} onChange={(e) =>
                     patchActiveDataframe((df) => {
                       const nextKey = e.target.value.trim()
                       if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
@@ -1762,7 +1794,7 @@ function App() {
                     ✕
                   </button> : null}
                 </div>
-                <Input type="color" value={color} className="h-10 w-12 rounded-md border-0 p-0" onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
+                <FancyColorInput value={color} onChange={(next) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: next } }))} />
                 <Input value={color} onChange={(e) => patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: e.target.value } }))} />
               </div>
             )})}
