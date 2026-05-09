@@ -1588,9 +1588,11 @@ function App() {
                 <MultiSelectInput
                   title="Whitelist keywords"
                   value={layer.whitelist ?? []}
-                  options={(layer.name && (availableKeywordsByColumn[layer.name] ?? []).length > 0)
-                    ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry }))
-                    : availableWhitelistKeywords}
+                  options={!layer.name
+                    ? []
+                    : (availableKeywordsByColumn[layer.name] ?? []).length > 0
+                      ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry }))
+                      : availableWhitelistKeywords}
                   expanded={expandedLayerKeywords[layerIndex] === true}
                   onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
                   modeValue={layer.whitelistFlag ?? false}
