@@ -389,6 +389,23 @@ function App() {
       .sort((a, b) => a.localeCompare(b))
       .map((column) => ({ value: column, label: column }))
   }, [availableColumns])
+  const materialKeywordOptions = useMemo(() => {
+    const layerColumns = new Set(
+      activeDataframe.frames.flatMap((frame) =>
+        frame.layers.map((layer) => layer.name?.trim()).filter((entry): entry is string => Boolean(entry)),
+      ),
+    )
+    const keywords = new Set<string>()
+    for (const column of layerColumns) {
+      for (const keyword of availableKeywordsByColumn[column] ?? []) {
+        const normalized = keyword.trim()
+        if (normalized) {
+          keywords.add(normalized)
+        }
+      }
+    }
+    return [...keywords].sort((a, b) => a.localeCompare(b))
+  }, [activeDataframe.frames, availableKeywordsByColumn])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -1571,8 +1588,8 @@ function App() {
                 <MultiSelectInput
                   title="Whitelist keywords"
                   value={layer.whitelist ?? []}
-                  options={((layer.name && availableKeywordsByColumn[layer.name]) ?? []).length > 0
-                    ? (availableKeywordsByColumn[layer.name] ?? []).map((entry) => ({ value: entry, label: entry }))
+                  options={(layer.name && (availableKeywordsByColumn[layer.name] ?? []).length > 0)
+                    ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry }))
                     : availableWhitelistKeywords}
                   expanded={expandedLayerKeywords[layerIndex] === true}
                   onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
@@ -1739,7 +1756,6 @@ function App() {
               </Button>
             </div>
             {Object.entries(activeDataframe.materialColors).map(([material, color]) => {
-              const allKeywords = getConfigWhitelistKeywords(plotConfig).filter((entry) => entry !== 'default')
               const isDefault = material === 'default'
               return (
               <div key={material} className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
@@ -1756,7 +1772,7 @@ function App() {
                     })
                   }>
                     <option value={material}>{material}</option>
-                    {allKeywords.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
+                    {materialKeywordOptions.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
                   </Select>}
                   {!isDefault ? <button
                     type="button"
