@@ -189,8 +189,6 @@ export function createDefaultPlotConfig(): PlotConfig {
                 whitelist: [],
                 alpha: 0.4,
                 linewidth: 1.5,
-              },
-              {
                 alphaPoints: undefined,
                 alphaAreas: undefined,
               },
