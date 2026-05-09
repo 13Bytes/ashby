@@ -1664,8 +1664,50 @@ function App() {
                   <Input value={annotation.text?.color ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: entry.text?.name ?? '', relPos: entry.text?.relPos ?? [0, 0], color: e.target.value, fontSize: entry.text?.fontSize } } : entry) }))} /> </Field>
 
 
-                <Button type="button" size="sm" variant="outline" onClick={() => {}}>Marker</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => {}}>Arrow</Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    patchActiveFrame((f) => ({
+                      ...f,
+                      annotations: f.annotations.map((entry, i) =>
+                        i === annotationIndex
+                          ? {
+                              ...entry,
+                              marker: entry.marker
+                                ? undefined
+                                : { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' },
+                            }
+                          : entry,
+                      ),
+                    }))
+                  }
+                >
+                  Marker
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    patchActiveFrame((f) => ({
+                      ...f,
+                      annotations: f.annotations.map((entry, i) =>
+                        i === annotationIndex
+                          ? {
+                              ...entry,
+                              arrow: entry.arrow
+                                ? undefined
+                                : { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 },
+                            }
+                          : entry,
+                      ),
+                    }))
+                  }
+                >
+                  Arrow
+                </Button>
 
                 {annotation.marker ? 
                 <>
