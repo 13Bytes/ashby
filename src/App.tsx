@@ -1477,10 +1477,12 @@ function App() {
               <Field language={uiLanguage} label={t('fontStyle' )} jsonPath="font.font_style"><Input               value={activeDataframe.font.fontStyle} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontStyle: e.target.value as DataframeConfig['font']['fontStyle'] } }))} /></Field>
               <Field language={uiLanguage} label={t('fontFamily')} jsonPath="font.font"      ><Input               value={activeDataframe.font.font}      onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, font: e.target.value } }))} /></Field>
               <Field language={uiLanguage} label={t('fontSize' )} jsonPath="font.font_size"  ><Input type="number" value={activeDataframe.font.fontSize}  onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, fontSize: numberValue(e.target.valueAsNumber, c.font.fontSize) } }))} /></Field>
-              <Field language={uiLanguage} label="Tick size" jsonPath="font.tick_size"><Input type="number" value={activeDataframe.font.tickSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, tickSize: numberValue(e.target.valueAsNumber, c.font.tickSize) } }))} /></Field>
-              <Field language={uiLanguage} label="Title size" jsonPath="font.title_size"><Input type="number" value={activeDataframe.font.titleSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, titleSize: numberValue(e.target.valueAsNumber, c.font.titleSize) } }))} /></Field>
+            </div>
+            <div className='sm:col-span-2 grid gap-3 md:grid-cols-4'>
+              <Field language={uiLanguage} label="Tick size"       jsonPath="font.tick_size"      ><Input type="number" value={activeDataframe.font.tickSize}      onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, tickSize:      numberValue(e.target.valueAsNumber, c.font.tickSize)      } }))} /></Field>
+              <Field language={uiLanguage} label="Title size"      jsonPath="font.title_size"     ><Input type="number" value={activeDataframe.font.titleSize}     onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, titleSize:     numberValue(e.target.valueAsNumber, c.font.titleSize)     } }))} /></Field>
               <Field language={uiLanguage} label="Axis label size" jsonPath="font.axis_label_size"><Input type="number" value={activeDataframe.font.axisLabelSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, axisLabelSize: numberValue(e.target.valueAsNumber, c.font.axisLabelSize) } }))} /></Field>
-              <Field language={uiLanguage} label="Legend size" jsonPath="font.legend_size"><Input type="number" value={activeDataframe.font.legendSize} onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, legendSize: numberValue(e.target.valueAsNumber, c.font.legendSize) } }))} /></Field>
+              <Field language={uiLanguage} label="Legend size"     jsonPath="font.legend_size"    ><Input type="number" value={activeDataframe.font.legendSize}    onChange={(e) => patchActiveDataframe((c) => ({ ...c, font: { ...c.font, legendSize:    numberValue(e.target.valueAsNumber, c.font.legendSize)    } }))} /></Field>
             </div>
 
             {/* ~ import */}
@@ -1758,9 +1760,11 @@ function App() {
                   <Field language={uiLanguage} label="Marker color" jsonPath={`annotations[${annotationIndex}].marker.color`}>
                     <ColorOrMaterialInput value={annotation.marker.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: next } } : entry) }))} />
                   </Field>
-                  
-                  
-                  <Field language={uiLanguage} label="Marker linewidth" jsonPath={`annotations[${annotationIndex}].marker.linewidths`}><Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), linewidths: numberValue(e.target.valueAsNumber, annotation.marker.linewidths) } } : entry) }))}/></Field><Field language={uiLanguage} label="Marker edgecolors" jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}><Input value={annotation.marker.edgecolors} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), edgecolors: e.target.value } } : entry) }))}/></Field><Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`  }><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, annotation.marker.sizeFactor) } } : entry) }))}/></Field> 
+                  <Field language={uiLanguage} label="Marker linewidth" jsonPath={`annotations[${annotationIndex}].marker.linewidths`}><Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), linewidths: numberValue(e.target.valueAsNumber, annotation.marker.linewidths) } } : entry) }))}/></Field>
+                  <Field language={uiLanguage} label="Marker edgecolors" jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}>
+                    <ColorOrMaterialInput value={annotation.marker.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: next } } : entry) }))} />
+                  </Field>
+                  <Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`  }><Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, annotation.marker.sizeFactor) } } : entry) }))}/></Field> 
 
                 </>
                 : null}
@@ -1790,8 +1794,10 @@ function App() {
                 <option value="custom">custom</option>
               </Select>
               {dummySelector === 'custom' ? 
-                <Input value={dummyCustomValue} onChange={(e) => setDummyCustomValue(e.target.value)} placeholder="custom value" /> 
-                // <Button onClick={() => window.open("htps://matplotlib.com", '_blank', 'noopener,noreferrer')}></Button>
+                <div>
+                  <Input value={dummyCustomValue} onChange={(e) => setDummyCustomValue(e.target.value)} placeholder="custom value" /> 
+                  {/* ToDo: Help Button that redirects to url */}
+                </div>
               : null}
             </div>
           </section>
