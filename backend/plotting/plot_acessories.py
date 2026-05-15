@@ -3,6 +3,20 @@ import numpy as np
 from termcolor import (colored, cprint)
 
 
+def _as_flat_numeric_array(values, label):
+    """Convert plot coordinates to a flat numeric numpy array."""
+    try:
+        array = np.asarray(values, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{label} must be a numeric list. Received: {values!r}") from exc
+
+    if array.ndim != 1:
+        raise ValueError(f"{label} must be a one-dimensional numeric list. Received shape: {array.shape}")
+    if array.size == 0:
+        raise ValueError(f"{label} must not be empty.")
+    return array
+
+
 # : Guideline :
 def draw_guideline(guidelines, x_min, x_max, y_min, y_max, font_color, Marker, ax):
     num_points = 1000
@@ -73,12 +87,21 @@ def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> Non
             except:
                 cprint("❗ERROR neither axes nor 'x' & 'y' are set for printign areas. Check config.json! continuing...","red")
 
-            if len(x) != len(y) or len(x) == 0 or len(y) == 0:
-                print("❗ x & y array have different sizes or length 0. unable to print colored area. Check config.json! continuing...","red")
-                break
+            try:
+                x_values = _as_flat_numeric_array(x, "colored_areas.x")
+                y_values = _as_flat_numeric_array(y, "colored_areas.y")
+            except ValueError as error:
+                cprint(f"❗ {error} Unable to print colored area. Check config.json! continuing...", "red")
+                continue
 
-            if len(x) == 2:
-                x,y = min_max_area(x, y, Plot_size, alpha, color)
+            if len(x_values) != len(y_values):
+                cprint("❗ x & y array have different sizes. unable to print colored area. Check config.json! continuing...", "red")
+                continue
+
+            if len(x_values) == 2:
+                x,y = min_max_area(list(x_values), list(y_values), Plot_size, alpha, color)
+            else:
+                x, y = x_values, y_values
         
         else:
             values = [None, None]
@@ -94,9 +117,9 @@ def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> Non
             x,y = min_max_area(values[0], values[1], Plot_size, alpha, color)
 
         ax.fill(
-                x, 
-                y, 
-                color = color, 
+                x,
+                y,
+                color = color,
                 alpha = alpha
             )
 
@@ -219,5 +242,4 @@ class marker:
                 ret[0] = np.nanmin([ret[0], annotation['values'][dim]])
                 ret[1] = np.nanmax([ret[1], annotation['values'][dim]])
         return ret
-
 
