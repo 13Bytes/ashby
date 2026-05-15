@@ -120,7 +120,8 @@ def render_plot_image(
     df_font = dataframe.get('font', {})
     resolution = dataframe.get('resolution')
     file_format = 'svg' if resolution in (None, 'svg') else 'png'
-    image_ratio = frame.get('image_ratio', dataframe.get('image_ratio', 16 / 9))
+    image_ratio_ = frame.get('image_ratio', dataframe.get('image_ratio', [16, 9]))
+    image_ratio = image_ratio_[0] / image_ratio_[1]
     language = frame.get('language', df_language)
     font_color = 'white' if frame.get('dark_mode', df_darkmode) else 'black'
     font_style = df_font.get('font_style', 'sans-serif')
