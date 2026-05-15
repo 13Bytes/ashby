@@ -10,6 +10,7 @@ from typing import Any
 from uuid import uuid4
 
 import pandas as pd
+import requests
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
@@ -90,6 +91,38 @@ def _extract_keywords_by_column_from_xlsx(file_bytes: bytes, sheet_index: int) -
     return keywords_by_column
 
 
+def _extract_columns_and_keywords_from_teable(teable_url: str, api_key: str) -> tuple[list[str], dict[str, list[str]]]:
+    headers = {
+        'Authorization': api_key,
+        'Accept': 'application/json',
+    }
+    response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30)
+    response.raise_for_status()
+    payload = response.json() if response.content else {}
+    records = payload.get('records', []) if isinstance(payload, dict) else []
+
+    columns: list[str] = []
+    keywords_by_column: dict[str, list[str]] = {}
+    for record in records:
+        fields = record.get('fields', {}) if isinstance(record, dict) else {}
+        if not isinstance(fields, dict):
+            continue
+        for key, value in fields.items():
+            column = str(key).strip()
+            if not column:
+                continue
+            if column not in columns:
+                columns.append(column)
+            if isinstance(value, (str, int, float, bool)):
+                keywords_by_column.setdefault(column, set()).add(str(value))
+
+    normalized_keywords = {
+        column: sorted(list(values))[:200]
+        for column, values in keywords_by_column.items()
+    }
+    return sorted(columns), normalized_keywords
+
+
 def _encode_messages_header(messages: list[str]) -> str:
     return quote(json.dumps(messages, ensure_ascii=False), safe='')
 
@@ -147,12 +180,20 @@ async def import_database(
         api_key_json = payload.get('API_Key')
         if not teable_url_json or not api_key_json:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
-        return JSONResponse({'success': True, 'columns': []})
+        try:
+            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url_json, api_key_json)
+        except requests.RequestException as error:
+            return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
+        return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
 
     if file is None:
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
-        return JSONResponse({'success': True, 'columns': []})
+        try:
+            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, API_Key)
+        except requests.RequestException as error:
+            return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
+        return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
 
     file_bytes = await file.read()
     columns = _extract_columns_from_xlsx(file_bytes, import_sheet)

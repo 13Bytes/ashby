@@ -58,7 +58,7 @@ export interface FrameConfig {
   yRelQuantity?: string
   logYFlag: boolean
   yLim?: [number, number]
-  automaticDisplayAreaMargin: number
+  automaticDisplayAreaMargin: { left: number; right: number; top: number; bottom: number } | null
   algorithm: PlotAlgorithm
   layers: LayerConfig[]
   filter?: Record<string, unknown>
@@ -180,7 +180,7 @@ export function createDefaultPlotConfig(): PlotConfig {
             yQuantity: undefined,
             logYFlag: false,
             yLim: [undefined, undefined],
-            automaticDisplayAreaMargin: 0.12,
+            automaticDisplayAreaMargin: { left: 0.12, right: 0.12, top: 0.12, bottom: 0.12 },
             algorithm: 'cubic',
             layers: [
               {
@@ -189,8 +189,6 @@ export function createDefaultPlotConfig(): PlotConfig {
                 whitelist: [],
                 alpha: 0.4,
                 linewidth: 1.5,
-              },
-              {
                 alphaPoints: undefined,
                 alphaAreas: undefined,
               },

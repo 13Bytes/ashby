@@ -58,18 +58,18 @@
             "x_quantity":"",                // axis name (see bottom) for value on x_axis       [str]
             "x_rel_quantity":null,          //   "                    to divide x_quantity by (per point)   [str / none] {none}
             "log_x_flag":false,             // [true]/[false] should the x-axis be displayed logarhithmic                  {false}
-            "x_lim":[0, 0],                 // [num, num] area on x-axis to be displayed, [null] will calculate the area itself including padding (#47)   {null}
+            "x_lim":[0, 0],                 // [num, num] area on x-axis to be displayed (min/max). If automatic display area is active in UI this is shown as left/right.   {null}
     
             "y_quantity":"",                // axis name (see bottom) for value on y_axis       [str]
             "y_rel_quantity":null,          //   "                    to divide y_quantity by (per point)   [str / none] {none}
             "log_y_flag":false,             // [true[/[false] should the y-axis be displayed logarhithmic                {false}
-            "y_lim":[0, 0],                 // [num, num] area on y-axis to be displayed, [null] will calculate the area itself including padding (#47)   {null}
+            "y_lim":[0, 0],                 // [num, num] area on y-axis to be displayed (min/max). If automatic display area is active in UI this is shown as bottom/top.   {null}
     
-            "automatic_Display_Area_margin": {   // rellative padding around points/marker in every direction; 1 is size of all points [float]/[dict] {0.12}
-                "left":0,                        // rellative padding around points/marker in one direction
+            "automatic_Display_Area_margin": {   // relative automatic display area padding; UI toggle "Automatic display area" enables this block {0.12}
+                "left":0,                        // x-axis min-side padding (left)
                 "right":0,
-                "top":0,
-                "bottom":0
+                "top":0,                         // y-axis max-side padding (top)
+                "bottom":0                       // y-axis min-side padding (bottom)
             },                              
     
             "algorithm":"",                 // approximation algorithm for hulls ["alpha" / "cubic"]  {cubic}
