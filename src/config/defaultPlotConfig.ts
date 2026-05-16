@@ -5,6 +5,7 @@ export const AXIS_MODES = ['default', 'max', 'min', 'span'] as const
 export type AxisMode = (typeof AXIS_MODES)[number]
 
 export const LOG_FLAGS = [true, false] as const
+export const FONT_STYLES = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monospace'] as const
 
 export type UnknownConfigBucket = Record<string, unknown>
 
@@ -17,11 +18,11 @@ export interface PlotConfig {
 
 export interface DataframeConfig {
   name?: string
-  excelImport:boolean
+  excelImport: boolean
   apiKey?: string
   teableUrl?: string
   importFileName?: string
-  importSheet?: number
+  importSheet: number
   aspectRatio: [number, number]
   resolution: number | "svg"
   legendTitle: Record<string, string>
@@ -29,7 +30,7 @@ export interface DataframeConfig {
     fontStyle: "serif" | "sans-serif" | "cursive" | "fantasy" | "monospace"
     font: string
     fontSize: number
-    tickSize : number
+    tickSize: number
     titleSize: number
     axisLabelSize: number
     legendSize: number
@@ -46,18 +47,20 @@ export interface DataframeConfig {
 
 export interface FrameConfig {
   name?: string
+  legendFlag: boolean
   title: Record<string, string>
   darkMode: boolean
-  legendAbove: boolean|null
+  legendAbove: boolean | null
+  language: string
   exportFileName?: string
-  xQuantity: string
+  xQuantity?: string
   xRelQuantity?: string
   logXFlag: boolean
-  xLim?: [number, number]
-  yQuantity: string
+  xLim?: [number | undefined, number | undefined]
+  yQuantity?: string
   yRelQuantity?: string
   logYFlag: boolean
-  yLim?: [number, number]
+  yLim?: [number | undefined, number | undefined]
   automaticDisplayAreaMargin: { left: number; right: number; top: number; bottom: number } | null
   algorithm: PlotAlgorithm
   layers: LayerConfig[]
@@ -172,8 +175,10 @@ export function createDefaultPlotConfig(): PlotConfig {
         frames: [
           {
             title: { en: '' },
+            legendFlag: true,
             darkMode: false,
             legendAbove: false,
+            language: 'en',
             xQuantity: undefined,
             logXFlag: false,
             xLim: [undefined, undefined],
@@ -210,7 +215,7 @@ export function createDefaultPlotConfig(): PlotConfig {
         ],
         materialColors: {
           default: '#000000',
-          },
+        },
         _extensions: {},
       },
     ],

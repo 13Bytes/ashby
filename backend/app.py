@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import io
 import re
+import sys
 import zipfile
+import inspect
 from urllib.parse import quote
 from pathlib import Path
 from typing import Any
@@ -12,16 +15,24 @@ from uuid import uuid4
 import pandas as pd
 import requests
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import uvicorn
 
-from .plot_renderer import PlotRenderError, render_plot_image
-
-app = FastAPI(title='Ashby Backend API')
-
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
 UPLOADS_DIR = PROJECT_DIR / '.ashby-uploaded-data'
+FRONTEND_DIR = os.path.join(THIS_DIR, 'production-frontend')
+
+if __package__ in (None, ''):
+    sys.path.insert(0, str(PROJECT_DIR))
+    from backend.plot_renderer import PlotRenderError, render_plot_image
+else:
+    from .plot_renderer import PlotRenderError, render_plot_image
+
+app = FastAPI(title='Ashby Backend API')
 
 
 class RenderPlotRequest(BaseModel):
@@ -205,3 +216,15 @@ async def import_database(
         'keywords_by_column': keywords_by_column,
         'import_file_name': stored_import_file_name,
     })
+
+
+app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR,
+          'assets')), name="assets")
+
+@app.get("/{full_path:path}")
+async def frontend_fallback(full_path: str, request: Request):
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    return FileResponse(index_path)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
