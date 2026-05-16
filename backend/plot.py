@@ -1,12 +1,10 @@
 import os
 import pandas as pd
-import matplotlib.pyplot as plt, mpld3
+import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 import json
 from termcolor import (colored, cprint)
-
-# from nicegui import ui
 
 from import_data   import *
 from plotting      import *

@@ -1,13 +1,12 @@
-fastapi==0.116.1
-uvicorn==0.35.0
-python-multipart==0.0.20
+fastapi
+uvicorn
+python-multipart
 numpy
 pandas
+openpyxl
 matplotlib
 scikit-learn
 scipy
-openpyxl
 requests
 alphashape
-nicegui
 termcolor

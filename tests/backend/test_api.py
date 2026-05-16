@@ -3,6 +3,11 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
 import uuid
 import urllib.error
 import urllib.parse
@@ -51,8 +56,72 @@ def build_multipart_body(fields: dict[str, str], files: dict[str, Path]) -> tupl
 class BackendApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.base_url = os.environ.get('ASHBY_BACKEND_URL', 'http://127.0.0.1:8000').rstrip('/')
+        cls.server_process: subprocess.Popen[str] | None = None
+        configured_base_url = os.environ.get('ASHBY_BACKEND_URL')
+        if configured_base_url:
+            cls.base_url = configured_base_url.rstrip('/')
+        else:
+            cls.base_url = cls.start_test_server()
         cls.render_payload = json.loads(FIXTURE_PATH.read_text(encoding='utf-8'))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls.server_process is None:
+            return
+        cls.server_process.terminate()
+        try:
+            cls.server_process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            cls.server_process.kill()
+            cls.server_process.wait(timeout=10)
+
+    @classmethod
+    def start_test_server(cls) -> str:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(('127.0.0.1', 0))
+            port = sock.getsockname()[1]
+
+        env = os.environ.copy()
+        env['PYTHONPATH'] = str(PROJECT_DIR)
+        env.setdefault('MPLCONFIGDIR', tempfile.mkdtemp(prefix='ashby-mpl-'))
+        cls.server_process = subprocess.Popen(
+            [
+                sys.executable,
+                '-m',
+                'uvicorn',
+                'backend.app:app',
+                '--host',
+                '127.0.0.1',
+                '--port',
+                str(port),
+                '--log-level',
+                'warning',
+            ],
+            cwd=PROJECT_DIR,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            if cls.server_process.poll() is not None:
+                output = cls.server_process.stdout.read() if cls.server_process.stdout else ''
+                raise RuntimeError(f'Backend test server exited early:\n{output}')
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.2)
+                if sock.connect_ex(('127.0.0.1', port)) == 0:
+                    return f'http://127.0.0.1:{port}'
+            time.sleep(0.1)
+
+        cls.server_process.terminate()
+        try:
+            output, _ = cls.server_process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            cls.server_process.kill()
+            output, _ = cls.server_process.communicate(timeout=5)
+        raise RuntimeError(f'Backend test server did not start within 20 seconds:\n{output}')
 
     def post_json(self, path: str, payload: dict) -> tuple[int, dict[str, str], bytes]:
         request = urllib.request.Request(

@@ -1,0 +1,22 @@
+name: Tests
+on:
+  push:
+  pull_request:
+jobs:
+  Build-Action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: ./
+      - name: Build UI (react)
+        run: npm run build
+        working-directory: ./
+      - name: Install python dependencies
+        working-directory: ./backend
+        run: python3 -m pip install -r requirements.txt
+      - name: Execute tests
+        run: npm test

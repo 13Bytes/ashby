@@ -1,5 +1,6 @@
 import {
   AXIS_MODES,
+  FONT_STYLES,
   PLOT_ALGORITHMS,
   type DataframeConfig,
   type FrameConfig,
@@ -22,6 +23,47 @@ const coerceBool = (value: unknown, fallback: boolean): boolean =>
 
 const coerceNumber = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+const coerceFontStyle = (
+  value: unknown,
+  fallback: DataframeConfig['font']['fontStyle'],
+): DataframeConfig['font']['fontStyle'] =>
+  typeof value === 'string' && FONT_STYLES.includes(value as DataframeConfig['font']['fontStyle'])
+    ? (value as DataframeConfig['font']['fontStyle'])
+    : fallback
+
+const coerceNumberPair = (
+  value: unknown,
+  fallback: [number, number],
+): [number, number] => {
+  if (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value.every((item): item is number => typeof item === 'number' && Number.isFinite(item))
+  ) {
+    return [value[0], value[1]]
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return [value, 1]
+  }
+
+  return fallback
+}
+
+const coerceOptionalNumberPair = (
+  value: unknown,
+): [number | undefined, number | undefined] | undefined => {
+  if (!Array.isArray(value) || value.length !== 2) {
+    return undefined
+  }
+
+  const normalized = value.map((item) =>
+    typeof item === 'number' && Number.isFinite(item) ? item : undefined,
+  ) as [number | undefined, number | undefined]
+
+  return normalized[0] === undefined && normalized[1] === undefined ? undefined : normalized
+}
 
 const normalizeFrame = (
   partial: unknown,
@@ -79,7 +121,7 @@ const normalizeFrame = (
   const algorithm = partial.algorithm
   const normalizedAlgorithm: FrameConfig['algorithm'] =
     typeof algorithm === 'string' &&
-    PLOT_ALGORITHMS.includes(algorithm as (typeof PLOT_ALGORITHMS)[number])
+      PLOT_ALGORITHMS.includes(algorithm as (typeof PLOT_ALGORITHMS)[number])
       ? (algorithm as FrameConfig['algorithm'])
       : fallback.algorithm
 
@@ -93,8 +135,8 @@ const normalizeFrame = (
     legendFlag: coerceBool(partial.legendFlag ?? partial.legend_flag, fallback.legendFlag),
     title: isRecord(partial.title)
       ? Object.fromEntries(
-          Object.entries(partial.title).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-        )
+        Object.entries(partial.title).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      )
       : fallback.title,
     darkMode: coerceBool(partial.darkMode ?? partial.dark_mode, fallback.darkMode),
     legendAbove: coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
@@ -106,10 +148,7 @@ const normalizeFrame = (
         : fallback.xQuantity,
     xRelQuantity: asOptionalString(partial.xRelQuantity ?? partial.x_rel_quantity),
     logXFlag: coerceBool(partial.logXFlag ?? partial.log_x_flag, fallback.logXFlag),
-    xLim:
-      Array.isArray(xLim) && xLim.length === 2 && xLim.every((item) => typeof item === 'number')
-        ? [xLim[0], xLim[1]]
-        : undefined,
+    xLim: coerceOptionalNumberPair(xLim),
     yQuantity:
       typeof (partial.yQuantity ?? partial.y_quantity) === 'string'
         ? String(partial.yQuantity ?? partial.y_quantity)
@@ -122,11 +161,11 @@ const normalizeFrame = (
         : undefined,
     automaticDisplayAreaMargin: isRecord(automaticDisplayAreaMarginSource)
       ? {
-          left: coerceNumber(automaticDisplayAreaMarginSource.left, fallback.automaticDisplayAreaMargin?.left ?? 0),
-          right: coerceNumber(automaticDisplayAreaMarginSource.right, fallback.automaticDisplayAreaMargin?.right ?? 0),
-          top: coerceNumber(automaticDisplayAreaMarginSource.top, fallback.automaticDisplayAreaMargin?.top ?? 0),
-          bottom: coerceNumber(automaticDisplayAreaMarginSource.bottom, fallback.automaticDisplayAreaMargin?.bottom ?? 0),
-        }
+        left: coerceNumber(automaticDisplayAreaMarginSource.left, fallback.automaticDisplayAreaMargin?.left ?? 0),
+        right: coerceNumber(automaticDisplayAreaMarginSource.right, fallback.automaticDisplayAreaMargin?.right ?? 0),
+        top: coerceNumber(automaticDisplayAreaMarginSource.top, fallback.automaticDisplayAreaMargin?.top ?? 0),
+        bottom: coerceNumber(automaticDisplayAreaMarginSource.bottom, fallback.automaticDisplayAreaMargin?.bottom ?? 0),
+      }
       : fallback.automaticDisplayAreaMargin,
     algorithm: normalizedAlgorithm,
     layers: Array.isArray(partial.layers) ? partial.layers : fallback.layers,
@@ -163,8 +202,8 @@ const normalizeDataframe = (
   const legacyFrames = isRecord(partial) && Array.isArray(partial.frames) ? partial.frames : null
   const normalizedFrames = legacyFrames
     ? legacyFrames.map((frame, index) =>
-        normalizeFrame(frame, fallback.frames[index] ?? fallback.frames[0]),
-      )
+      normalizeFrame(frame, fallback.frames[index] ?? fallback.frames[0]),
+    )
     : fallback.frames
 
   const known = new Set([
@@ -217,31 +256,30 @@ const normalizeDataframe = (
     importSheet: coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet),
     aspectRatio:
       legacyImageWidth > 0 && legacyImageHeight > 0
-        ? legacyImageWidth / legacyImageHeight
-        : coerceNumber(partial.aspectRatio ?? partial.image_ratio, fallback.aspectRatio),
+        ? [legacyImageWidth, legacyImageHeight]
+        : coerceNumberPair(partial.aspectRatio ?? partial.image_ratio, fallback.aspectRatio),
     resolution:
       typeof (partial.resolution ?? partial.image_dpi) === 'number' ||
-      (partial.resolution ?? partial.image_dpi) === 'svg'
+        (partial.resolution ?? partial.image_dpi) === 'svg'
         ? ((partial.resolution ?? partial.image_dpi) as number | 'svg')
         : fallback.resolution,
     legendTitle: isRecord(partial.legendTitle ?? partial.legend_title)
       ? Object.fromEntries(
-          Object.entries((partial.legendTitle ?? partial.legend_title) as Record<string, unknown>).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
-          ),
-        )
+        Object.entries((partial.legendTitle ?? partial.legend_title) as Record<string, unknown>).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+      )
       : fallback.legendTitle,
     font: isRecord(partial.font)
       ? {
-          fontStyle:
-            typeof partial.font.fontStyle === 'string'
-              ? partial.font.fontStyle
-              : typeof partial.font.font_style === 'string'
-                ? partial.font.font_style
-                : fallback.font.fontStyle,
-          font: typeof partial.font.font === 'string' ? partial.font.font : fallback.font.font,
-          fontSize: coerceNumber(partial.font.fontSize ?? partial.font.font_size, fallback.font.fontSize),
-        }
+        fontStyle: coerceFontStyle(partial.font.fontStyle ?? partial.font.font_style, fallback.font.fontStyle),
+        font: typeof partial.font.font === 'string' ? partial.font.font : fallback.font.font,
+        fontSize: coerceNumber(partial.font.fontSize ?? partial.font.font_size, fallback.font.fontSize),
+        tickSize: coerceNumber(partial.font.tickSize ?? partial.font.tick_size, fallback.font.tickSize),
+        titleSize: coerceNumber(partial.font.titleSize ?? partial.font.title_size, fallback.font.titleSize),
+        axisLabelSize: coerceNumber(partial.font.axisLabelSize ?? partial.font.axis_label_size, fallback.font.axisLabelSize),
+        legendSize: coerceNumber(partial.font.legendSize ?? partial.font.legend_size, fallback.font.legendSize),
+      }
       : fallback.font,
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
     plotLanguages: Array.isArray(plotLanguagesSource)
@@ -253,36 +291,36 @@ const normalizeDataframe = (
         ? true
         : Array.isArray(createAllFramesSource)
           ? createAllFramesSource.filter(
-              (entry): entry is number => typeof entry === 'number',
-            )
+            (entry): entry is number => typeof entry === 'number',
+          )
           : fallback.createAllFrames,
     frames: normalizedFrames,
     axes: Array.isArray(partial.axes)
       ? partial.axes
-          .filter(isRecord)
-          .map((axis) => ({
-            name: typeof axis.name === 'string' ? axis.name : '',
-            columns: Array.isArray(axis.columns) ? axis.columns.filter((entry): entry is string => typeof entry === 'string') : [],
-            mode:
-              typeof axis.mode === 'string' && AXIS_MODES.includes(axis.mode as (typeof AXIS_MODES)[number])
-                ? (axis.mode as DataframeConfig['axes'][number]['mode'])
-                : 'default',
-            labels: isRecord(axis.labels)
-              ? Object.fromEntries(
-                  Object.entries(axis.labels).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
-                )
-              : {
-                  ...(typeof axis.de === 'string' ? { de: axis.de } : {}),
-                  ...(typeof axis.en === 'string' ? { en: axis.en } : {}),
-                },
-          }))
+        .filter(isRecord)
+        .map((axis) => ({
+          name: typeof axis.name === 'string' ? axis.name : '',
+          columns: Array.isArray(axis.columns) ? axis.columns.filter((entry): entry is string => typeof entry === 'string') : [],
+          mode:
+            typeof axis.mode === 'string' && AXIS_MODES.includes(axis.mode as (typeof AXIS_MODES)[number])
+              ? (axis.mode as DataframeConfig['axes'][number]['mode'])
+              : 'default',
+          labels: isRecord(axis.labels)
+            ? Object.fromEntries(
+              Object.entries(axis.labels).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+            )
+            : {
+              ...(typeof axis.de === 'string' ? { de: axis.de } : {}),
+              ...(typeof axis.en === 'string' ? { en: axis.en } : {}),
+            },
+        }))
       : fallback.axes,
     materialColors: isRecord(partial.materialColors ?? partial.material_colors)
       ? Object.fromEntries(
-          Object.entries((partial.materialColors ?? partial.material_colors) as Record<string, unknown>).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
-          ),
-        )
+        Object.entries((partial.materialColors ?? partial.material_colors) as Record<string, unknown>).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+      )
       : fallback.materialColors,
     _extensions: extensions,
   }
@@ -308,8 +346,8 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
 
   const dataframes = Array.isArray(rootSource.dataframes)
     ? rootSource.dataframes.map((entry, index) =>
-        normalizeDataframe(entry, fallback.dataframes[index] ?? fallback.dataframes[0]),
-      )
+      normalizeDataframe(entry, fallback.dataframes[index] ?? fallback.dataframes[0]),
+    )
     : fallback.dataframes
 
   const createAllDataframesSource =
@@ -323,8 +361,8 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
         ? true
         : Array.isArray(createAllDataframesSource)
           ? createAllDataframesSource.filter(
-              (entry): entry is number => typeof entry === 'number',
-            )
+            (entry): entry is number => typeof entry === 'number',
+          )
           : fallback.createAllDataframes,
     dataframes,
     _extensions: extensions,
