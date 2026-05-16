@@ -108,6 +108,16 @@ def _sanitize_layers(layers: Any) -> list[dict[str, Any]]:
     return sanitized_layers
 
 
+def _resolve_image_ratio(value: Any) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, (list, tuple)) and len(value) >= 2:
+        width, height = value[:2]
+        if isinstance(width, (int, float)) and isinstance(height, (int, float)) and height != 0:
+            return width / height
+    return 16 / 9
+
+
 def render_plot_image(
     config: dict[str, Any],
     dataframe_index: int = 0,
@@ -120,8 +130,7 @@ def render_plot_image(
     df_font = dataframe.get('font', {})
     resolution = dataframe.get('resolution')
     file_format = 'svg' if resolution in (None, 'svg') else 'png'
-    image_ratio_ = frame.get('image_ratio', dataframe.get('image_ratio', [16, 9]))
-    image_ratio = image_ratio_[0] / image_ratio_[1]
+    image_ratio = _resolve_image_ratio(frame.get('image_ratio', dataframe.get('image_ratio')))
     language = frame.get('language', df_language)
     font_color = 'white' if frame.get('dark_mode', df_darkmode) else 'black'
     font_style = df_font.get('font_style', 'sans-serif')
@@ -173,6 +182,7 @@ def render_plot_image(
                     graphics.legend.create_legend(
                         language=language,
                         font_color=font_color,
+                        font_size=df_font.get('axis_label_size', 15),
                         above=frame.get('legend_above', False),
                     )
 

@@ -18,8 +18,9 @@ test('PlotPage requests the render endpoint with active dataframe and frame indi
   const source = await readSource(plotPagePath)
 
   assert.match(source, /fetch\('\/api\/render-plot'/)
-  assert.match(source, /dataframe_index:\s*activeDataframeIndex/)
-  assert.match(source, /frame_index:\s*activeFrameIndex/)
+  assert.match(source, /const fetchPlot = async \(dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex/)
+  assert.match(source, /dataframe_index:\s*dataframeIndex/)
+  assert.match(source, /frame_index:\s*frameIndex/)
 })
 
 test('PlotPage renders the returned image blob into an img element', async () => {
@@ -41,16 +42,15 @@ test('PlotPage reads backend plot messages and renders them in the UI', async ()
 test('App passes active selection into PlotPage and persists uploaded import_file_name', async () => {
   const source = await readSource(appPath)
 
-  assert.match(source, /importFileName:\s*payload\.import_file_name\s*\?\?\s*df\.importFileName/)
-  assert.match(source, /<PlotPage plotConfig=\{plotConfig\} activeDataframeIndex=\{activeDataframeIndex\} activeFrameIndex=\{activeFrameIndex\} \/>/)
+  assert.match(source, /importFileName:\s*file\?\.name\s*\?\?\s*payload\.import_file_name\s*\?\?\s*df\.importFileName/)
+  assert.match(source, /<PlotPage[\s\S]*plotConfig=\{plotConfig\}[\s\S]*activeDataframeIndex=\{activeDataframeIndex\}[\s\S]*activeFrameIndex=\{activeFrameIndex\}[\s\S]*\/>/)
 })
 
 test('App only offers axis column options from imported config or datasource columns', async () => {
   const source = await readSource(appPath)
 
   assert.doesNotMatch(source, /const AXIS_COLUMN_OPTIONS:/)
-  assert.match(source, /const availableAxisColumns = useMemo\(\s*\(\) => getAxisBasesFromColumns\(availableColumns\)/)
-  assert.match(source, /axisColumnsPlaceholderEmpty/)
+  assert.match(source, /const availableAxisColumns = useMemo\(\s*\(\) => getAxisBasesFromColumns\(availableColumns\)\.map/)
   assert.match(source, /No options available\./)
 })
 
