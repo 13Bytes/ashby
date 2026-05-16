@@ -24,7 +24,9 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
 UPLOADS_DIR = PROJECT_DIR / '.ashby-uploaded-data'
-FRONTEND_DIR = os.path.join(THIS_DIR, 'production-frontend')
+FRONTEND_DIR = Path(THIS_DIR) / 'production-frontend'
+FRONTEND_ASSETS_DIR = FRONTEND_DIR / 'assets'
+FRONTEND_INDEX_PATH = FRONTEND_DIR / 'index.html'
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
@@ -218,13 +220,12 @@ async def import_database(
     })
 
 
-app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR,
-          'assets')), name="assets")
+if FRONTEND_ASSETS_DIR.is_dir() and FRONTEND_INDEX_PATH.is_file():
+    app.mount('/assets', StaticFiles(directory=FRONTEND_ASSETS_DIR), name='assets')
 
-@app.get("/{full_path:path}")
-async def frontend_fallback(full_path: str, request: Request):
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    return FileResponse(index_path)
+    @app.get('/{full_path:path}')
+    async def frontend_fallback(full_path: str, request: Request):
+        return FileResponse(FRONTEND_INDEX_PATH)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
