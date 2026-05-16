@@ -1,4 +1,7 @@
 name: Tests
+on:
+  push:
+  pull_request:
 jobs:
   Build-Action:
     runs-on: ubuntu-latest
