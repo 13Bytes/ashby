@@ -3,6 +3,7 @@ uvicorn
 python-multipart
 numpy
 pandas
+openpyxl
 matplotlib
 scikit-learn
 scipy
