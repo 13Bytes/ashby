@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - deployment
   workflow_run:
     workflows: ["Tests"]
     types: 
