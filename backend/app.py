@@ -209,8 +209,12 @@ async def import_database(
         return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
 
     file_bytes = await file.read()
-    columns = _extract_columns_from_xlsx(file_bytes, import_sheet)
-    keywords_by_column = _extract_keywords_by_column_from_xlsx(file_bytes, import_sheet)
+    try:
+        columns = _extract_columns_from_xlsx(file_bytes, import_sheet)
+        keywords_by_column = _extract_keywords_by_column_from_xlsx(file_bytes, import_sheet)
+    except Exception as error:
+        return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+
     stored_import_file_name = _store_uploaded_xlsx(file_bytes, file.filename or 'uploaded.xlsx')
     return JSONResponse({
         'success': True,

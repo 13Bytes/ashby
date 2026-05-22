@@ -86,30 +86,29 @@ def render_plot_image(
     media_type = 'image/svg+xml' if file_format == 'svg' else 'image/png'
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        output_name = f'rendered_plot.{file_format}'
-        frame['export_file_name'] = output_name
+        output_path = tempfile.NamedTemporaryFile(
+            prefix='ashby-render-',
+            suffix=f'.{file_format}',
+            dir=tmpdir,
+            delete=False,
+        ).name
+        frame['export_file_name'] = output_path
         dataframe['frames'] = [frame]
 
-        cwd = os.getcwd()
-        os.chdir(tmpdir)
         try:
-            try:
-                plot.main(dataframe, interactive=False)
-            except Exception as exc:
-                raise PlotRenderError(str(exc), []) from exc
+            plot.main(dataframe, interactive=False)
+        except Exception as exc:
+            raise PlotRenderError(str(exc), []) from exc
 
-            output_path = os.path.join(tmpdir, 'export', output_name)
-            if not os.path.exists(output_path):
-                raise PlotRenderError('Plot output was not generated.', [])
+        if not os.path.exists(output_path):
+            raise PlotRenderError('Plot output was not generated.', [])
 
-            with open(output_path, 'rb') as f:
-                content = f.read()
+        with open(output_path, 'rb') as f:
+            content = f.read()
 
-            return RenderedPlot(
-                content=content,
-                media_type=media_type,
-                file_format=file_format,
-                messages=[],
-            )
-        finally:
-            os.chdir(cwd)
+        return RenderedPlot(
+            content=content,
+            media_type=media_type,
+            file_format=file_format,
+            messages=[],
+        )

@@ -115,7 +115,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         return null
       })
       setError(renderError instanceof Error ? renderError.message : 'Failed to render plot.')
-      throw renderError
+      return ""
     } finally {
       setLoading(false)
     }
