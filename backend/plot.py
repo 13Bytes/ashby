@@ -6,9 +6,14 @@ import numpy as np
 import json
 from termcolor import (colored, cprint)
 
-from import_data   import *
-from plotting      import *
-from eventhandling import *
+try:
+    from .import_data import *
+    from .plotting import *
+    from .eventhandling import *
+except ImportError:
+    from import_data import *
+    from plotting import *
+    from eventhandling import *
 
 
 CONFIG_NAME = "Tobi-26-04-19.json"
