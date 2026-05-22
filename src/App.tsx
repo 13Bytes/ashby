@@ -242,12 +242,21 @@ function MultiSelectInput({
 }) {
   const selected = new Set(value)
   const allSelected = options.length > 0 && value.length === options.length
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const visibleOptions = normalizedSearch.length === 0
+    ? options
+    : options.filter((option) => option.label.toLowerCase().includes(normalizedSearch) || option.value.toLowerCase().includes(normalizedSearch))
 
   return (
     <div className="grid gap-2 h-full">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-medium text-zinc-900 dark:text-zinc-100">{title}</span>
         <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => setShowSearch((current) => !current)}>
+            {showSearch ? 'Hide search' : 'Search'}
+          </Button>
           {!hideModeToggle && onModeChange ? (
             <Button type="button" size="sm" variant="outline" onClick={() => onModeChange(!(modeValue ?? false))}>
               {modeValue ? 'Whitelist' : 'Blacklist'}
@@ -263,9 +272,16 @@ function MultiSelectInput({
           ) : null}
         </div>
       </div>
+      {showSearch ? (
+        <Input
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Search options…"
+        />
+      ) : null}
       <div className={`${expanded ? 'h-full min-h-28' : 'h-47'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
-        {options.length > 0 ? (
-          options.map((option) => (
+        {visibleOptions.length > 0 ? (
+          visibleOptions.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
               <input
                 type="checkbox"
@@ -282,7 +298,7 @@ function MultiSelectInput({
             </label>
           ))
         ) : (
-          <p className="m-0 py-1 text-sm text-zinc-500">No options available.</p>
+          <p className="m-0 py-1 text-sm text-zinc-500">{options.length === 0 ? 'No options available.' : 'No search results.'}</p>
         )}
       </div>
     </div>
