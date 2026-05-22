@@ -242,12 +242,21 @@ function MultiSelectInput({
 }) {
   const selected = new Set(value)
   const allSelected = options.length > 0 && value.length === options.length
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const visibleOptions = normalizedSearch.length === 0
+    ? options
+    : options.filter((option) => option.label.toLowerCase().includes(normalizedSearch) || option.value.toLowerCase().includes(normalizedSearch))
 
   return (
     <div className="grid gap-2 h-full">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-medium text-zinc-900 dark:text-zinc-100">{title}</span>
         <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => setShowSearch((current) => !current)}>
+            {showSearch ? 'Hide search' : 'Search'}
+          </Button>
           {!hideModeToggle && onModeChange ? (
             <Button type="button" size="sm" variant="outline" onClick={() => onModeChange(!(modeValue ?? false))}>
               {modeValue ? 'Whitelist' : 'Blacklist'}
@@ -263,9 +272,16 @@ function MultiSelectInput({
           ) : null}
         </div>
       </div>
+      {showSearch ? (
+        <Input
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Search options…"
+        />
+      ) : null}
       <div className={`${expanded ? 'h-full min-h-28' : 'h-47'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
-        {options.length > 0 ? (
-          options.map((option) => (
+        {visibleOptions.length > 0 ? (
+          visibleOptions.map((option) => (
             <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
               <input
                 type="checkbox"
@@ -282,7 +298,7 @@ function MultiSelectInput({
             </label>
           ))
         ) : (
-          <p className="m-0 py-1 text-sm text-zinc-500">No options available.</p>
+          <p className="m-0 py-1 text-sm text-zinc-500">{options.length === 0 ? 'No options available.' : 'No search results.'}</p>
         )}
       </div>
     </div>
@@ -399,6 +415,7 @@ function App() {
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [dummySelector, setDummySelector] = useState('1')
   const [dummyCustomValue, setDummyCustomValue] = useState('')
+  const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
 
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const materialColorOptions = Object.keys(activeDataframe.materialColors)
@@ -444,6 +461,23 @@ function App() {
     }
     return [...keywords].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn])
+
+  useEffect(() => {
+    patchActiveDataframe((df) => {
+      const defaultColor = df.materialColors.default
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test((defaultColor ?? '').trim())) {
+        return df
+      }
+      return {
+        ...df,
+        materialColors: {
+          ...df.materialColors,
+          default: '#000000',
+        },
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDataframeIndex])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -702,8 +736,8 @@ function App() {
       if (keys.length === 0) return df
       const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
         const hue = (index / keys.length) * 360
-        const brightness = 0.2 + (0.8 / number_of_brighnes_levels / 2) * ((index % number_of_brighnes_levels) * 2 + 1)
-        acc[key] = hsvToHex(hue, 0.95, brightness)
+        const brightness = 0.3 + (0.7 / number_of_brighnes_levels / 2) * ((index % number_of_brighnes_levels) * 2 + 1)
+        acc[key] = hsvToHex(hue, 0.90, brightness)
         return acc
       }, {})
       return { ...df, materialColors: nextColors }
@@ -1544,6 +1578,101 @@ function App() {
             </div>
           </section>
 
+          {/* ~ Axes */}
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">{t('axes')}</h3>
+              <Button variant="outline" size="sm" onClick={addAxis}>+ Axes</Button>
+            </div>
+            {activeDataframe.axes.map((axis, axisIndex) => (
+              <div key={`${axis.name}-${axisIndex}`} className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-3 pr-12 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${hoveredRemoveGroup === `axis-${axisIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `axis-${axisIndex}` : null)} onClick={() => removeAxis(axisIndex)} />
+                <div className="grid gap-2">
+                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
+                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
+                  <div className="grid gap-2">
+                    <label className="font-medium text-zinc-900 dark:text-zinc-100">Axis {axisIndex + 1} Label</label>
+                    {activeDataframe.plotLanguages.map((lang) => (
+                      <div key={`${axis.name}-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+                        <span className="text-xs uppercase text-zinc-600">{lang}</span>
+                        <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <MultiSelectInput
+                  title={`Axis ${axisIndex + 1} Columns`}
+                  value={axis.columns}
+                  options={availableAxisColumns}
+                  expanded={expandedAxisColumns[axisIndex] === true}
+                  onToggleExpanded={() => setExpandedAxisColumns((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))}
+                  hideModeToggle
+                  onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))}
+                />
+              </div>
+            ))}
+          </section>
+          
+          {/* ~ Layers */}
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+            <div className="flex items-center gap-2"><h3 className="text-sm font-semibold">{t('layers')}</h3><Button variant="outline" size="sm" onClick={addLayer}>+ Layer</Button></div>
+            <div className="relative grid gap-3 sm:col-span-2 sm:grid-cols-2">
+              <Field language={uiLanguage} label="Alpha points" jsonPath="layers[last].alpha_points"><Input type="number" step={0.05} min={0} max={1} value={activeFrame.layers[activeFrame.layers.length - 1]?.alphaPoints ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === f.layers.length - 1 ? { ...x, alphaPoints: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
+              <Field language={uiLanguage} label="Alpha areas" jsonPath="layers[last].alpha_areas"> <Input type="number" step={0.05} min={0} max={1} value={activeFrame.layers[activeFrame.layers.length - 1]?.alphaAreas ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === f.layers.length - 1 ? { ...x, alphaAreas: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
+            </div>
+            {activeFrame.layers.map((layer, layerIndex) => (
+              <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
+                <div className="grid gap-3">
+                  <Field language={uiLanguage} label={`Layer ${layerIndex + 1} Name`} jsonPath={`layers[${layerIndex}].name`}>
+                    <Select value={layer.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, name: e.target.value } : x) }))}>
+                      <option value="">Select column</option>
+                      {layerNameOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </Select>
+                  </Field>
+                  <Field language={uiLanguage} label="Line width" jsonPath={`layers[${layerIndex}].linewidth`}><Input type="number" step={0.1} min={0} value={layer.linewidth ?? 1.5} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, linewidth: Math.max(0, numberValue(e.target.valueAsNumber, x.linewidth ?? 1.5)) } : x) }))} /></Field>
+                  <Field language={uiLanguage} label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`}>    <Input type="number" step={0.05} min={0} max={1} value={layer.alpha ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, alpha: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
+                </div>
+                <MultiSelectInput
+                  title="Whitelist keywords"
+                  value={layer.whitelist ?? []}
+                  options={!layer.name
+                    ? []
+                    : (availableKeywordsByColumn[layer.name] ?? []).length > 0
+                      ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry }))
+                      : availableWhitelistKeywords}
+                  expanded={expandedLayerKeywords[layerIndex] === true}
+                  onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
+                  modeValue={layer.whitelistFlag ?? false}
+                  onModeChange={(next) =>
+                    patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => (i === layerIndex ? { ...x, whitelistFlag: next } : x)) }))
+                  }
+                  onChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))}
+                />
+              </div>
+            ))}
+          </section>
+
+          {/* ~ colors */}
+          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <h3 className="m-0 text-sm font-semibold">{t('coloredAreas')}</h3>
+              <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
+            </div>
+            {activeFrame.coloredAreas.map((area, areaIndex) => (
+              <div key={areaIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `area-${areaIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
+                <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}>               <Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
+                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}>
+                  <ColorOrMaterialInput materialOptions={materialColorOptions} value={area.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: next } : entry) }))} />
+                </Field>
+                <Field language={uiLanguage} label={t('alpha')} jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
+              </div>
+            ))}
+          </section>
+
           {/* + Frame */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <h3 className="sm:col-span-2 text-sm font-semibold">Frame</h3>
@@ -1603,45 +1732,7 @@ function App() {
               ))}
             </div>
           </section>
-          {/* ~ Layers */}
-          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-            <div className="flex items-center gap-2"><h3 className="text-sm font-semibold">{t('layers')}</h3><Button variant="outline" size="sm" onClick={addLayer}>+ Layer</Button></div>
-            <div className="relative grid gap-3 sm:col-span-2 sm:grid-cols-2">
-              <Field language={uiLanguage} label="Alpha points" jsonPath="layers[last].alpha_points"><Input type="number" step={0.05} min={0} max={1} value={activeFrame.layers[activeFrame.layers.length - 1]?.alphaPoints ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === f.layers.length - 1 ? { ...x, alphaPoints: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
-              <Field language={uiLanguage} label="Alpha areas" jsonPath="layers[last].alpha_areas"> <Input type="number" step={0.05} min={0} max={1} value={activeFrame.layers[activeFrame.layers.length - 1]?.alphaAreas ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === f.layers.length - 1 ? { ...x, alphaAreas: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
-            </div>
-            {activeFrame.layers.map((layer, layerIndex) => (
-              <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-                <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
-                <div className="grid gap-3">
-                  <Field language={uiLanguage} label={`Layer ${layerIndex + 1} Name`} jsonPath={`layers[${layerIndex}].name`}>
-                    <Select value={layer.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, name: e.target.value } : x) }))}>
-                      <option value="">Select column</option>
-                      {layerNameOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </Select>
-                  </Field>
-                  <Field language={uiLanguage} label="Line width" jsonPath={`layers[${layerIndex}].linewidth`}><Input type="number" step={0.1} min={0} value={layer.linewidth ?? 1.5} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, linewidth: Math.max(0, numberValue(e.target.valueAsNumber, x.linewidth ?? 1.5)) } : x) }))} /></Field>
-                  <Field language={uiLanguage} label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`}>    <Input type="number" step={0.05} min={0} max={1} value={layer.alpha ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, alpha: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} /></Field>
-                </div>
-                <MultiSelectInput
-                  title="Whitelist keywords"
-                  value={layer.whitelist ?? []}
-                  options={!layer.name
-                    ? []
-                    : (availableKeywordsByColumn[layer.name] ?? []).length > 0
-                      ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry }))
-                      : availableWhitelistKeywords}
-                  expanded={expandedLayerKeywords[layerIndex] === true}
-                  onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
-                  modeValue={layer.whitelistFlag ?? false}
-                  onModeChange={(next) =>
-                    patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => (i === layerIndex ? { ...x, whitelistFlag: next } : x)) }))
-                  }
-                  onChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))}
-                />
-              </div>
-            ))}
-          </section>
+
           {/* ~ Guidelines */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
             <div className="flex items-center gap-2"><h3 className="text-sm font-semibold">{t('guidelines')}</h3><Button variant="outline" size="sm" onClick={addGuideline}>+ Guideline</Button></div>
@@ -1666,25 +1757,7 @@ function App() {
               </div>
             ))}
           </section>
-          {/* ~ colored areas */}
-          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-            <div className="sm:col-span-2 flex items-center gap-2">
-              <h3 className="m-0 text-sm font-semibold">{t('coloredAreas')}</h3>
-              <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: [...f.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }] }))}>+ Area</Button>
-            </div>
-            {activeFrame.coloredAreas.map((area, areaIndex) => (
-              <div key={areaIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-                <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `area-${areaIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
-                <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}>               <Input value={JSON.stringify(area.axes ?? {})} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, axes: parseJsonField<Record<string, [number, number][]>>(e.target.value, entry.axes ?? {}) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="Polygon X points (comma separated)" jsonPath={`colored_areas[${areaIndex}].x`}><Input value={toCommaList(area.x)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, x: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="Polygon Y points (comma separated)" jsonPath={`colored_areas[${areaIndex}].y`}><Input value={toCommaList(area.y)} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, y: parseNumberList(e.target.value) } : entry) }))} /></Field>
-                <Field language={uiLanguage} label="color" jsonPath={`colored_areas[${areaIndex}].color`}>
-                  <ColorOrMaterialInput materialOptions={materialColorOptions} value={area.color} onChange={(next) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, color: next } : entry) }))} />
-                </Field>
-                <Field language={uiLanguage} label={t('alpha')} jsonPath={`colored_areas[${areaIndex}].alpha`}><Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => i === areaIndex ? { ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) } : entry) }))} /></Field>
-              </div>
-            ))}
-          </section>
+
           {/* ~ Annotations */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <div className="sm:col-span-2 flex items-center gap-2">
@@ -1809,40 +1882,7 @@ function App() {
               </div>
             ))}
           </section>
-          {/* ~ Axes */}
-          <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">{t('axes')}</h3>
-              <Button variant="outline" size="sm" onClick={addAxis}>+ Axes</Button>
-            </div>
-            {activeDataframe.axes.map((axis, axisIndex) => (
-              <div key={`${axis.name}-${axisIndex}`} className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-3 pr-12 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${hoveredRemoveGroup === `axis-${axisIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-                <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `axis-${axisIndex}` : null)} onClick={() => removeAxis(axisIndex)} />
-                <div className="grid gap-2">
-                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}><Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} /></Field>
-                  <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}><Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>{AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</Select></Field>
-                  <div className="grid gap-2">
-                    <label className="font-medium text-zinc-900 dark:text-zinc-100">Axis {axisIndex + 1} Label</label>
-                    {activeDataframe.plotLanguages.map((lang) => (
-                      <div key={`${axis.name}-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-                        <span className="text-xs uppercase text-zinc-600">{lang}</span>
-                        <Input value={axis.labels[lang] ?? ''} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: e.target.value } }))} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <MultiSelectInput
-                  title={`Axis ${axisIndex + 1} Columns`}
-                  value={axis.columns}
-                  options={availableAxisColumns}
-                  expanded={expandedAxisColumns[axisIndex] === true}
-                  onToggleExpanded={() => setExpandedAxisColumns((current) => ({ ...current, [axisIndex]: !current[axisIndex] }))}
-                  hideModeToggle
-                  onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))}
-                />
-              </div>
-            ))}
-          </section>
+
           {/* ~ colors */}
           <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
             <div className="sm:col-span-2 flex items-center justify-between gap-2">
@@ -1872,9 +1912,14 @@ function App() {
                     {isDefault ?
                       <Input value={material} readOnly tabIndex={-1} onMouseDown={(event) => event.preventDefault()} className="w-full cursor-default text-zinc-900 dark:text-zinc-100" />
                       :
-                      <Select className="w-full" value={material} onChange={(e) =>
+                      <Select className="w-full" value={customMaterialNames[material] !== undefined ? CUSTOM_SELECT_VALUE : material} onChange={(e) => {
+                        const nextValue = e.target.value
+                        if (nextValue === CUSTOM_SELECT_VALUE) {
+                          setCustomMaterialNames((current) => ({ ...current, [material]: material }))
+                          return
+                        }
                         patchActiveDataframe((df) => {
-                          const nextKey = e.target.value.trim()
+                          const nextKey = nextValue.trim()
                           if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
                           const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
                             acc[key === material ? nextKey : key] = value
@@ -1882,10 +1927,34 @@ function App() {
                           }, {})
                           return { ...df, materialColors: nextColors }
                         })
-                      }>
+                      }}>
                         <option value={material}>{material}</option>
                         {materialKeywordOptions.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
+                        <option value={CUSTOM_SELECT_VALUE}>Custom…</option>
                       </Select>}
+                    {customMaterialNames[material] !== undefined ? (
+                      <Input
+                        value={customMaterialNames[material]}
+                        placeholder="Enter custom material name"
+                        onChange={(event) => setCustomMaterialNames((current) => ({ ...current, [material]: event.target.value }))}
+                        onBlur={() => {
+                          patchActiveDataframe((df) => {
+                            const draft = (customMaterialNames[material] ?? '').trim()
+                            if (!draft || draft === material || df.materialColors[draft]) return df
+                            const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
+                              acc[key === material ? draft : key] = value
+                              return acc
+                            }, {})
+                            return { ...df, materialColors: nextColors }
+                          })
+                          setCustomMaterialNames((current) => {
+                            const next = { ...current }
+                            delete next[material]
+                            return next
+                          })
+                        }}
+                      />
+                    ) : null}
                     {!isDefault ? <button
                       type="button"
                       className="rounded px-2 text-sm hover:bg-red-500 dark:hover:bg-zinc-700 aspect-square"
@@ -1924,7 +1993,7 @@ function App() {
         />
       )}
 
-      {/* ~ popouts */}
+      {/* + popouts */}
 
       {showAbout ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
