@@ -399,6 +399,7 @@ function App() {
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [dummySelector, setDummySelector] = useState('1')
   const [dummyCustomValue, setDummyCustomValue] = useState('')
+  const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
 
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const materialColorOptions = Object.keys(activeDataframe.materialColors)
@@ -444,6 +445,23 @@ function App() {
     }
     return [...keywords].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn])
+
+  useEffect(() => {
+    patchActiveDataframe((df) => {
+      const defaultColor = df.materialColors.default
+      if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test((defaultColor ?? '').trim())) {
+        return df
+      }
+      return {
+        ...df,
+        materialColors: {
+          ...df.materialColors,
+          default: '#000000',
+        },
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDataframeIndex])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -1872,9 +1890,14 @@ function App() {
                     {isDefault ?
                       <Input value={material} readOnly tabIndex={-1} onMouseDown={(event) => event.preventDefault()} className="w-full cursor-default text-zinc-900 dark:text-zinc-100" />
                       :
-                      <Select className="w-full" value={material} onChange={(e) =>
+                      <Select className="w-full" value={customMaterialNames[material] !== undefined ? CUSTOM_SELECT_VALUE : material} onChange={(e) => {
+                        const nextValue = e.target.value
+                        if (nextValue === CUSTOM_SELECT_VALUE) {
+                          setCustomMaterialNames((current) => ({ ...current, [material]: material }))
+                          return
+                        }
                         patchActiveDataframe((df) => {
-                          const nextKey = e.target.value.trim()
+                          const nextKey = nextValue.trim()
                           if (!nextKey || nextKey === material || df.materialColors[nextKey]) return df
                           const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
                             acc[key === material ? nextKey : key] = value
@@ -1882,10 +1905,34 @@ function App() {
                           }, {})
                           return { ...df, materialColors: nextColors }
                         })
-                      }>
+                      }}>
                         <option value={material}>{material}</option>
                         {materialKeywordOptions.map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
+                        <option value={CUSTOM_SELECT_VALUE}>Custom…</option>
                       </Select>}
+                    {customMaterialNames[material] !== undefined ? (
+                      <Input
+                        value={customMaterialNames[material]}
+                        placeholder="Enter custom material name"
+                        onChange={(event) => setCustomMaterialNames((current) => ({ ...current, [material]: event.target.value }))}
+                        onBlur={() => {
+                          patchActiveDataframe((df) => {
+                            const draft = (customMaterialNames[material] ?? '').trim()
+                            if (!draft || draft === material || df.materialColors[draft]) return df
+                            const nextColors = Object.entries(df.materialColors).reduce<Record<string, string>>((acc, [key, value]) => {
+                              acc[key === material ? draft : key] = value
+                              return acc
+                            }, {})
+                            return { ...df, materialColors: nextColors }
+                          })
+                          setCustomMaterialNames((current) => {
+                            const next = { ...current }
+                            delete next[material]
+                            return next
+                          })
+                        }}
+                      />
+                    ) : null}
                     {!isDefault ? <button
                       type="button"
                       className="rounded px-2 text-sm hover:bg-red-500 dark:hover:bg-zinc-700 aspect-square"
