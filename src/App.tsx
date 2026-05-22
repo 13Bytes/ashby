@@ -17,7 +17,7 @@ import { AnnotationsSection } from './components/AnnotationsSection'
 import { ColoredAreasSection } from './components/ColoredAreasSection'
 import { FrameSection } from './components/FrameSection'
 import { AdvancedJsonSection } from './components/AdvancedJsonSection'
-import { DataframeSection } from './components/DataframeSection'
+import { DataframeSection, addPlotLanguageToList, normalizePlotLanguages } from './components/DataframeSection'
 
 type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'
@@ -826,7 +826,7 @@ function App() {
   }
 
   const updateLanguages = (next: string[]) => {
-    const sanitized = [...new Set(next.map((entry) => entry.trim()).filter(Boolean))]
+    const sanitized = normalizePlotLanguages(activeDataframe.plotLanguages, next)
     patchActiveDataframe((df) => ({
       ...df,
       plotLanguages: sanitized.length > 0 ? sanitized : ['en'],
@@ -854,9 +854,9 @@ function App() {
   }
 
   const addPlotLanguage = (language: string) => {
-    const normalized = language.trim()
-    if (!normalized) return
-    updateLanguages([...activeDataframe.plotLanguages, normalized])
+    const nextLanguages = addPlotLanguageToList(activeDataframe.plotLanguages, language)
+    if (nextLanguages === activeDataframe.plotLanguages) return
+    updateLanguages(nextLanguages)
     setPlotLanguageDraft('')
   }
 
