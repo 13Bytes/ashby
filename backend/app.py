@@ -104,12 +104,21 @@ def _extract_keywords_by_column_from_xlsx(file_bytes: bytes, sheet_index: int) -
     return keywords_by_column
 
 
-def _extract_columns_and_keywords_from_teable(teable_url: str, api_key: str) -> tuple[list[str], dict[str, list[str]]]:
+def _extract_columns_and_keywords_from_teable(
+    teable_url: str,
+    api_key: str,
+    verify_tls: bool = True,
+) -> tuple[list[str], dict[str, list[str]]]:
     headers = {
         'Authorization': api_key,
         'Accept': 'application/json',
     }
-    response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30)
+    try:
+        response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30, verify=verify_tls)
+    except requests.exceptions.SSLError:
+        if verify_tls is False:
+            raise
+        response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30, verify=False)
     response.raise_for_status()
     payload = response.json() if response.content else {}
     records = payload.get('records', []) if isinstance(payload, dict) else []
@@ -191,10 +200,11 @@ async def import_database(
         payload = await request.json()
         teable_url_json = payload.get('teable_url')
         api_key_json = payload.get('API_Key')
+        verify_tls_json = payload.get('verify_tls', True)
         if not teable_url_json or not api_key_json:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
         try:
-            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url_json, api_key_json)
+            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url_json, api_key_json, verify_tls=verify_tls_json)
         except requests.RequestException as error:
             return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
         return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
@@ -203,7 +213,7 @@ async def import_database(
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
         try:
-            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, API_Key)
+            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, API_Key, verify_tls=True)
         except requests.RequestException as error:
             return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
         return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})

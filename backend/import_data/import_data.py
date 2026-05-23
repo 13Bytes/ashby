@@ -28,14 +28,26 @@ def _resolve_import_file_path(import_file_name: str) -> Path:
 
 def import_data(dataframe, frame, Sorted_data):
     if dataframe.get('teable_url',None) != None:
-        data = import_teable(dataframe['teable_url'], dataframe['API_Key'], frame['layers'], frame.get('filter', None), [Sorted_data.absolute.columns[0], Sorted_data.absolute.columns[1], Sorted_data.relative.columns[0], Sorted_data.relative.columns[1]])
+        data = import_teable(
+            dataframe['teable_url'],
+            dataframe['API_Key'],
+            frame['layers'],
+            frame.get('filter', None),
+            [
+                Sorted_data.absolute.columns[0],
+                Sorted_data.absolute.columns[1],
+                Sorted_data.relative.columns[0],
+                Sorted_data.relative.columns[1],
+            ],
+            verify_tls=dataframe.get('verify_tls', True),
+        )
     elif dataframe.get('import_file_name',None) != None:
         data = import_excel(dataframe['import_file_name'], dataframe.get('import_sheet',0), frame.get('filter', None))
     else:
         raise FileNotFoundError("no datasource selected. set teable_url or import_file_name in config")
     return data
 
-def import_teable(teable_url, api_key, layers, filter, axes):
+def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     wanted_fields = collums_list(axes, layers)
 
     params = {
@@ -52,13 +64,20 @@ def import_teable(teable_url, api_key, layers, filter, axes):
     }
 
 
-    status = requests.head(url, headers=headers)
+    try:
+        status = requests.head(url, headers=headers, verify=verify_tls, timeout=30)
+    except requests.exceptions.SSLError:
+        if verify_tls is False:
+            raise
+        print("⚠ TLS certificate verification failed for Teable. Retrying with verify=False.")
+        verify_tls = False
+        status = requests.head(url, headers=headers, verify=False, timeout=30)
 
     if status.status_code == 200:
         data = []
         print("importing...")
         while True:            
-            response = requests.get(url, params=params, headers=headers).json()
+            response = requests.get(url, params=params, headers=headers, verify=verify_tls, timeout=30).json()
             records = [rec["fields"] for rec in response["records"]]
 
             if not records:
@@ -73,7 +92,7 @@ def import_teable(teable_url, api_key, layers, filter, axes):
         print(f"data received successfully  (Total of {len(data)} points)")  
   
         return dataframe
-    elif status == 403:
+    elif status.status_code == 403:
         raise PermissionError("ERROR 403 - Teable API: kein Zugriffsrecht. Bitte API Key & URL prüfen")
     else:
         raise Exception(f"unknown Teable error {status.status_code}: {status.text}")
