@@ -780,7 +780,7 @@ function App() {
       }
       patchActiveDataframe((df) => ({
         ...df,
-        importFileName: file?.name ?? payload.import_file_name ?? df.importFileName,
+        importFileName: payload.import_file_name ?? file?.name ?? df.importFileName,
         axes: df.axes.map((axis) => ({
           ...axis,
           columns: axis.columns.filter((column) => axisBases.includes(column)),
