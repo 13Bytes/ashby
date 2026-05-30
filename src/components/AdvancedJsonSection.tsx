@@ -1,5 +1,6 @@
 import type { FrameConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
+import type { FieldComponent } from '../types/componentProps'
 
 type Props = {
   t: (key: string) => string
@@ -7,7 +8,7 @@ type Props = {
   activeFrame: FrameConfig
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   parseJsonField: <T>(raw: string, fallback: T) => T
-  FieldComponent: any
+  FieldComponent: FieldComponent
 }
 
 export function AdvancedJsonSection({ t, uiLanguage, activeFrame, patchActiveFrame, parseJsonField, FieldComponent: Field }: Props) {

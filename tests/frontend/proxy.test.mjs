@@ -8,6 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectDir = path.resolve(__dirname, '..', '..')
 const plotPagePath = path.join(projectDir, 'src', 'components', 'PlotPage.tsx')
 const appPath = path.join(projectDir, 'src', 'App.tsx')
+const configSectionsPath = path.join(projectDir, 'src', 'components', 'ConfigSections.tsx')
+const dataframeSectionPath = path.join(projectDir, 'src', 'components', 'DataframeSection.tsx')
+const appControlsPath = path.join(projectDir, 'src', 'components', 'AppControls.tsx')
 const configIoPath = path.join(projectDir, 'src', 'utils', 'configIo.ts')
 
 async function readSource(filePath) {
@@ -40,14 +43,14 @@ test('PlotPage reads backend plot messages and renders them in the UI', async ()
 })
 
 test('App passes active selection into PlotPage and persists uploaded import_file_name', async () => {
-  const source = await readSource(appPath)
+  const source = `${await readSource(appPath)}\n${await readSource(configSectionsPath)}`
 
-  assert.match(source, /importFileName:\s*file\?\.name\s*\?\?\s*payload\.import_file_name\s*\?\?\s*df\.importFileName/)
-  assert.match(source, /<PlotPage[\s\S]*plotConfig=\{plotConfig\}[\s\S]*activeDataframeIndex=\{activeDataframeIndex\}[\s\S]*activeFrameIndex=\{activeFrameIndex\}[\s\S]*\/>/)
+  assert.match(source, /importFileName:\s*payload\.import_file_name\s*\?\?\s*file\?\.name\s*\?\?\s*df\.importFileName/)
+  assert.match(source, /<PlotPage[\s\S]*plotConfig=\{plotConfig\}[\s\S]*activeDataframeIndex=\{activeDataframeIndex\}[\s\S]*activeFrameIndex=\{activeFrameIndex\}/)
 })
 
 test('App only offers axis column options from imported config or datasource columns', async () => {
-  const source = await readSource(appPath)
+  const source = `${await readSource(appPath)}\n${await readSource(configSectionsPath)}\n${await readSource(dataframeSectionPath)}\n${await readSource(appControlsPath)}`
 
   assert.doesNotMatch(source, /const AXIS_COLUMN_OPTIONS:/)
   assert.match(source, /const availableAxisColumns = useMemo\(\s*\(\) => getAxisBasesFromColumns\(availableColumns\)\.map/)
@@ -55,7 +58,7 @@ test('App only offers axis column options from imported config or datasource col
 })
 
 test('App uses a single spreadsheet upload flow that imports immediately', async () => {
-  const source = await readSource(appPath)
+  const source = `${await readSource(appPath)}\n${await readSource(dataframeSectionPath)}`
 
   assert.match(source, /const handleSpreadsheetSelection = async/)
   assert.match(source, /await importDatabase\(file\)/)

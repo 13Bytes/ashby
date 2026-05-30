@@ -2,19 +2,8 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import type { FrameConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
-
-export const parseNumberList = (value: string): number[] =>
-  value
-    .split(',')
-    .map((entry) => Number(entry.trim()))
-    .filter((entry) => Number.isFinite(entry))
-
-export const toCommaList = (values: number[] | undefined): string => (values ?? []).join(', ')
-
-export const addColoredAreaToFrame = (frame: FrameConfig): FrameConfig => ({
-  ...frame,
-  coloredAreas: [...frame.coloredAreas, { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 }],
-})
+import type { ColorOrMaterialInputComponent, FieldComponent, RemoveIconButtonComponent } from '../types/componentProps'
+import { addColoredAreaToFrame, parseNumberList, toCommaList } from '../utils/coloredAreas'
 
 type Props = {
   t: (key: string) => string
@@ -26,13 +15,13 @@ type Props = {
   parseJsonField: <T>(raw: string, fallback: T) => T
   numberValue: (value: number, fallback: number) => number
   materialColorOptions: string[]
-  FieldComponent: any
-  RemoveIconButtonComponent: any
-  ColorOrMaterialInputComponent: any
+  FieldComponent: FieldComponent
+  RemoveIconButtonComponent: RemoveIconButtonComponent
+  ColorOrMaterialInputComponent: ColorOrMaterialInputComponent
 }
 
 export function ColoredAreasSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, parseJsonField, numberValue, materialColorOptions, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
-  return 
+  return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="sm:col-span-2 flex items-center gap-2">
         <h3 className="m-0 text-sm font-semibold">{t('coloredAreas')}</h3>
@@ -64,4 +53,5 @@ export function ColoredAreasSection({ t, uiLanguage, activeFrame, hoveredRemoveG
       ))}
       
     </section>
+  )
 }
