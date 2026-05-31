@@ -1,10 +1,47 @@
-import type { DragEvent, MouseEvent } from 'react'
-import { getSelectedIndices } from '../utils/appState'
+import type { Dispatch, DragEvent, MouseEvent, SetStateAction } from 'react'
+import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
+import { getSelectedIndices, getUiKey } from '../utils/appState'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 
-type Props = Record<string, any>
+type TabRename = { type: 'dataframe' | 'frame'; index: number; value: string }
+
+type Props = {
+  activeDataframe: DataframeConfig
+  activeDataframeIndex: number
+  activeFrameIndex: number
+  addDataframe: () => void
+  addFrame: () => void
+  applyTabRename: () => void
+  dataframeDropIndex: number | null
+  draggedDataframeIndex: number | null
+  draggedFrameIndex: number | null
+  duplicateDataframe: (index: number) => void
+  duplicateFrame: (index: number) => void
+  frameDropIndex: number | null
+  moveFrameTargetDataframe: string
+  moveFrameToDataframe: (sourceDataframeIndex: number, sourceFrameIndex: number, targetDataframeIndex: number) => void
+  openTabWithSelection: (dataframeIndex: number, frameIndex: number) => void
+  plotConfig: PlotConfig
+  removeDataframe: (index: number) => void
+  removeFrame: (index: number) => void
+  reorderDataframes: (from: number, to: number) => void
+  reorderFrames: (from: number, to: number) => void
+  setActiveDataframeIndex: Dispatch<SetStateAction<number>>
+  setActiveFrameIndex: Dispatch<SetStateAction<number>>
+  setDataframeDropIndex: Dispatch<SetStateAction<number | null>>
+  setDraggedDataframeIndex: Dispatch<SetStateAction<number | null>>
+  setDraggedFrameIndex: Dispatch<SetStateAction<number | null>>
+  setExpandedAxisColumns: Dispatch<SetStateAction<Record<number, boolean>>>
+  setFrameDropIndex: Dispatch<SetStateAction<number | null>>
+  setMoveFrameTargetDataframe: Dispatch<SetStateAction<string>>
+  setTabRename: Dispatch<SetStateAction<TabRename | null>>
+  tabRename: TabRename | null
+  t: (key: string) => string
+  toggleDataframeGeneration: (index: number, enabled: boolean) => void
+  toggleFrameGeneration: (index: number, enabled: boolean) => void
+}
 
 export function ConfigTabs(props: Props) {
   const {
@@ -47,9 +84,9 @@ export function ConfigTabs(props: Props) {
     <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold">{t('dataframe')}</span>
-        {plotConfig.dataframes.map((df: any, index: number) => (
+        {plotConfig.dataframes.map((df, index) => (
           <div
-            key={index}
+            key={getUiKey(df, 'dataframe')}
             className="inline-flex items-center gap-2 transition-all duration-150"
             draggable
             onDragStart={() => setDraggedDataframeIndex(index)}
@@ -76,7 +113,7 @@ export function ConfigTabs(props: Props) {
               <Input
                 autoFocus
                 value={tabRename.value}
-                onChange={(event) => setTabRename((current: any) => (current ? { ...current, value: event.target.value } : current))}
+                onChange={(event) => setTabRename((current) => (current ? { ...current, value: event.target.value } : current))}
                 onBlur={applyTabRename}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') applyTabRename()
@@ -150,9 +187,9 @@ export function ConfigTabs(props: Props) {
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
         <span className="text-sm font-semibold">{t('frame')}</span>
-        {activeDataframe.frames.map((frame: any, index: number) => (
+        {activeDataframe.frames.map((frame, index) => (
           <div
-            key={index}
+            key={getUiKey(frame, 'frame')}
             className="inline-flex items-center gap-2 transition-all duration-150"
             draggable
             onDragStart={() => setDraggedFrameIndex(index)}
@@ -179,7 +216,7 @@ export function ConfigTabs(props: Props) {
               <Input
                 autoFocus
                 value={tabRename.value}
-                onChange={(event) => setTabRename((current: any) => (current ? { ...current, value: event.target.value } : current))}
+                onChange={(event) => setTabRename((current) => (current ? { ...current, value: event.target.value } : current))}
                 onBlur={applyTabRename}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') applyTabRename()
@@ -250,8 +287,8 @@ export function ConfigTabs(props: Props) {
         <Button size="sm" onClick={addFrame}>+</Button>
         <div className="ml-2 flex items-center gap-2">
           <Select value={moveFrameTargetDataframe} onChange={(event) => setMoveFrameTargetDataframe(event.target.value)}>
-            {plotConfig.dataframes.map((dataframe: any, index: number) => (
-              <option key={`move-frame-${index}`} value={index}>
+            {plotConfig.dataframes.map((dataframe, index) => (
+              <option key={getUiKey(dataframe, 'dataframe')} value={index}>
                 {dataframe.name || `Dataframe ${index + 1}`}
               </option>
             ))}

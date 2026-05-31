@@ -1,6 +1,6 @@
 # Codebase cleanup TODOs
 
-- Replace the remaining `Record<string, any>` component props with explicit props interfaces, starting with `ConfigTabs` and `ConfigSections`.
+- Replace the remaining `Record<string, any>` component props with explicit props interfaces, starting with `ConfigSections`.
 - Tighten the remaining loosely typed component props and callbacks so ESLint can disallow explicit `any` across the frontend.
 - Break up dense JSX in legacy form sections such as `FrameSection` into smaller typed field-row components.
 - Normalize naming and spelling in plotting modules, including the existing `plot_acessories.py` filename.

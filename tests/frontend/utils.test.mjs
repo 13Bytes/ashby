@@ -74,3 +74,13 @@ test('colored area helpers parse numbers and append a default area', async () =>
   assert.equal(toCommaList([1, 2, 3]), '1, 2, 3')
   assert.deepEqual(addColoredAreaToFrame(frame).coloredAreas[0], { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 })
 })
+
+test('appState UI keys stay stable for reorderable entities and refresh for clones', async () => {
+  const { getUiKey, refreshUiKey } = await importTypeScriptModule('src/utils/appState.ts')
+  const frame = { _extensions: {} }
+  const firstKey = getUiKey(frame, 'frame')
+
+  assert.equal(getUiKey(frame, 'frame'), firstKey)
+  refreshUiKey(frame, 'frame')
+  assert.notEqual(getUiKey(frame, 'frame'), firstKey)
+})

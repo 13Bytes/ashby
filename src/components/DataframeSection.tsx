@@ -210,25 +210,23 @@ export function DataframeSection({
 
       <div className="flex flex-wrap items-center gap-2 self-end-safe">
         {activeDataframe.plotLanguages.map((language) => (
-          <button
-            key={language}
-            type="button"
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${activeDataframe.language === language ? 'border-violet-600 bg-violet-400' : 'border-zinc-300'}`}
-            onClick={() => patchActiveDataframe((current) => ({ ...current, language }))}
-          >
-            <span>{language}</span>
-            <span
-              role="button"
-              tabIndex={0}
-              className="font-semibold"
-              onClick={(event) => {
-                event.stopPropagation()
-                updateLanguages(activeDataframe.plotLanguages.filter((entry) => entry !== language))
-              }}
+          <span key={language} className="inline-flex items-center overflow-hidden rounded-full border border-zinc-300 text-xs">
+            <button
+              type="button"
+              className={`px-3 py-1 ${activeDataframe.language === language ? 'bg-violet-400' : ''}`}
+              onClick={() => patchActiveDataframe((current) => ({ ...current, language }))}
+            >
+              {language}
+            </button>
+            <button
+              type="button"
+              className="px-2 py-1 font-semibold hover:bg-red-500"
+              onClick={() => updateLanguages(activeDataframe.plotLanguages.filter((entry) => entry !== language))}
+              aria-label={`Remove ${language} language`}
             >
               ×
-            </span>
-          </button>
+            </button>
+          </span>
         ))}
       </div>
     </section>

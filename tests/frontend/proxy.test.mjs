@@ -73,3 +73,23 @@ test('toExternalConfig does not serialize empty layer names into the backend pay
   assert.match(source, /\.\.\.\(normalizedName \? \{ name: normalizedName \} : \{\}\)/)
   assert.doesNotMatch(source, /name:\s*layer\.name \?\? ''/)
 })
+
+test('annotation edgecolor updates preserve fill color and language removal uses sibling buttons', async () => {
+  const annotationsSource = await readSource(path.join(projectDir, 'src', 'components', 'AnnotationsSection.tsx'))
+  const dataframeSource = await readSource(dataframeSectionPath)
+
+  const edgecolorField = annotationsSource.slice(annotationsSource.indexOf('label="Marker edgecolors"'), annotationsSource.indexOf('</Field>', annotationsSource.indexOf('label="Marker edgecolors"')))
+  assert.match(edgecolorField, /edgecolors: next/)
+  assert.doesNotMatch(edgecolorField, /[, ]color: next/)
+  assert.doesNotMatch(annotationsSource, /deiabled/)
+  assert.match(dataframeSource, /<span key=\{language\}[\s\S]*aria-label=\{`Remove \$\{language\} language`\}/)
+  assert.doesNotMatch(dataframeSource, /role="button"/)
+})
+
+test('reorderable config tabs use stable UI keys instead of array indices', async () => {
+  const source = await readSource(path.join(projectDir, 'src', 'components', 'ConfigTabs.tsx'))
+
+  assert.match(source, /key=\{getUiKey\(df, 'dataframe'\)\}/)
+  assert.match(source, /key=\{getUiKey\(frame, 'frame'\)\}/)
+  assert.doesNotMatch(source, /key=\{index\}/)
+})

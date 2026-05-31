@@ -4,7 +4,7 @@ import { addAxisToDataframe, updateAxisInDataframe } from '../components/AxesSec
 import { addGuidelineToFrame, updateGuidelineInFrame } from '../components/GuidelinesSection'
 import { addLayerToFrame } from '../components/LayersSection'
 import { generateMaterialColorsForDataframe } from '../components/MaterialColorsSection'
-import { getNextTabName, insertSelectionIndex, moveItem, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
+import { getNextTabName, insertSelectionIndex, moveItem, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
   activeDataframe: DataframeConfig
@@ -44,7 +44,12 @@ const addDataframe = () => {
     const nextIndex = current.dataframes.length
     const source = structuredClone(current.dataframes[0])
     source.name = getNextTabName(current.dataframes.map((df, index) => df.name ?? `Dataframe ${index + 1}`), 'Dataframe')
-    source.frames = source.frames.map((frame, frameIndex) => ({ ...frame, name: `Frame ${frameIndex + 1}` }))
+    refreshUiKey(source, 'dataframe')
+    source.frames = source.frames.map((frame, frameIndex) => {
+      const nextFrame = { ...frame, name: `Frame ${frameIndex + 1}` }
+      refreshUiKey(nextFrame, 'frame')
+      return nextFrame
+    })
     setActiveDataframeIndex(nextIndex)
     setActiveFrameIndex(0)
     const nextDataframes = [...current.dataframes, source]
@@ -60,6 +65,7 @@ const addFrame = () => {
   patchActiveDataframe((df) => {
     const next = structuredClone(df.frames[0])
     next.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+    refreshUiKey(next, 'frame')
     const nextFrames = [...df.frames, next]
     return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, nextFrames.length - 1) }
   })
@@ -72,6 +78,8 @@ const duplicateDataframe = (index: number) => {
     if (!original) return current
     const clone = structuredClone(original)
     clone.name = getNextTabName(current.dataframes.map((df) => df.name), 'Dataframe')
+    refreshUiKey(clone, 'dataframe')
+    clone.frames.forEach((frame) => refreshUiKey(frame, 'frame'))
     const nextDataframes = [...current.dataframes]
     nextDataframes.splice(index + 1, 0, clone)
     setActiveDataframeIndex(index + 1)
@@ -90,6 +98,7 @@ const duplicateFrame = (index: number) => {
     if (!original) return df
     const clone = structuredClone(original)
     clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+    refreshUiKey(clone, 'frame')
     const nextFrames = [...df.frames]
     nextFrames.splice(index + 1, 0, clone)
     setActiveFrameIndex(index + 1)

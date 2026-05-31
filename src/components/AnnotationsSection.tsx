@@ -129,7 +129,7 @@ export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGr
                     ) : null}
                   </div>
                 </Field>
-                {/* & save values if deiabled */}
+                {/* & save values if disabled */}
                 <Field language={uiLanguage} label="Marker size factor" jsonPath={`annotations[${annotationIndex}].marker.size_factor`}>
                   <Input type="number" value={annotation.marker!.sizeFactor} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), sizeFactor: numberValue(e.target.valueAsNumber, annotation.marker?.sizeFactor ?? 1) } } : entry) }))} /></Field>
                 <Field language={uiLanguage} label="Marker linewidth"   jsonPath={`annotations[${annotationIndex}].marker.linewidths` }>
@@ -138,7 +138,7 @@ export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGr
                   <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.marker!.color} onChange={(next: string) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: next } } : entry) }))} />
                 </Field>
                 <Field language={uiLanguage} label="Marker edgecolors" jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}>
-                  <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.marker!.edgecolors} onChange={(next: string) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), color: next } } : entry) }))} />
+                  <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.marker!.edgecolors} onChange={(next: string) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), edgecolors: next } } : entry) }))} />
                 </Field>
               </div> : null}
 

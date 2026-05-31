@@ -161,3 +161,21 @@ export const getSourceMode = (dataframe: DataframeConfig): SourceMode =>
     : dataframe.teableUrl || dataframe.apiKey
       ? 'teable'
       : 'file'
+
+let nextUiKey = 0
+
+type UiKeyOwner = { _extensions: Record<string, unknown> }
+
+export const createUiKey = (prefix: string): string => `${prefix}-${nextUiKey += 1}`
+
+export const getUiKey = (owner: UiKeyOwner, prefix: string): string => {
+  const existing = owner._extensions.uiKey
+  if (typeof existing === 'string' && existing.length > 0) return existing
+  const uiKey = createUiKey(prefix)
+  owner._extensions.uiKey = uiKey
+  return uiKey
+}
+
+export const refreshUiKey = (owner: UiKeyOwner, prefix: string): void => {
+  owner._extensions.uiKey = createUiKey(prefix)
+}
