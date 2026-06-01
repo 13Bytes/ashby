@@ -97,6 +97,16 @@ export function DataframeSection({
         />
       </Field>
 
+      <Field language={uiLanguage} label={t('dataframeDarkMode')} jsonPath="dataframes[i].dark_mode">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => patchActiveDataframe((current) => ({ ...current, darkMode: !current.darkMode }))}
+        >
+          {activeDataframe.darkMode ? t('enabled') : t('disabled')}
+        </Button>
+      </Field>
+
       <div className="sm:col-span-2 grid gap-3 md:grid-cols-3">
         <Field language={uiLanguage} label={t('fontStyle')} jsonPath="font.font_style">
           <Select

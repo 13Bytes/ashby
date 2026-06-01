@@ -49,7 +49,7 @@ export interface FrameConfig {
   name?: string
   legendFlag: boolean
   title: Record<string, string>
-  darkMode: boolean
+  darkMode?: boolean
   legendAbove: boolean | null
   language: string
   exportFileName?: string
@@ -176,7 +176,6 @@ export function createDefaultPlotConfig(): PlotConfig {
           {
             title: { en: '' },
             legendFlag: true,
-            darkMode: false,
             legendAbove: false,
             language: 'en',
             xQuantity: undefined,

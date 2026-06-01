@@ -64,6 +64,7 @@ const addDataframe = () => {
 const addFrame = () => {
   patchActiveDataframe((df) => {
     const next = structuredClone(df.frames[0])
+    next.darkMode = undefined
     next.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
     refreshUiKey(next, 'frame')
     const nextFrames = [...df.frames, next]

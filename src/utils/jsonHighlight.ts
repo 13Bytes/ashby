@@ -8,9 +8,9 @@ type TokenMode = 'plain' | 'string' | 'number' | 'keyword'
 
 const pushToken = (buffer: string, mode: TokenMode) => {
   if (!buffer) return ''
-  if (mode === 'string') return `<span class="text-shadow-emerald-600">${escapeHtml(buffer)}</span>`
-  if (mode === 'number') return `<span class="text-sky-700">${escapeHtml(buffer)}</span>`
-  if (mode === 'keyword') return `<span class="text-fuchsia-600">${escapeHtml(buffer)}</span>`
+  if (mode === 'string') return `<span class="text-emerald-700 dark:text-emerald-400">${escapeHtml(buffer)}</span>`
+  if (mode === 'number') return `<span class="text-sky-700 dark:text-sky-400">${escapeHtml(buffer)}</span>`
+  if (mode === 'keyword') return `<span class="text-fuchsia-700 dark:text-fuchsia-400">${escapeHtml(buffer)}</span>`
   return escapeHtml(buffer)
 }
 

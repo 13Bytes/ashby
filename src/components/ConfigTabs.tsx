@@ -127,7 +127,7 @@ export function ConfigTabs(props: Props) {
                 tabIndex={0}
                 className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${activeDataframeIndex === index
                     ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
-                    : 'border-input bg-transparent hover:bg-accent hover:text-accent-foreground'
+                    : 'border-zinc-300 bg-transparent hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800'
                   }`}
                 onClick={() => { setActiveDataframeIndex(index); setActiveFrameIndex(0); setExpandedAxisColumns({}) }}
                 onKeyDown={(event) => {
@@ -230,7 +230,7 @@ export function ConfigTabs(props: Props) {
                 tabIndex={0}
                 className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${activeFrameIndex === index
                     ? 'border-violet-500 bg-violet-100 dark:bg-violet-900/30'
-                    : 'border-input bg-transparent hover:bg-accent hover:text-accent-foreground'
+                    : 'border-zinc-300 bg-transparent hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800'
                   }`}
                 onClick={() => setActiveFrameIndex(index)}
                 onKeyDown={(event) => {

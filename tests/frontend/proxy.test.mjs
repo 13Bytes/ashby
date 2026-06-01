@@ -12,6 +12,8 @@ const configSectionsPath = path.join(projectDir, 'src', 'components', 'ConfigSec
 const dataframeSectionPath = path.join(projectDir, 'src', 'components', 'DataframeSection.tsx')
 const appControlsPath = path.join(projectDir, 'src', 'components', 'AppControls.tsx')
 const configIoPath = path.join(projectDir, 'src', 'utils', 'configIo.ts')
+const configMappersPath = path.join(projectDir, 'src', 'config', 'configMappers.ts')
+const plotConfigActionsPath = path.join(projectDir, 'src', 'hooks', 'usePlotConfigActions.ts')
 
 async function readSource(filePath) {
   return readFile(filePath, 'utf8')
@@ -92,4 +94,25 @@ test('reorderable config tabs use stable UI keys instead of array indices', asyn
   assert.match(source, /key=\{getUiKey\(df, 'dataframe'\)\}/)
   assert.match(source, /key=\{getUiKey\(frame, 'frame'\)\}/)
   assert.doesNotMatch(source, /key=\{index\}/)
+})
+
+test('App exposes a persistent UI theme selector without forcing light mode', async () => {
+  const source = await readSource(appPath)
+
+  assert.match(source, /readStoredUITheme/)
+  assert.match(source, /UI_THEME_STORAGE_KEY/)
+  assert.match(source, /<option value="system">\{t\('themeSystem'\)\}<\/option>/)
+  assert.doesNotMatch(source, /classList\.remove\('dark'\)/)
+})
+
+test('plot dark mode uses dataframe defaults and optional frame overrides', async () => {
+  const configIoSource = await readSource(configIoPath)
+  const mapperSource = await readSource(configMappersPath)
+  const dataframeSource = await readSource(dataframeSectionPath)
+  const actionsSource = await readSource(plotConfigActionsPath)
+
+  assert.match(configIoSource, /frame\.darkMode === undefined \? \{\} : \{ dark_mode: frame\.darkMode \}/)
+  assert.match(mapperSource, /darkMode: coerceOptionalBool\(partial\.darkMode \?\? partial\.dark_mode\)/)
+  assert.match(dataframeSource, /label=\{t\('dataframeDarkMode'\)\}/)
+  assert.match(actionsSource, /next\.darkMode = undefined/)
 })

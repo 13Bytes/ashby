@@ -15,6 +15,7 @@ import { Field } from './components/AppControls'
 import { buildJsonFrameNeedle, getAxisBasesFromColumns, getConfigAxisColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, numberValue, parseColumnsFromImportResult, WHITELIST_OPTIONS, type MultiOption, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers, highlightJson } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
+import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
 
 type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
@@ -39,6 +40,7 @@ function App() {
   const jsonOverlayRef = useRef<HTMLPreElement | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
+  const [uiTheme, setUiTheme] = useState<UIThemePreference>(() => readStoredUITheme())
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
   const [availableWhitelistKeywords, setAvailableWhitelistKeywords] = useState<MultiOption[]>(WHITELIST_OPTIONS)
   const [availableKeywordsByColumn, setAvailableKeywordsByColumn] = useState<Record<string, string[]>>({})
@@ -173,10 +175,11 @@ function App() {
     setAvailableWhitelistKeywords(keywords.map((entry) => ({ value: entry, label: entry })))
   }, [plotConfig])
   useEffect(() => {
-    const html = document.documentElement
-    html.classList.remove('dark')
-    html.style.colorScheme = 'light'
-  }, [])
+    window.localStorage.setItem(UI_THEME_STORAGE_KEY, uiTheme)
+    applyUITheme(uiTheme)
+    if (uiTheme !== 'system') return
+    return subscribeToSystemTheme((systemPrefersDark) => applyUITheme('system', document.documentElement, systemPrefersDark))
+  }, [uiTheme])
   useEffect(() => {
     setMoveFrameTargetDataframe(String(activeDataframeIndex))
   }, [activeDataframeIndex])
@@ -418,12 +421,21 @@ function App() {
   const tabProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
   const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
-    <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
-      <Select value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
-        <option value="en">English</option>
-        <option value="de">Deutsch</option>
-      </Select>
-    </Field>
+    <>
+      <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
+        <Select value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </Select>
+      </Field>
+      <Field language={uiLanguage} label={t('uiTheme')} jsonPath="ui.theme">
+        <Select value={uiTheme} onChange={(event) => setUiTheme(event.target.value as UIThemePreference)}>
+          <option value="system">{t('themeSystem')}</option>
+          <option value="light">{t('themeLight')}</option>
+          <option value="dark">{t('themeDark')}</option>
+        </Select>
+      </Field>
+    </>
   )
   return (
     <div className="flex min-h-screen flex-col">

@@ -84,3 +84,30 @@ test('appState UI keys stay stable for reorderable entities and refresh for clon
   refreshUiKey(frame, 'frame')
   assert.notEqual(getUiKey(frame, 'frame'), firstKey)
 })
+
+test('uiTheme validates stored values and resolves system preference', async () => {
+  const { parseUIThemePreference, resolveUITheme } = await importTypeScriptModule('src/utils/uiTheme.ts')
+
+  assert.equal(parseUIThemePreference('dark'), 'dark')
+  assert.equal(parseUIThemePreference('invalid'), 'system')
+  assert.equal(parseUIThemePreference(null), 'system')
+  assert.equal(resolveUITheme('system', true), 'dark')
+  assert.equal(resolveUITheme('system', false), 'light')
+  assert.equal(resolveUITheme('light', true), 'light')
+  assert.equal(resolveUITheme('dark', false), 'dark')
+})
+
+test('new plot config frames inherit dataframe dark mode unless explicitly overridden', async () => {
+  const { createDefaultPlotConfig } = await importTypeScriptModule('src/config/defaultPlotConfig.ts')
+  const { toExternalConfig } = await importTypeScriptModule('src/utils/configIo.ts')
+  const config = createDefaultPlotConfig()
+  config.dataframes[0].darkMode = true
+
+  const inherited = toExternalConfig(config)
+  assert.equal(inherited.dataframes[0].dark_mode, true)
+  assert.equal('dark_mode' in inherited.dataframes[0].frames[0], false)
+
+  config.dataframes[0].frames[0].darkMode = false
+  const overridden = toExternalConfig(config)
+  assert.equal(overridden.dataframes[0].frames[0].dark_mode, false)
+})

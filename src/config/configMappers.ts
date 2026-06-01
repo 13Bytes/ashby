@@ -21,6 +21,9 @@ const asOptionalString = (value: unknown): string | undefined => {
 const coerceBool = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback
 
+const coerceOptionalBool = (value: unknown): boolean | undefined =>
+  typeof value === 'boolean' ? value : undefined
+
 const coerceNumber = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
@@ -138,7 +141,7 @@ const normalizeFrame = (
         Object.entries(partial.title).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
       )
       : fallback.title,
-    darkMode: coerceBool(partial.darkMode ?? partial.dark_mode, fallback.darkMode),
+    darkMode: coerceOptionalBool(partial.darkMode ?? partial.dark_mode),
     legendAbove: coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
     exportFileName: asOptionalString(partial.exportFileName ?? partial.export_file_name),
