@@ -133,6 +133,10 @@ class BackendApiTests(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=30) as response:
             return response.status, dict(response.headers.items()), response.read()
 
+    def get(self, path: str) -> tuple[int, dict[str, str], bytes]:
+        with urllib.request.urlopen(f'{self.base_url}{path}', timeout=30) as response:
+            return response.status, dict(response.headers.items()), response.read()
+
     def post_multipart(self, path: str, fields: dict[str, str], files: dict[str, Path]) -> tuple[int, dict[str, str], bytes]:
         body, boundary = build_multipart_body(fields, files)
         request = urllib.request.Request(
@@ -155,6 +159,14 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('image/svg+xml', self.header(headers, 'Content-Type'))
         self.assertTrue(body.startswith(b'<?xml'))
         self.assertIn(b'<svg', body)
+
+    def test_health_endpoint_reports_backend_availability(self) -> None:
+        status, headers, body = self.get('/api/health')
+        payload = json.loads(body.decode('utf-8'))
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/json', self.header(headers, 'Content-Type'))
+        self.assertEqual(payload, {'status': 'ok'})
 
     def test_render_plot_returns_warning_messages_header(self) -> None:
         warning_payload = json.loads(json.dumps(self.render_payload))

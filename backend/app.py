@@ -149,6 +149,11 @@ def _encode_messages_header(messages: list[str]) -> str:
     return quote(json.dumps(messages, ensure_ascii=False), safe='')
 
 
+@app.get('/api/health')
+def health() -> JSONResponse:
+    return JSONResponse({'status': 'ok'})
+
+
 @app.post('/api/render-plot')
 def render_plot(payload: RenderPlotRequest) -> Response:
     try:

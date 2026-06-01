@@ -62,6 +62,7 @@ function App() {
   const [plotActionNonce, setPlotActionNonce] = useState(0)
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
+  const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const materialColorOptions = Object.keys(activeDataframe.materialColors)
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
@@ -170,6 +171,23 @@ function App() {
     const timeout = window.setTimeout(() => setAlert(null), 15000)
     return () => window.clearTimeout(timeout)
   }, [alert])
+  useEffect(() => {
+    let active = true
+    const checkBackendAvailability = async () => {
+      try {
+        const response = await fetch('/api/health', { cache: 'no-store' })
+        if (active) setBackendAvailable(response.ok)
+      } catch {
+        if (active) setBackendAvailable(false)
+      }
+    }
+    void checkBackendAvailability()
+    const interval = window.setInterval(checkBackendAvailability, 15000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
+  }, [])
   useEffect(() => {
     const keywords = getConfigWhitelistKeywords(plotConfig)
     setAvailableWhitelistKeywords(keywords.map((entry) => ({ value: entry, label: entry })))
@@ -417,7 +435,7 @@ function App() {
   }
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
   const jsonHighlightedHtml = useMemo(() => highlightJson(jsonDraft, jsonMarker), [jsonDraft, jsonMarker])
-  const headerProps = { fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
+  const headerProps = { activePage, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
   const tabProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
   const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
@@ -440,6 +458,11 @@ function App() {
   return (
     <div className="flex min-h-screen flex-col">
       <AppHeader {...headerProps} />
+      {backendAvailable === false ? (
+        <div className="mx-auto w-full max-w-[1800px] px-5 pt-5">
+          <Alert variant="warning">{t('backendUnavailable')}</Alert>
+        </div>
+      ) : null}
       {activePage === 'config' ? (
         <main className="mx-auto grid min-h-0 w-full max-w-[1800px] flex-1 grid-cols-1 gap-4 p-5 text-left">
           <ConfigTabs {...tabProps} />

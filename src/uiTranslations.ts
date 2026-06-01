@@ -60,6 +60,7 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     config: "Config",
     previewPlot: "Preview plot",
     createAllPlots: "Create all plots",
+    backendUnavailable: "The backend server is not available. Plot previews and datasource imports will not work until it is running.",
   },
   de: {
     json: "JSON",
@@ -120,6 +121,7 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     config: "Konfiguration",
     previewPlot: "Plot-Vorschau",
     createAllPlots: "Alle Plots erstellen",
+    backendUnavailable: "Der Backend-Server ist nicht verfügbar. Plot-Vorschauen und Datenquellenimporte funktionieren erst wieder, wenn er läuft.",
   },
 }
 

@@ -51,6 +51,15 @@ test('App passes active selection into PlotPage and persists uploaded import_fil
   assert.match(source, /<PlotPage[\s\S]*plotConfig=\{plotConfig\}[\s\S]*activeDataframeIndex=\{activeDataframeIndex\}[\s\S]*activeFrameIndex=\{activeFrameIndex\}/)
 })
 
+test('App warns when the backend health probe is unavailable', async () => {
+  const source = await readSource(appPath)
+
+  assert.match(source, /fetch\('\/api\/health', \{ cache: 'no-store' \}\)/)
+  assert.match(source, /setBackendAvailable\(false\)/)
+  assert.match(source, /backendAvailable === false/)
+  assert.match(source, /t\('backendUnavailable'\)/)
+})
+
 test('App only offers axis column options from imported config or datasource columns', async () => {
   const source = `${await readSource(appPath)}\n${await readSource(configSectionsPath)}\n${await readSource(dataframeSectionPath)}\n${await readSource(appControlsPath)}`
 
