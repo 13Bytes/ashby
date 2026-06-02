@@ -24,7 +24,10 @@ export function Field({
   const tooltip = description ? `${jsonPath}\n${description}` : jsonPath
   return (
     <div className={`grid gap-2 ${selfClassName || ''}`}>
-      <label title={tooltip} className="font-medium text-zinc-900 dark:text-zinc-100">{label}</label>
+      <label title={tooltip} className="flex items-center gap-1 font-medium text-zinc-900 dark:text-zinc-100">
+        {label}
+        {description ? <span aria-label={`${label} help`} className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-zinc-400 text-[10px] text-zinc-600 dark:border-zinc-600 dark:text-zinc-300">?</span> : null}
+      </label>
       <div className={`grid gap-2 ${className || ''}`}>
         {children}
       </div>

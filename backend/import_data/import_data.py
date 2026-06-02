@@ -69,7 +69,7 @@ def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     except requests.exceptions.SSLError:
         if verify_tls is False:
             raise
-        print("⚠ TLS certificate verification failed for Teable. Retrying with verify=False.")
+        print("WARNING: TLS certificate verification failed for Teable. Retrying with verify=False.")
         verify_tls = False
         status = requests.head(url, headers=headers, verify=False, timeout=30)
 
@@ -82,7 +82,7 @@ def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
             except requests.exceptions.SSLError:
                 if verify_tls is False:
                     raise
-                print("⚠ TLS certificate verification failed for Teable GET request. Retrying with verify=False.")
+                print("WARNING: TLS certificate verification failed for Teable GET request. Retrying with verify=False.")
                 verify_tls = False
                 response = requests.get(url, params=params, headers=headers, verify=False, timeout=30).json()
 

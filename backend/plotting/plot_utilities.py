@@ -13,11 +13,17 @@ from .formatting import title
 class data_handling(): 
     def __init__(self, graphics:type, dataframe:pd.DataFrame, frame:dict, language):
         self.graphics        = graphics
-        self.absolute        = parse_data(dataframe['axes'], language, frame["x_quantity"], frame["y_quantity"])
+        x_quantity = frame.get("x_quantity")
+        y_quantity = frame.get("y_quantity")
+        if not isinstance(x_quantity, str) or not x_quantity.strip():
+            raise ValueError("Frame requires x_quantity. Select an absolute X-axis quantity before rendering.")
+        if not isinstance(y_quantity, str) or not y_quantity.strip():
+            raise ValueError("Frame requires y_quantity. Select an absolute Y-axis quantity before rendering.")
+        self.absolute        = parse_data(dataframe['axes'], language, x_quantity, y_quantity)
         self.relative        = parse_data(dataframe['axes'], language, frame.get("x_rel_quantity",None), frame.get("y_rel_quantity",None))
         self.frame           = frame
         self.material_colors = dataframe['material_colors']
-        self.layers          = frame['layers']
+        self.layers          = frame.get('layers') or [{}]
         self.layer_names     = []
         self.len_layers      = len(self.layers) 
         self.point_count     = {'skipped':0, 'plotted':0}     # [skipped, plotted]
@@ -38,7 +44,7 @@ class data_handling():
 
     def recursive_preparation(self, data:pd.DataFrame, current_layer_number:int, hirachie:list, legend_item:str, current_color:str) -> np.ndarray:
         # +       recursive repetition       +
-        if len(self.layers) > current_layer_number  and  'name' in self.layers[current_layer_number].keys():
+        if len(self.layers) > current_layer_number and self.layers[current_layer_number].get('name'):
             layer_name           = self.layers[current_layer_number]['name']
             self.layer_names.append(layer_name)
             layer_whitelist_flag = self.layers[current_layer_number].get('whitelist_flag',False)
@@ -208,7 +214,7 @@ class parse_data():   # relative & absolute separate
             for column in self.columns[dim][:]:
                 if column != None and f"{column} low" not in data.columns:
                     self.columns[dim].remove(column)
-                    cprint(f"❗'{column}' does not exist in your dataset but is set in '{self.quantities[dim]}'","yellow")
+                    cprint(f"WARNING: '{column}' does not exist in your dataset but is set in '{self.quantities[dim]}'","yellow")
         self.len_col = [len(self.columns[:][0]), len(self.columns[:][1])]
 
 

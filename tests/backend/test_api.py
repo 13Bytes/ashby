@@ -21,6 +21,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
 UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'backend' / 'material_properties' / 'MatWeb_materials_export_TDW25.xlsx'
 FILAMENT_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'backend' / 'material_properties' / 'MatWeb_materials_export_Filament.xlsx'
+SPRITZGUSS_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'MatWeb_materials_export_Spritzguss.xlsx'
 
 
 def build_multipart_body(fields: dict[str, str], files: dict[str, Path]) -> tuple[bytes, str]:
@@ -256,6 +257,54 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('Material', payload['keywords_by_column'])
         self.assertGreater(len(payload['keywords_by_column']['Material']), 0)
         self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
+
+    def test_extract_columns_from_spritzguss_xlsx_source(self) -> None:
+        columns = _extract_columns_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+
+        self.assertGreater(len(columns), 100)
+        self.assertIn('Material', columns)
+        self.assertIn('CTE linear low', columns)
+        self.assertIn('CTE linear high', columns)
+        self.assertIn('CTE linear unit', columns)
+
+    def test_import_database_upload_extracts_expected_columns_from_spritzguss_source(self) -> None:
+        status, headers, body = self.post_multipart(
+            '/api/import-database',
+            fields={'import_sheet': '0'},
+            files={'file': SPRITZGUSS_UPLOAD_FIXTURE_PATH},
+        )
+        payload = json.loads(body.decode('utf-8'))
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/json', self.header(headers, 'Content-Type'))
+        self.assertTrue(payload['success'])
+        self.assertIn('Material', payload['columns'])
+        self.assertIn('CTE linear low', payload['columns'])
+        self.assertIn('CTE linear high', payload['columns'])
+        self.assertIn('CTE linear unit', payload['columns'])
+        self.assertIn('Charpy Impact Notched low', payload['columns'])
+        self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
+
+    def test_render_plot_reports_missing_required_x_quantity(self) -> None:
+        payload = json.loads(json.dumps(self.render_payload))
+        del payload['config']['dataframes'][0]['frames'][0]['x_quantity']
+
+        with self.assertRaises(urllib.error.HTTPError) as context:
+            self.post_json('/api/render-plot', payload)
+
+        body = json.loads(context.exception.read().decode('utf-8'))
+        self.assertEqual(context.exception.code, 400)
+        self.assertIn('requires x_quantity', body['message'])
+
+    def test_render_plot_accepts_empty_layers_as_terminal_defaults(self) -> None:
+        payload = json.loads(json.dumps(self.render_payload))
+        payload['config']['dataframes'][0]['frames'][0]['layers'] = []
+
+        status, headers, body = self.post_json('/api/render-plot', payload)
+
+        self.assertEqual(status, 200)
+        self.assertIn('image/svg+xml', self.header(headers, 'Content-Type'))
+        self.assertIn(b'<svg', body)
 
     def test_uploaded_import_file_name_can_be_rendered(self) -> None:
         _, _, upload_body = self.post_multipart(

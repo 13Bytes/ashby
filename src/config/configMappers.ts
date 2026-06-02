@@ -27,6 +27,9 @@ const coerceOptionalBool = (value: unknown): boolean | undefined =>
 const coerceNumber = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
+const coerceOptionalNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
+
 const coerceFontStyle = (
   value: unknown,
   fallback: DataframeConfig['font']['fontStyle'],
@@ -67,6 +70,108 @@ const coerceOptionalNumberPair = (
 
   return normalized[0] === undefined && normalized[1] === undefined ? undefined : normalized
 }
+
+const normalizeLayers = (value: unknown, fallback: FrameConfig['layers']): FrameConfig['layers'] =>
+  Array.isArray(value) && value.length > 0
+    ? value.filter(isRecord).map((layer) => ({
+      name: asOptionalString(layer.name),
+      whitelistFlag: coerceBool(layer.whitelistFlag ?? layer.whitelist_flag, false),
+      whitelist: Array.isArray(layer.whitelist)
+        ? layer.whitelist.filter((entry): entry is string => typeof entry === 'string')
+        : [],
+      alpha: coerceOptionalNumber(layer.alpha),
+      linewidth: coerceOptionalNumber(layer.linewidth),
+      alphaPoints: coerceOptionalNumber(layer.alphaPoints ?? layer.alpha_points),
+      alphaAreas: coerceOptionalNumber(layer.alphaAreas ?? layer.alpha_areas),
+    }))
+    : structuredClone(fallback)
+
+const normalizeGuidelines = (value: unknown): FrameConfig['guidelines'] =>
+  Array.isArray(value)
+    ? value.filter(isRecord).map((guideline) => {
+      const lineProps = isRecord(guideline.lineProps ?? guideline.line_props)
+        ? (guideline.lineProps ?? guideline.line_props) as Record<string, unknown>
+        : {}
+
+      return {
+        x: coerceOptionalNumber(guideline.x),
+        y: coerceOptionalNumber(guideline.y),
+        m: coerceNumber(guideline.m, 1),
+        lineProps: {
+          linestyle: typeof lineProps.linestyle === 'string' ? lineProps.linestyle : '--',
+          color: typeof lineProps.color === 'string' ? lineProps.color : 'aqua',
+          linewidth: coerceNumber(lineProps.linewidth, 4),
+        },
+        fontsize: coerceNumber(guideline.fontsize, 18),
+        fontColor: typeof (guideline.fontColor ?? guideline.font_color) === 'string'
+          ? String(guideline.fontColor ?? guideline.font_color)
+          : '',
+        label: typeof guideline.label === 'string' ? guideline.label : '',
+        labelAbove: coerceBool(guideline.labelAbove ?? guideline.label_above, true),
+        labelPadding: coerceNumber(guideline.labelPadding ?? guideline.label_padding, 6),
+      }
+    })
+    : []
+
+const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations']): FrameConfig['annotations'] =>
+  Array.isArray(value)
+    ? value.filter(isRecord).map((annotation) => {
+      const text = isRecord(annotation.text) ? annotation.text : undefined
+      const marker = isRecord(annotation.marker) ? annotation.marker : undefined
+      const arrow = isRecord(annotation.arrow) ? annotation.arrow : undefined
+
+      return {
+        markerSize: coerceOptionalNumber(annotation.markerSize ?? annotation.marker_size),
+        fontSize: coerceOptionalNumber(annotation.fontSize ?? annotation.font_size),
+        text: text
+          ? {
+            name: typeof text.name === 'string' ? text.name : '',
+            relPos: coerceNumberPair(text.relPos ?? text.rel_pos, [0, 0]),
+            color: typeof text.color === 'string' ? text.color : '#111827',
+            fontSize: coerceOptionalNumber(text.fontSize ?? text.font_size),
+          }
+          : undefined,
+        axes: isRecord(annotation.axes)
+          ? Object.fromEntries(
+            Object.entries(annotation.axes).filter((entry): entry is [string, number] =>
+              typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+            ),
+          )
+          : undefined,
+        marker: marker
+          ? {
+            color: typeof marker.color === 'string' ? marker.color : 'default',
+            markerSymbol: typeof (marker.markerSymbol ?? marker.marker_symbol) === 'string'
+              ? String(marker.markerSymbol ?? marker.marker_symbol)
+              : 'o',
+            sizeFactor: coerceNumber(marker.sizeFactor ?? marker.size_factor, 1),
+            linewidths: coerceNumber(marker.linewidths, 0),
+            edgecolors: typeof marker.edgecolors === 'string' ? marker.edgecolors : 'black',
+          }
+          : undefined,
+        arrow: arrow
+          ? {
+            width: coerceNumber(arrow.width, 1),
+            facecolor: typeof arrow.facecolor === 'string' ? arrow.facecolor : 'blue',
+            headlength: coerceNumber(arrow.headlength, 10),
+            headwidth: coerceNumber(arrow.headwidth, 6),
+            linewidth: coerceNumber(arrow.linewidth, 1),
+          }
+          : undefined,
+      }
+    })
+    : structuredClone(fallback)
+
+const normalizeColoredAreas = (value: unknown): FrameConfig['coloredAreas'] =>
+  Array.isArray(value)
+    ? value.filter(isRecord).map((area) => ({
+      axes: isRecord(area.axes) ? area.axes as FrameConfig['coloredAreas'][number]['axes'] : undefined,
+      x: Array.isArray(area.x) ? area.x.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
+      y: Array.isArray(area.y) ? area.y.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
+      color: typeof area.color === 'string' ? area.color : '#ef4444',
+      alpha: coerceNumber(area.alpha, 0.2),
+    }))
+    : []
 
 const normalizeFrame = (
   partial: unknown,
@@ -171,17 +276,15 @@ const normalizeFrame = (
       }
       : fallback.automaticDisplayAreaMargin,
     algorithm: normalizedAlgorithm,
-    layers: Array.isArray(partial.layers) ? partial.layers : fallback.layers,
+    layers: normalizeLayers(partial.layers, fallback.layers),
     filter: isRecord(partial.filter) ? partial.filter : fallback.filter,
-    guidelines: Array.isArray(partial.guidelines) ? partial.guidelines : fallback.guidelines,
+    guidelines: normalizeGuidelines(partial.guidelines),
     annotations: Array.isArray(partial.annotations)
-      ? partial.annotations
+      ? normalizeAnnotations(partial.annotations, fallback.annotations)
       : Array.isArray(partial.markers)
-        ? partial.markers
+        ? normalizeAnnotations(partial.markers, fallback.annotations)
         : fallback.annotations,
-    coloredAreas: Array.isArray(partial.coloredAreas ?? partial.colored_areas)
-      ? ((partial.coloredAreas ?? partial.colored_areas) as FrameConfig['coloredAreas'])
-      : fallback.coloredAreas,
+    coloredAreas: normalizeColoredAreas(partial.coloredAreas ?? partial.colored_areas),
     highlightedHulls: Array.isArray(partial.highlightedHulls ?? partial.highlighted_hulls)
       ? ((partial.highlightedHulls ?? partial.highlighted_hulls) as FrameConfig['highlightedHulls'])
       : fallback.highlightedHulls,
@@ -217,6 +320,8 @@ const normalizeDataframe = (
     'teableUrl',
     'import_file_name',
     'importFileName',
+    'excel_import',
+    'excelImport',
     'import_sheet',
     'importSheet',
     'image_ratio',
@@ -249,13 +354,15 @@ const normalizeDataframe = (
   const legacyImageHeight = coerceNumber(partial.image_height, 0)
   const createAllFramesSource = partial.createAllFrames ?? partial.create_all_frames
   const plotLanguagesSource = partial.plotLanguages ?? partial.plot_languages
+  const importFileName = asOptionalString(partial.importFileName ?? partial.import_file_name)
 
   return {
     ...structuredClone(fallback),
     name: asOptionalString(partial.name),
+    excelImport: coerceBool(partial.excelImport ?? partial.excel_import, importFileName ? true : fallback.excelImport),
     apiKey: asOptionalString(partial.apiKey ?? partial.API_Key),
     teableUrl: asOptionalString(partial.teableUrl ?? partial.teable_url),
-    importFileName: asOptionalString(partial.importFileName ?? partial.import_file_name),
+    importFileName,
     importSheet: coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet),
     aspectRatio:
       legacyImageWidth > 0 && legacyImageHeight > 0

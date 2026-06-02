@@ -1,0 +1,327 @@
+{
+  "version": 4,
+  "create_all_dataframes": true,
+  "dataframes": [
+    {
+      "name": "Spritzguss polymer showcase",
+      "API_Key": null,
+      "teable_url": null,
+      "import_file_name": "MatWeb_materials_export_Spritzguss.xlsx",
+      "import_sheet": 0,
+      "image_ratio": [
+        16,
+        9
+      ],
+      "resolution": "svg",
+      "legend_title": {
+        "en": "Polymer family",
+        "de": "Polymerfamilie"
+      },
+      "font": {
+        "font_style": "sans-serif",
+        "font": "Arial",
+        "font_size": 18,
+        "tick_size": 12,
+        "title_size": 30,
+        "axis_label_size": 16,
+        "legend_size": 14
+      },
+      "language": "en",
+      "plot_languages": [
+        "en",
+        "de"
+      ],
+      "dark_mode": false,
+      "create_all_frames": true,
+      "frames": [
+        {
+          "name": "01-thermal-strength-selection",
+          "legend_flag": true,
+          "title": {
+            "en": "Thermal capability versus tensile strength",
+            "de": "Temperaturbestaendigkeit und Zugfestigkeit"
+          },
+          "legend_above": false,
+          "language": "en",
+          "export_file_name": "spritzguss/01-thermal-strength-selection",
+          "x_quantity": "heat_deflection",
+          "x_rel_quantity": null,
+          "log_x_flag": false,
+          "x_lim": null,
+          "y_quantity": "tensile_strength",
+          "y_rel_quantity": null,
+          "log_y_flag": false,
+          "y_lim": null,
+          "automatic_Display_Area_margin": {
+            "left": 0.12,
+            "right": 0.12,
+            "top": 0.12,
+            "bottom": 0.12
+          },
+          "algorithm": "cubic",
+          "layers": [
+            {
+              "name": "Gruppe",
+              "whitelist_flag": false,
+              "whitelist": [],
+              "alpha": 0.22,
+              "linewidth": 1.6
+            },
+            {
+              "alpha_points": 0.75,
+              "alpha_areas": 0.12
+            }
+          ],
+          "filter": {},
+          "guidelines": [
+            {
+              "x": 120,
+              "y": 60,
+              "m": 0.25,
+              "line_props": {
+                "linestyle": "--",
+                "color": "#475569",
+                "linewidth": 1.5
+              },
+              "fontsize": 13,
+              "font_color": "#334155",
+              "label": "example design tradeoff",
+              "label_above": true,
+              "label_padding": 5
+            }
+          ],
+          "annotations": [
+            {
+              "marker_size": 180,
+              "font_size": 13
+            },
+            {
+              "text": {
+                "name": "illustrative target",
+                "rel_pos": [
+                  0.035,
+                  0.045
+                ],
+                "color": "#0f766e"
+              },
+              "axes": {
+                "heat_deflection": 150,
+                "tensile_strength": 85
+              },
+              "marker": {
+                "color": "#14b8a6",
+                "marker_symbol": "*",
+                "size_factor": 1.3,
+                "linewidths": 0.8,
+                "edgecolors": "#115e59"
+              }
+            }
+          ],
+          "colored_areas": [
+            {
+              "axes": {
+                "heat_deflection": [
+                  120,
+                  null
+                ],
+                "tensile_strength": [
+                  60,
+                  null
+                ]
+              },
+              "color": "#99f6e4",
+              "alpha": 0.16
+            }
+          ],
+          "highlighted_hulls": []
+        },
+        {
+          "name": "02-lightweight-stiffness",
+          "legend_flag": true,
+          "title": {
+            "en": "Lightweight stiffness map",
+            "de": "Leichtbau-Steifigkeitskarte"
+          },
+          "legend_above": false,
+          "language": "en",
+          "export_file_name": "spritzguss/02-lightweight-stiffness",
+          "x_quantity": "density",
+          "x_rel_quantity": null,
+          "log_x_flag": false,
+          "x_lim": null,
+          "y_quantity": "tensile_modulus",
+          "y_rel_quantity": null,
+          "log_y_flag": true,
+          "y_lim": null,
+          "automatic_Display_Area_margin": {
+            "left": 0.12,
+            "right": 0.12,
+            "top": 0.12,
+            "bottom": 0.12
+          },
+          "algorithm": "cubic",
+          "layers": [
+            {
+              "name": "Gruppe",
+              "whitelist_flag": false,
+              "whitelist": [],
+              "alpha": 0.22,
+              "linewidth": 1.6
+            },
+            {
+              "alpha_points": 0.75,
+              "alpha_areas": 0.12
+            }
+          ],
+          "filter": {},
+          "guidelines": [],
+          "annotations": [
+            {
+              "marker_size": 180,
+              "font_size": 13
+            }
+          ],
+          "colored_areas": [],
+          "highlighted_hulls": []
+        },
+        {
+          "name": "03-impact-stiffness-tradeoff",
+          "legend_flag": true,
+          "title": {
+            "en": "Impact resistance versus flexural stiffness",
+            "de": "Schlagzaehigkeit und Biegesteifigkeit"
+          },
+          "legend_above": false,
+          "language": "en",
+          "export_file_name": "spritzguss/03-impact-stiffness-tradeoff",
+          "x_quantity": "flexural_modulus",
+          "x_rel_quantity": null,
+          "log_x_flag": true,
+          "x_lim": null,
+          "y_quantity": "charpy_impact",
+          "y_rel_quantity": null,
+          "log_y_flag": true,
+          "y_lim": null,
+          "automatic_Display_Area_margin": {
+            "left": 0.12,
+            "right": 0.12,
+            "top": 0.12,
+            "bottom": 0.12
+          },
+          "algorithm": "cubic",
+          "layers": [
+            {
+              "name": "Gruppe",
+              "whitelist_flag": false,
+              "whitelist": [],
+              "alpha": 0.22,
+              "linewidth": 1.6
+            },
+            {
+              "alpha_points": 0.75,
+              "alpha_areas": 0.12
+            }
+          ],
+          "filter": {},
+          "guidelines": [],
+          "annotations": [
+            {
+              "marker_size": 180,
+              "font_size": 13
+            }
+          ],
+          "colored_areas": [],
+          "highlighted_hulls": []
+        }
+      ],
+      "axes": [
+        {
+          "name": "heat_deflection",
+          "columns": [
+            "Deflection Temperature at 1.8 MPa 264 psi"
+          ],
+          "mode": "default",
+          "labels": {
+            "en": "Heat deflection temperature [deg C]",
+            "de": "Waermeformbestaendigkeit [deg C]"
+          }
+        },
+        {
+          "name": "tensile_strength",
+          "columns": [
+            "Tensile Strength at Break",
+            "Tensile Strength Yield",
+            "Tensile Strength Ultimate",
+            "Tensile Strength"
+          ],
+          "mode": "max",
+          "labels": {
+            "en": "Tensile strength [MPa]",
+            "de": "Zugfestigkeit [MPa]"
+          }
+        },
+        {
+          "name": "density",
+          "columns": [
+            "Density",
+            "Specific Gravity"
+          ],
+          "mode": "default",
+          "labels": {
+            "en": "Density [g/cc]",
+            "de": "Dichte [g/cc]"
+          }
+        },
+        {
+          "name": "tensile_modulus",
+          "columns": [
+            "Tensile Modulus",
+            "Flexural Modulus",
+            "Modulus of Elasticity"
+          ],
+          "mode": "max",
+          "labels": {
+            "en": "Tensile modulus [GPa]",
+            "de": "Zugmodul [GPa]"
+          }
+        },
+        {
+          "name": "flexural_modulus",
+          "columns": [
+            "Flexural Modulus"
+          ],
+          "mode": "default",
+          "labels": {
+            "en": "Flexural modulus [GPa]",
+            "de": "Biegemodul [GPa]"
+          }
+        },
+        {
+          "name": "charpy_impact",
+          "columns": [
+            "Charpy Impact Notched"
+          ],
+          "mode": "default",
+          "labels": {
+            "en": "Notched Charpy impact [J/cm2]",
+            "de": "Charpy-Kerbschlagzaehigkeit [J/cm2]"
+          }
+        }
+      ],
+      "material_colors": {
+        "default": "#64748b",
+        "ABS": "#2563eb",
+        "PA": "#dc2626",
+        "PC": "#f59e0b",
+        "PEEK": "#059669",
+        "PEI": "#7c3aed",
+        "PET": "#0891b2",
+        "PLA": "#65a30d",
+        "POM": "#db2777",
+        "PP": "#ea580c",
+        "PPS": "#4f46e5",
+        "PPSU": "#0f766e"
+      }
+    }
+  ]
+}

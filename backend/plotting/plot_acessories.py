@@ -71,10 +71,10 @@ def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> Non
                 x = colored_area['x']
                 y = colored_area['y']
             except:
-                cprint("❗ERROR neither axes nor 'x' & 'y' are set for printign areas. Check config.json! continuing...","red")
+                cprint("ERROR neither axes nor 'x' & 'y' are set for printign areas. Check config.json! continuing...","red")
 
             if len(x) != len(y) or len(x) == 0 or len(y) == 0:
-                print("❗ x & y array have different sizes or length 0. unable to print colored area. Check config.json! continuing...","red")
+                print("WARNING: x & y array have different sizes or length 0. unable to print colored area. Check config.json! continuing...","red")
                 break
 
             if len(x) == 2:

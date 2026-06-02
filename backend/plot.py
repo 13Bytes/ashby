@@ -19,6 +19,14 @@ except ImportError:
 CONFIG_NAME = "Tobi-26-04-19.json"
 
 
+def _aspect_ratio(value, fallback=16 / 9):
+    if isinstance(value, (list, tuple)) and len(value) == 2 and value[1]:
+        return value[0] / value[1]
+    if isinstance(value, (int, float)) and value > 0:
+        return value
+    return fallback
+
+
 def main(dataframe:dict, interactive:bool) -> None:
     handler = []
 
@@ -33,8 +41,7 @@ def main(dataframe:dict, interactive:bool) -> None:
     else:
         fileformat = "png"
 
-    ratio = dataframe.get('image_ratio', [16,9])
-    df_image_ratio = ratio[0] / ratio[1]
+    df_image_ratio = _aspect_ratio(dataframe.get('image_ratio'))
     
     create_frames  = dataframe.get('create_all_frames', True)
 
@@ -53,7 +60,7 @@ def main(dataframe:dict, interactive:bool) -> None:
             font_color = 'black'
 
         language = frame.get('language', df_language)
-        image_ratio = frame.get('image_ratio', df_image_ratio)
+        image_ratio = _aspect_ratio(frame.get('image_ratio'), df_image_ratio)
 
         figure_size = (10*image_ratio ,10)
         # with ui.matplotlib(figsize=figure_size) as mpl_fig:
@@ -120,7 +127,7 @@ def main(dataframe:dict, interactive:bool) -> None:
                     ax = ax
                 )
         except:
-            cprint("❗ERROR drawing colored areas. Check config.json! continuing...","red")
+            cprint("ERROR drawing colored areas. Check config.json! continuing...","red")
 
 
         try:
@@ -135,7 +142,7 @@ def main(dataframe:dict, interactive:bool) -> None:
                     ax = ax,
                 )
         except:
-            cprint("❗ERROR drawing guidelines. Check config.json! continuing...","red")
+            cprint("ERROR drawing guidelines. Check config.json! continuing...","red")
 
 
         Marker.create_annotations(Plot_size)
@@ -190,13 +197,13 @@ def main(dataframe:dict, interactive:bool) -> None:
             # +                +
 
             plt.show(block=False)
-            cprint(f"⇒ plot displayed \n","green")
+            cprint("-> plot displayed \n","green")
             plt.pause(.3)
 
         else:
             os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
             plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution/10, transparent=True) # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename
-            cprint(f"⇒ plot saved as ./export/{frame['export_file_name']} \n","green")
+            cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
             plt.close()
 
         # mpl_fig.update()

@@ -125,3 +125,33 @@ test('plot dark mode uses dataframe defaults and optional frame overrides', asyn
   assert.match(dataframeSource, /label=\{t\('dataframeDarkMode'\)\}/)
   assert.match(actionsSource, /next\.darkMode = undefined/)
 })
+
+test('frame axis selectors expose required placeholders and ratio hover hints', async () => {
+  const frameSource = await readSource(path.join(projectDir, 'src', 'components', 'FrameSection.tsx'))
+  const controlsSource = await readSource(appControlsPath)
+  const translationsSource = await readSource(path.join(projectDir, 'src', 'uiTranslations.ts'))
+
+  assert.match(frameSource, /value=\{activeFrame\.xQuantity \?\? ''\}/)
+  assert.match(frameSource, /value="" disabled>Select required axis<\/option>/)
+  assert.match(controlsSource, /aria-label=\{`\$\{label\} help`\}/)
+  assert.match(translationsSource, /Divides the absolute X value by the selected axis/)
+})
+
+test('spreadsheet upload fields explain the backend dependency through hover hints', async () => {
+  const translationsSource = await readSource(path.join(projectDir, 'src', 'uiTranslations.ts'))
+
+  assert.match(translationsSource, /Importing requires the Python backend server to be running/)
+  assert.match(translationsSource, /Zero-based worksheet index to import/)
+})
+
+test('backend-format nested frame objects are normalized for the frontend editor', async () => {
+  const mapperSource = await readSource(configMappersPath)
+  const configIoSource = await readSource(configIoPath)
+
+  assert.match(mapperSource, /guideline\.lineProps \?\? guideline\.line_props/)
+  assert.match(mapperSource, /layer\.alphaPoints \?\? layer\.alpha_points/)
+  assert.match(mapperSource, /marker\.markerSymbol \?\? marker\.marker_symbol/)
+  assert.match(mapperSource, /excelImport: coerceBool\(partial\.excelImport \?\? partial\.excel_import, importFileName \? true : fallback\.excelImport\)/)
+  assert.match(configIoSource, /tick_size: dataframe\.font\.tickSize/)
+  assert.match(configIoSource, /legend_size: dataframe\.font\.legendSize/)
+})

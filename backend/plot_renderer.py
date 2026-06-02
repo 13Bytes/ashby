@@ -4,7 +4,9 @@ import os
 import re
 import tempfile
 from copy import deepcopy
+from contextlib import redirect_stdout
 from dataclasses import dataclass
+from io import StringIO
 from typing import Any
 
 import matplotlib
@@ -42,7 +44,7 @@ def _extract_plot_messages(raw_output: str) -> list[str]:
 
         if not any(
             token in normalized
-            for token in ('❗', 'ERROR', 'error', 'does not exist in your dataset')
+            for token in ('❗', 'WARNING', 'ERROR', 'error', 'does not exist in your dataset')
         ):
             continue
 
@@ -95,10 +97,12 @@ def render_plot_image(
         frame['export_file_name'] = output_path
         dataframe['frames'] = [frame]
 
+        plot_output = StringIO()
         try:
-            plot.main(dataframe, interactive=False)
+            with redirect_stdout(plot_output):
+                plot.main(dataframe, interactive=False)
         except Exception as exc:
-            raise PlotRenderError(str(exc), []) from exc
+            raise PlotRenderError(str(exc), _extract_plot_messages(plot_output.getvalue())) from exc
 
         if not os.path.exists(output_path):
             raise PlotRenderError('Plot output was not generated.', [])
@@ -110,5 +114,5 @@ def render_plot_image(
             content=content,
             media_type=media_type,
             file_format=file_format,
-            messages=[],
+            messages=_extract_plot_messages(plot_output.getvalue()),
         )
