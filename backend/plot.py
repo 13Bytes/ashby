@@ -27,7 +27,7 @@ def _aspect_ratio(value, fallback=16 / 9):
     return fallback
 
 
-def main(dataframe:dict, interactive:bool) -> None:
+def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
     handler = []
 
     df_language = dataframe.get('language', "en")
@@ -93,7 +93,7 @@ def main(dataframe:dict, interactive:bool) -> None:
 
 
         # : import data :
-        data = import_data(dataframe, frame, Sorted_data)
+        data = import_data(dataframe, frame, Sorted_data, xlsx_file_bytes=xlsx_file_bytes)
         if len(data) == 0:
             raise ValueError("No Vailid Data imported")
 

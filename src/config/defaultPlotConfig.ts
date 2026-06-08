@@ -154,7 +154,7 @@ export function createDefaultPlotConfig(): PlotConfig {
     createAllDataframes: true,
     dataframes: [
       {
-        excelImport: false,
+        excelImport: true,
         importSheet: 0,
         aspectRatio: [16, 9],
         resolution: 'svg',

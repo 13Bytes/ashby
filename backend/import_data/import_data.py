@@ -1,4 +1,5 @@
 import json
+import io
 from pathlib import Path
 
 import pandas as pd
@@ -9,14 +10,12 @@ from .filter import filter_data
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 MATERIAL_PROPERTIES_DIR = BACKEND_DIR / 'material_properties'
-PROJECT_DIR = BACKEND_DIR.parent
-UPLOADED_DATA_DIR = PROJECT_DIR / '.ashby-uploaded-data'
 
 
 def _resolve_import_file_path(import_file_name: str) -> Path:
     candidate = Path(import_file_name)
 
-    search_roots = [MATERIAL_PROPERTIES_DIR.resolve(), UPLOADED_DATA_DIR.resolve()]
+    search_roots = [MATERIAL_PROPERTIES_DIR.resolve()]
     for root in search_roots:
         resolved_candidate = (root / candidate).resolve()
         if root in resolved_candidate.parents or resolved_candidate == root:
@@ -26,7 +25,7 @@ def _resolve_import_file_path(import_file_name: str) -> Path:
     raise FileNotFoundError(f"Unable to locate import file '{import_file_name}'.")
 
 
-def import_data(dataframe, frame, Sorted_data):
+def import_data(dataframe, frame, Sorted_data, xlsx_file_bytes=None):
     if dataframe.get('teable_url',None) != None:
         data = import_teable(
             dataframe['teable_url'],
@@ -42,7 +41,10 @@ def import_data(dataframe, frame, Sorted_data):
             verify_tls=dataframe.get('verify_tls', True),
         )
     elif dataframe.get('import_file_name',None) != None:
-        data = import_excel(dataframe['import_file_name'], dataframe.get('import_sheet',0), frame.get('filter', None))
+        if xlsx_file_bytes is not None:
+            data = import_excel_bytes(xlsx_file_bytes, dataframe.get('import_sheet',0), frame.get('filter', None))
+        else:
+            data = import_excel(dataframe['import_file_name'], dataframe.get('import_sheet',0), frame.get('filter', None))
     else:
         raise FileNotFoundError("no datasource selected. set teable_url or import_file_name in config")
     return data
@@ -124,6 +126,19 @@ def import_excel(import_file_name, import_sheet, filter_clause=None):
     file_path = _resolve_import_file_path(import_file_name)
     data = pd.read_excel(
         file_path,
+        sheet_name = import_sheet
+    )
+
+    if filter_clause:
+        filtered = filter_data(data.to_dict(orient='records'), filter_clause)
+        return pd.DataFrame(filtered, columns=data.columns)
+
+    return data
+
+
+def import_excel_bytes(file_bytes, import_sheet, filter_clause=None):
+    data = pd.read_excel(
+        io.BytesIO(file_bytes),
         sheet_name = import_sheet
     )
 

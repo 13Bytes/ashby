@@ -24,6 +24,13 @@ class RenderedPlot:
     messages: list[str]
 
 
+@dataclass
+class RequestDataSource:
+    kind: str
+    content: bytes
+    filename: str | None = None
+
+
 class PlotRenderError(Exception):
     def __init__(self, message: str, messages: list[str] | None = None):
         super().__init__(message)
@@ -80,6 +87,7 @@ def render_plot_image(
     config: dict[str, Any],
     dataframe_index: int = 0,
     frame_index: int = 0,
+    data_sources: dict[int, RequestDataSource] | None = None,
 ) -> RenderedPlot:
     dataframe, frame = _select_frame_config(config, dataframe_index, frame_index)
 
@@ -100,7 +108,12 @@ def render_plot_image(
         plot_output = StringIO()
         try:
             with redirect_stdout(plot_output):
-                plot.main(dataframe, interactive=False)
+                source = (data_sources or {}).get(dataframe_index)
+                plot.main(
+                    dataframe,
+                    interactive=False,
+                    xlsx_file_bytes=source.content if source and source.kind == 'xlsx' else None,
+                )
         except Exception as exc:
             raise PlotRenderError(str(exc), _extract_plot_messages(plot_output.getvalue())) from exc
 

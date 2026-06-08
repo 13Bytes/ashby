@@ -11,8 +11,10 @@ const appPath = path.join(projectDir, 'src', 'App.tsx')
 const configSectionsPath = path.join(projectDir, 'src', 'components', 'ConfigSections.tsx')
 const dataframeSectionPath = path.join(projectDir, 'src', 'components', 'DataframeSection.tsx')
 const appControlsPath = path.join(projectDir, 'src', 'components', 'AppControls.tsx')
+const appPopoutsPath = path.join(projectDir, 'src', 'components', 'AppPopouts.tsx')
 const configIoPath = path.join(projectDir, 'src', 'utils', 'configIo.ts')
 const configMappersPath = path.join(projectDir, 'src', 'config', 'configMappers.ts')
+const datasourceStoragePath = path.join(projectDir, 'src', 'utils', 'datasourceStorage.ts')
 const plotConfigActionsPath = path.join(projectDir, 'src', 'hooks', 'usePlotConfigActions.ts')
 
 async function readSource(filePath) {
@@ -22,7 +24,7 @@ async function readSource(filePath) {
 test('PlotPage requests the render endpoint with active dataframe and frame indices', async () => {
   const source = await readSource(plotPagePath)
 
-  assert.match(source, /fetch\('\/api\/render-plot'/)
+  assert.match(source, /fetch\(\s*'\/api\/render-plot'/)
   assert.match(source, /const fetchPlot = async \(dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex/)
   assert.match(source, /dataframe_index:\s*dataframeIndex/)
   assert.match(source, /frame_index:\s*frameIndex/)
@@ -44,11 +46,42 @@ test('PlotPage reads backend plot messages and renders them in the UI', async ()
   assert.match(source, /<strong>Plot messages<\/strong>/)
 })
 
-test('App passes active selection into PlotPage and persists uploaded import_file_name', async () => {
+test('App passes active selection and datasource files into PlotPage', async () => {
   const source = `${await readSource(appPath)}\n${await readSource(configSectionsPath)}`
 
+  assert.match(source, /setDatasourceFilesByDataframe/)
   assert.match(source, /importFileName:\s*payload\.import_file_name\s*\?\?\s*file\?\.name\s*\?\?\s*df\.importFileName/)
   assert.match(source, /<PlotPage[\s\S]*plotConfig=\{plotConfig\}[\s\S]*activeDataframeIndex=\{activeDataframeIndex\}[\s\S]*activeFrameIndex=\{activeFrameIndex\}/)
+  assert.match(source, /datasourceFilesByDataframe=\{datasourceFilesByDataframe\}/)
+})
+
+test('PlotPage sends FormData with datasource descriptors when Excel files are available', async () => {
+  const source = await readSource(plotPagePath)
+
+  assert.match(source, /function buildPlotRequest/)
+  assert.match(source, /new FormData\(\)/)
+  assert.match(source, /form\.append\('payload', JSON\.stringify\(payload\)\)/)
+  assert.match(source, /form\.append\('data_sources', JSON\.stringify\(descriptors\)\)/)
+  assert.match(source, /kind:\s*'xlsx'/)
+  assert.match(source, /Re-upload the Excel datasource/)
+})
+
+test('App restores Excel datasource files from browser storage and prompts when missing', async () => {
+  const appSource = await readSource(appPath)
+  const popoutSource = await readSource(appPopoutsPath)
+  const storageSource = await readSource(datasourceStoragePath)
+
+  assert.match(storageSource, /indexedDB\.open/)
+  assert.match(storageSource, /cacheDatasourceFile/)
+  assert.match(storageSource, /getCachedDatasourceFile/)
+  assert.match(storageSource, /clearCachedDatasourceFiles/)
+  assert.match(appSource, /getCachedDatasourceFile\(filename\)/)
+  assert.match(appSource, /setDatasourcePrompt/)
+  assert.match(appSource, /Excel datasource data missing/)
+  assert.match(appSource, /Delete all stored files/)
+  assert.match(appSource, /clearCachedDatasourceFiles\(\)/)
+  assert.match(popoutSource, /Excel datasource required/)
+  assert.match(popoutSource, /onDatasourcePromptFile/)
 })
 
 test('App warns when the backend health probe is unavailable', async () => {
@@ -151,7 +184,8 @@ test('backend-format nested frame objects are normalized for the frontend editor
   assert.match(mapperSource, /guideline\.lineProps \?\? guideline\.line_props/)
   assert.match(mapperSource, /layer\.alphaPoints \?\? layer\.alpha_points/)
   assert.match(mapperSource, /marker\.markerSymbol \?\? marker\.marker_symbol/)
-  assert.match(mapperSource, /excelImport: coerceBool\(partial\.excelImport \?\? partial\.excel_import, importFileName \? true : fallback\.excelImport\)/)
+  assert.match(mapperSource, /const excelImportFallback = importFileName \? true : apiKey \|\| teableUrl \? false : fallback\.excelImport/)
+  assert.match(mapperSource, /excelImport: coerceBool\(partial\.excelImport \?\? partial\.excel_import, excelImportFallback\)/)
   assert.match(configIoSource, /tick_size: dataframe\.font\.tickSize/)
   assert.match(configIoSource, /legend_size: dataframe\.font\.legendSize/)
 })

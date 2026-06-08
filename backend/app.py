@@ -3,36 +3,33 @@ from __future__ import annotations
 import json
 import os
 import io
-import re
 import sys
 import zipfile
-import inspect
 from urllib.parse import quote
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 import pandas as pd
 import requests
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import JSONResponse, Response, FileResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.datastructures import UploadFile as StarletteUploadFile
 import uvicorn
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BACKEND_DIR.parent
-UPLOADS_DIR = PROJECT_DIR / '.ashby-uploaded-data'
 FRONTEND_DIR = Path(THIS_DIR) / 'production-frontend'
 FRONTEND_ASSETS_DIR = FRONTEND_DIR / 'assets'
 FRONTEND_INDEX_PATH = FRONTEND_DIR / 'index.html'
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
-    from backend.plot_renderer import PlotRenderError, render_plot_image
+    from backend.plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
 else:
-    from .plot_renderer import PlotRenderError, render_plot_image
+    from .plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
 
 app = FastAPI(title='Ashby Backend API')
 
@@ -51,23 +48,6 @@ class DownloadPlotItem(BaseModel):
 class DownloadPlotsRequest(BaseModel):
     config: dict[str, Any]
     plots: list[DownloadPlotItem]
-
-
-def _sanitize_filename(filename: str) -> str:
-    source = Path(filename).name
-    stem = re.sub(r'[^A-Za-z0-9._-]+', '-', Path(source).stem).strip('._-') or 'upload'
-    suffix = Path(source).suffix.lower() or '.xlsx'
-    if suffix != '.xlsx':
-        suffix = '.xlsx'
-    return f'{stem}-{uuid4().hex[:8]}{suffix}'
-
-
-def _store_uploaded_xlsx(file_bytes: bytes, filename: str) -> str:
-    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    stored_name = _sanitize_filename(filename)
-    target_path = UPLOADS_DIR / stored_name
-    target_path.write_bytes(file_bytes)
-    return stored_name
 
 
 def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]:
@@ -149,18 +129,59 @@ def _encode_messages_header(messages: list[str]) -> str:
     return quote(json.dumps(messages, ensure_ascii=False), safe='')
 
 
+async def _parse_plot_request(request: Request) -> tuple[dict[str, Any], dict[int, RequestDataSource]]:
+    if request.headers.get('content-type', '').startswith('multipart/form-data'):
+        form = await request.form()
+        raw_payload = form.get('payload')
+        if not isinstance(raw_payload, str):
+            raise ValueError('Missing multipart payload.')
+
+        payload = json.loads(raw_payload)
+        raw_sources = form.get('data_sources')
+        source_descriptors = json.loads(raw_sources) if isinstance(raw_sources, str) and raw_sources.strip() else []
+        if not isinstance(source_descriptors, list):
+            raise ValueError('data_sources must be a JSON array.')
+
+        data_sources: dict[int, RequestDataSource] = {}
+        for descriptor in source_descriptors:
+            if not isinstance(descriptor, dict) or descriptor.get('kind') != 'xlsx':
+                continue
+            dataframe_index = descriptor.get('dataframe_index')
+            file_field = descriptor.get('file_field')
+            if not isinstance(dataframe_index, int) or not isinstance(file_field, str):
+                raise ValueError('Invalid xlsx datasource descriptor.')
+
+            upload = form.get(file_field)
+            if not isinstance(upload, StarletteUploadFile):
+                raise ValueError(f"Missing datasource file field '{file_field}'.")
+
+            descriptor_filename = descriptor.get('filename')
+            data_sources[dataframe_index] = RequestDataSource(
+                kind='xlsx',
+                content=await upload.read(),
+                filename=upload.filename or (descriptor_filename if isinstance(descriptor_filename, str) else None),
+            )
+
+        return payload, data_sources
+
+    return await request.json(), {}
+
+
 @app.get('/api/health')
 def health() -> JSONResponse:
     return JSONResponse({'status': 'ok'})
 
 
 @app.post('/api/render-plot')
-def render_plot(payload: RenderPlotRequest) -> Response:
+async def render_plot(request: Request) -> Response:
     try:
+        payload_data, data_sources = await _parse_plot_request(request)
+        payload = RenderPlotRequest(**payload_data)
         rendered_plot = render_plot_image(
             payload.config,
             dataframe_index=payload.dataframe_index,
             frame_index=payload.frame_index,
+            data_sources=data_sources,
         )
     except PlotRenderError as exc:
         return JSONResponse({'message': str(exc), 'messages': exc.messages}, status_code=400)
@@ -174,7 +195,13 @@ def render_plot(payload: RenderPlotRequest) -> Response:
 
 
 @app.post('/api/download-plots')
-def download_plots(payload: DownloadPlotsRequest) -> Response:
+async def download_plots(request: Request) -> Response:
+    try:
+        payload_data, data_sources = await _parse_plot_request(request)
+        payload = DownloadPlotsRequest(**payload_data)
+    except Exception as exc:
+        return JSONResponse({'message': str(exc), 'messages': []}, status_code=400)
+
     output = io.BytesIO()
     with zipfile.ZipFile(output, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
         for plot in payload.plots:
@@ -182,6 +209,7 @@ def download_plots(payload: DownloadPlotsRequest) -> Response:
                 payload.config,
                 dataframe_index=plot.dataframe_index,
                 frame_index=plot.frame_index,
+                data_sources=data_sources,
             )
             dataframe = payload.config.get('dataframes', [])[plot.dataframe_index]
             frame = dataframe.get('frames', [])[plot.frame_index] if isinstance(dataframe, dict) else {}
@@ -230,12 +258,11 @@ async def import_database(
     except Exception as error:
         return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
 
-    stored_import_file_name = _store_uploaded_xlsx(file_bytes, file.filename or 'uploaded.xlsx')
     return JSONResponse({
         'success': True,
         'columns': columns,
         'keywords_by_column': keywords_by_column,
-        'import_file_name': stored_import_file_name,
+        'import_file_name': file.filename or 'uploaded.xlsx',
     })
 
 

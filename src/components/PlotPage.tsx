@@ -11,6 +11,7 @@ interface Props {
   activeFrameIndex: number
   plotAction: 'preview-current' | 'create-all'
   plotActionNonce: number
+  datasourceFilesByDataframe: Record<number, File>
 }
 interface RenderedPlotEntry {
   dataframeIndex: number
@@ -34,7 +35,63 @@ function parseBackendMessages(headerValue: string | null): string[] {
   }
 }
 
-export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce }: Props) {
+type PlotRequestPayload = {
+  config: unknown
+  dataframe_index?: number
+  frame_index?: number
+  plots?: Array<{ dataframe_index: number; frame_index: number }>
+}
+
+function buildPlotRequest(
+  payload: PlotRequestPayload,
+  plotConfig: PlotConfig,
+  datasourceFilesByDataframe: Record<number, File>,
+  dataframeIndices: number[],
+): RequestInit {
+  const uniqueIndices = [...new Set(dataframeIndices)]
+  const missingDataframes = uniqueIndices.filter((dataframeIndex) => {
+    const dataframe = plotConfig.dataframes[dataframeIndex]
+    return dataframe?.excelImport === true && Boolean(dataframe.importFileName) && datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
+  })
+  if (missingDataframes.length > 0) {
+    throw new Error(`Re-upload the Excel datasource for dataframe ${missingDataframes.map((index) => index + 1).join(', ')} before rendering. The server does not keep uploaded files.`)
+  }
+
+  const datasourceIndices = uniqueIndices.filter((dataframeIndex) => {
+    const dataframe = plotConfig.dataframes[dataframeIndex]
+    const file = datasourceFilesByDataframe[dataframeIndex]
+    return Boolean(file) && (!dataframe?.importFileName || file.name === dataframe.importFileName)
+  })
+  if (datasourceIndices.length === 0) {
+    return {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  }
+
+  const form = new FormData()
+  const descriptors = datasourceIndices.map((dataframeIndex) => {
+    const fileField = `datasource_${dataframeIndex}`
+    const file = datasourceFilesByDataframe[dataframeIndex]
+    form.append(fileField, file)
+    return {
+      dataframe_index: dataframeIndex,
+      kind: 'xlsx',
+      file_field: fileField,
+      filename: file.name,
+    }
+  })
+  form.append('payload', JSON.stringify(payload))
+  form.append('data_sources', JSON.stringify(descriptors))
+
+  return {
+    method: 'POST',
+    body: form,
+  }
+}
+
+export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -55,17 +112,19 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     setMessages([])
 
     try {
-      const response = await fetch('/api/render-plot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config: toExternalConfig(plotConfig),
-          dataframe_index: dataframeIndex,
-          frame_index: frameIndex,
-        }),
-      })
+      const response = await fetch(
+        '/api/render-plot',
+        buildPlotRequest(
+          {
+            config: toExternalConfig(plotConfig),
+            dataframe_index: dataframeIndex,
+            frame_index: frameIndex,
+          },
+          plotConfig,
+          datasourceFilesByDataframe,
+          [dataframeIndex],
+        ),
+      )
       const nextMessages = parseBackendMessages(response.headers.get('X-Ashby-Messages'))
 
       if (!response.ok) {
@@ -168,14 +227,25 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     anchor.click()
   }
   const downloadAllCreatedPlots = async () => {
-    const response = await fetch('/api/download-plots', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        config: toExternalConfig(plotConfig),
-        plots: createdPlots.map((entry) => ({ dataframe_index: entry.dataframeIndex, frame_index: entry.frameIndex })),
-      }),
-    })
+    const plots = createdPlots.map((entry) => ({ dataframe_index: entry.dataframeIndex, frame_index: entry.frameIndex }))
+    let response: Response
+    try {
+      response = await fetch(
+        '/api/download-plots',
+        buildPlotRequest(
+          {
+            config: toExternalConfig(plotConfig),
+            plots,
+          },
+          plotConfig,
+          datasourceFilesByDataframe,
+          plots.map((plot) => plot.dataframe_index),
+        ),
+      )
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : 'Download all failed.')
+      return
+    }
     if (!response.ok) {
       setError(`Download all failed (${response.status}).`)
       return

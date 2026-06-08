@@ -164,9 +164,13 @@ export function DataframeSection({
 
       <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-6">
         <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
-          <Button type="button" variant="outline" onClick={() => patchActiveDataframe((current) => ({ ...current, excelImport: !current.excelImport }))}>
-            {activeDataframe.excelImport === true ? 'Upload .xlsx' : 'Teable URL + API key'}
-          </Button>
+          <Select
+            value={activeDataframe.excelImport === true ? 'file' : 'teable'}
+            onChange={(event) => patchActiveDataframe((current) => ({ ...current, excelImport: event.target.value === 'file' }))}
+          >
+            <option value="file">Upload .xlsx</option>
+            <option value="teable">Teable URL + API key</option>
+          </Select>
         </Field>
 
         {activeDataframe.excelImport === false ? (

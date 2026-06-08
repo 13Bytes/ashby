@@ -7,7 +7,7 @@ Browser-based editor for the Ashby `config.json` workflow with a live plot previ
 - Config editor for dataframe, frame, axis, layer, annotation, guideline, and color settings.
 - Live plot preview rendered by the Python backend.
 - `POST /api/render-plot` endpoint that accepts the full JSON config, returns the generated image, and exposes non-fatal plot messages back to the frontend preview.
-- `POST /api/import-database` endpoint for spreadsheet column discovery and cached upload handling.
+- `POST /api/import-database` endpoint for spreadsheet column discovery without server-side upload storage.
 - JSON import/export and in-app JSON editor.
 - Source management for Excel uploads and Teable-based data sources.
 
@@ -88,12 +88,12 @@ npm run test:backend
 
 - Backend render endpoint returns an image for a known sample config.
 - Backend render endpoint exposes plotting warnings via response metadata when the config references missing-but-fallback axis columns.
-- Backend spreadsheet upload returns detected columns and a cached `import_file_name`.
-- Uploaded spreadsheet names can be fed back into the render endpoint successfully.
+- Backend spreadsheet upload returns detected columns and the original display `import_file_name`.
+- Request-scoped spreadsheet bytes can be attached to render and download endpoints successfully.
 - Frontend `PlotPage` still posts to `/api/render-plot` with the active dataframe/frame selection.
 - Frontend preview still turns the backend response blob into an `<img>`.
 - Frontend preview still reads and displays plot messages returned by the backend.
-- App state still stores the uploaded `import_file_name` and passes the active selection into `PlotPage`.
+- App state still keeps uploaded Excel files in browser memory and passes request-scoped datasource files into `PlotPage`.
 
 ## Reference
 

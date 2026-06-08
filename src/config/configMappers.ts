@@ -355,13 +355,16 @@ const normalizeDataframe = (
   const createAllFramesSource = partial.createAllFrames ?? partial.create_all_frames
   const plotLanguagesSource = partial.plotLanguages ?? partial.plot_languages
   const importFileName = asOptionalString(partial.importFileName ?? partial.import_file_name)
+  const apiKey = asOptionalString(partial.apiKey ?? partial.API_Key)
+  const teableUrl = asOptionalString(partial.teableUrl ?? partial.teable_url)
+  const excelImportFallback = importFileName ? true : apiKey || teableUrl ? false : fallback.excelImport
 
   return {
     ...structuredClone(fallback),
     name: asOptionalString(partial.name),
-    excelImport: coerceBool(partial.excelImport ?? partial.excel_import, importFileName ? true : fallback.excelImport),
-    apiKey: asOptionalString(partial.apiKey ?? partial.API_Key),
-    teableUrl: asOptionalString(partial.teableUrl ?? partial.teable_url),
+    excelImport: coerceBool(partial.excelImport ?? partial.excel_import, excelImportFallback),
+    apiKey,
+    teableUrl,
     importFileName,
     importSheet: coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet),
     aspectRatio:

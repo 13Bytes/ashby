@@ -213,7 +213,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('image/svg+xml', self.header(headers, 'Content-Type'))
         self.assertIn(b'<svg', body)
 
-    def test_import_database_upload_returns_columns_and_cached_filename(self) -> None:
+    def test_import_database_upload_returns_columns_and_display_filename(self) -> None:
         status, headers, body = self.post_multipart(
             '/api/import-database',
             fields={'import_sheet': '0'},
@@ -227,7 +227,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertGreater(len(payload['columns']), 0)
         self.assertIn('keywords_by_column', payload)
         self.assertIsInstance(payload['keywords_by_column'], dict)
-        self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
+        self.assertEqual(payload['import_file_name'], UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_filament_xlsx_source(self) -> None:
         columns = _extract_columns_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
@@ -256,7 +256,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('keywords_by_column', payload)
         self.assertIn('Material', payload['keywords_by_column'])
         self.assertGreater(len(payload['keywords_by_column']['Material']), 0)
-        self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
+        self.assertEqual(payload['import_file_name'], FILAMENT_UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_spritzguss_xlsx_source(self) -> None:
         columns = _extract_columns_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
@@ -283,7 +283,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('CTE linear high', payload['columns'])
         self.assertIn('CTE linear unit', payload['columns'])
         self.assertIn('Charpy Impact Notched low', payload['columns'])
-        self.assertTrue(payload['import_file_name'].endswith('.xlsx'))
+        self.assertEqual(payload['import_file_name'], SPRITZGUSS_UPLOAD_FIXTURE_PATH.name)
 
     def test_render_plot_reports_missing_required_x_quantity(self) -> None:
         payload = json.loads(json.dumps(self.render_payload))
@@ -306,21 +306,70 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('image/svg+xml', self.header(headers, 'Content-Type'))
         self.assertIn(b'<svg', body)
 
-    def test_uploaded_import_file_name_can_be_rendered(self) -> None:
-        _, _, upload_body = self.post_multipart(
-            '/api/import-database',
-            fields={'import_sheet': '0'},
-            files={'file': UPLOAD_FIXTURE_PATH},
-        )
-        upload_payload = json.loads(upload_body.decode('utf-8'))
+    def test_request_scoped_xlsx_datasource_can_be_rendered(self) -> None:
         render_payload = json.loads(json.dumps(self.render_payload))
-        render_payload['config']['dataframes'][0]['import_file_name'] = upload_payload['import_file_name']
+        render_payload['config']['dataframes'][0]['import_file_name'] = 'client-only.xlsx'
+        fields = {
+            'payload': json.dumps(render_payload),
+            'data_sources': json.dumps([
+                {
+                    'dataframe_index': 0,
+                    'kind': 'xlsx',
+                    'file_field': 'datasource_0',
+                    'filename': 'client-only.xlsx',
+                }
+            ]),
+        }
 
-        status, headers, body = self.post_json('/api/render-plot', render_payload)
+        status, headers, body = self.post_multipart(
+            '/api/render-plot',
+            fields=fields,
+            files={'datasource_0': UPLOAD_FIXTURE_PATH},
+        )
 
         self.assertEqual(status, 200)
         self.assertIn('image/svg+xml', self.header(headers, 'Content-Type'))
         self.assertIn(b'<svg', body)
+
+    def test_missing_request_scoped_xlsx_datasource_reports_error(self) -> None:
+        render_payload = json.loads(json.dumps(self.render_payload))
+        render_payload['config']['dataframes'][0]['import_file_name'] = 'client-only.xlsx'
+
+        with self.assertRaises(urllib.error.HTTPError) as context:
+            self.post_json('/api/render-plot', render_payload)
+
+        body = json.loads(context.exception.read().decode('utf-8'))
+        self.assertEqual(context.exception.code, 400)
+        self.assertIn("Unable to locate import file 'client-only.xlsx'", body['message'])
+
+    def test_download_plots_accepts_request_scoped_xlsx_datasource(self) -> None:
+        render_payload = json.loads(json.dumps(self.render_payload))
+        render_payload['config']['dataframes'][0]['import_file_name'] = 'client-only.xlsx'
+        download_payload = {
+            'config': render_payload['config'],
+            'plots': [{'dataframe_index': 0, 'frame_index': 0}],
+        }
+        fields = {
+            'payload': json.dumps(download_payload),
+            'data_sources': json.dumps([
+                {
+                    'dataframe_index': 0,
+                    'kind': 'xlsx',
+                    'file_field': 'datasource_0',
+                    'filename': 'client-only.xlsx',
+                }
+            ]),
+        }
+
+        status, headers, body = self.post_multipart(
+            '/api/download-plots',
+            fields=fields,
+            files={'datasource_0': UPLOAD_FIXTURE_PATH},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/zip', self.header(headers, 'Content-Type'))
+        self.assertTrue(body.startswith(b'PK'))
 
 
 if __name__ == '__main__':

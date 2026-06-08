@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
 import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
+import { Button } from './components/ui/button'
 import { normalizePlotConfig } from './config/configMappers'
 import { createDefaultPlotConfig, type PlotConfig } from './config/defaultPlotConfig'
 import { parseImportedConfig, toExternalConfig } from './utils/configIo'
@@ -16,6 +17,7 @@ import { buildJsonFrameNeedle, getAxisBasesFromColumns, getConfigAxisColumns, ge
 import { getJsonSyntaxMarkers, highlightJson } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
+import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile } from './utils/datasourceStorage'
 
 type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
@@ -63,11 +65,13 @@ function App() {
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
+  const [datasourceFilesByDataframe, setDatasourceFilesByDataframe] = useState<Record<number, File>>({})
+  const [datasourcePrompt, setDatasourcePrompt] = useState<{ dataframeIndex: number; filename: string } | null>(null)
+  const [dismissedDatasourcePrompts, setDismissedDatasourcePrompts] = useState<Record<string, boolean>>({})
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const materialColorOptions = Object.keys(activeDataframe.materialColors)
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const automaticDisplayAreaActive = activeFrame.automaticDisplayAreaMargin !== null
-  const sourceMode = getSourceMode(activeDataframe)
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
   const availableAxisColumns = useMemo(
     () => getAxisBasesFromColumns(availableColumns).map((column) => ({ value: column, label: column })),
@@ -105,6 +109,38 @@ function App() {
     }
     return [...keywords].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn])
+  const missingDatasourceDataframes = useMemo(
+    () =>
+      plotConfig.dataframes
+        .map((dataframe, dataframeIndex) => ({ dataframe, dataframeIndex }))
+        .filter(({ dataframe, dataframeIndex }) => (
+          dataframe.excelImport === true &&
+          Boolean(dataframe.importFileName) &&
+          datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
+        )),
+    [datasourceFilesByDataframe, plotConfig.dataframes],
+  )
+  const displayedImportedDatabaseStatus = useMemo(() => {
+    const status = { ...importedDatabaseStatus }
+
+    plotConfig.dataframes.forEach((dataframe, dataframeIndex) => {
+      if (dataframe.excelImport !== true) {
+        return
+      }
+
+      if (!dataframe.importFileName) {
+        delete status[dataframeIndex]
+        return
+      }
+
+      status[dataframeIndex] = {
+        imported: datasourceFilesByDataframe[dataframeIndex]?.name === dataframe.importFileName,
+        source: 'file',
+      }
+    })
+
+    return status
+  }, [datasourceFilesByDataframe, importedDatabaseStatus, plotConfig.dataframes])
   useEffect(() => {
     patchActiveDataframe((df) => {
       const defaultColor = df.materialColors.default
@@ -193,6 +229,45 @@ function App() {
     setAvailableWhitelistKeywords(keywords.map((entry) => ({ value: entry, label: entry })))
   }, [plotConfig])
   useEffect(() => {
+    let cancelled = false
+
+    const restoreCachedDatasources = async () => {
+      for (const { dataframe, dataframeIndex } of missingDatasourceDataframes) {
+        const filename = dataframe.importFileName?.trim()
+        if (!filename) continue
+
+        try {
+          const cachedFile = await getCachedDatasourceFile(filename)
+          if (cancelled) return
+
+          if (cachedFile) {
+            setDatasourceFilesByDataframe((current) => current[dataframeIndex]?.name === cachedFile.name ? current : { ...current, [dataframeIndex]: cachedFile })
+            setImportedDatabaseStatus((current) => ({
+              ...current,
+              [dataframeIndex]: { imported: true, source: 'file' },
+            }))
+            continue
+          }
+        } catch {
+          // Missing browser storage should behave the same as a cache miss.
+        }
+
+        if (cancelled) return
+        const promptKey = `${dataframeIndex}:${filename}`
+        if (!dismissedDatasourcePrompts[promptKey]) {
+          setDatasourcePrompt((current) => current ?? { dataframeIndex, filename })
+          return
+        }
+      }
+    }
+
+    void restoreCachedDatasources()
+
+    return () => {
+      cancelled = true
+    }
+  }, [dismissedDatasourcePrompts, missingDatasourceDataframes])
+  useEffect(() => {
     window.localStorage.setItem(UI_THEME_STORAGE_KEY, uiTheme)
     applyUITheme(uiTheme)
     if (uiTheme !== 'system') return
@@ -225,23 +300,25 @@ function App() {
   const { addAxis, addDataframe, addFrame, addGuideline, addLayer, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrameToDataframe, patchActiveDataframe, patchActiveFrame, patchDataframe, removeAxis, removeDataframe, removeFrame, reorderDataframes, reorderFrames, toggleDataframeGeneration, toggleFrameGeneration, updateAxis, updateGuideline } = plotConfigActions
   const importDatabase = async (file?: File) => {
     setImportInProgress(true)
+    const selectedDataframe = activeDataframe
+    const selectedSourceMode = getSourceMode(selectedDataframe)
     try {
       const response = await fetch('/api/import-database', {
         method: 'POST',
-        headers: sourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
+        headers: selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
         body:
-          sourceMode === 'teable'
+          selectedSourceMode === 'teable'
             ? JSON.stringify({
-              API_Key: activeDataframe.apiKey,
-              teable_url: activeDataframe.teableUrl,
-              import_sheet: activeDataframe.importSheet,
+              API_Key: selectedDataframe.apiKey,
+              teable_url: selectedDataframe.teableUrl,
+              import_sheet: selectedDataframe.importSheet,
             })
             : (() => {
               const form = new FormData()
               if (file) {
                 form.append('file', file)
               }
-              form.append('import_sheet', String(activeDataframe.importSheet))
+              form.append('import_sheet', String(selectedDataframe.importSheet))
               return form
             })(),
       })
@@ -251,6 +328,24 @@ function App() {
       }
       const columns = parseColumnsFromImportResult(payload.columns)
       const keywordsByColumn = payload.keywords_by_column ?? {}
+      let storageMessage = ''
+      if (file) {
+        let cachedFile = file
+        try {
+          cachedFile = await cacheDatasourceFile(file, payload.import_file_name ?? file.name)
+          setDismissedDatasourcePrompts((current) => {
+            const next = { ...current }
+            delete next[`${activeDataframeIndex}:${cachedFile.name}`]
+            return next
+          })
+        } catch {
+          storageMessage = ' The file is available for this session, but browser storage could not cache it.'
+        }
+        setDatasourceFilesByDataframe((current) => ({
+          ...current,
+          [activeDataframeIndex]: cachedFile,
+        }))
+      }
       const axisBases = getAxisBasesFromColumns(columns)
       const suffixColumns = new Set<string>(axisBases.flatMap((base) => [`${base} low`, `${base} high`, `${base} unit`]))
       const allowedLayerColumns = new Set(columns.filter((column) => !suffixColumns.has(column)))
@@ -284,7 +379,7 @@ function App() {
       }))
       setImportedDatabaseStatus((current) => ({
         ...current,
-        [activeDataframeIndex]: { imported: true, source: sourceMode },
+        [activeDataframeIndex]: { imported: true, source: selectedSourceMode },
       }))
       setAvailableColumns(columns)
       setAvailableKeywordsByColumn(keywordsByColumn)
@@ -301,8 +396,8 @@ function App() {
         tone: 'success',
         message:
           columns.length > 0
-            ? `${sourceMode === 'teable' ? 'Teable' : 'Excel'} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}`
-            : `${sourceMode === 'teable' ? 'Teable' : 'Excel'} import successful.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}`,
+            ? `${selectedSourceMode === 'teable' ? 'Teable' : 'Excel'} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`
+            : `${selectedSourceMode === 'teable' ? 'Teable' : 'Excel'} import successful.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`,
       })
     } catch (error) {
       setAlert({
@@ -370,6 +465,10 @@ function App() {
         }),
       }
       setPlotConfig(normalizedWithLanguages)
+      setDatasourceFilesByDataframe({})
+      setDatasourcePrompt(null)
+      setDismissedDatasourcePrompts({})
+      setImportedDatabaseStatus({})
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setAvailableColumns(getConfigAxisColumns(normalizedWithLanguages))
       setAvailableWhitelistKeywords(getConfigWhitelistKeywords(normalizedWithLanguages).map((entry) => ({ value: entry, label: entry })))
@@ -387,6 +486,45 @@ function App() {
       await importDatabase(file)
     } finally {
       event.target.value = ''
+    }
+  }
+  const closeDatasourcePrompt = () => {
+    if (datasourcePrompt) {
+      setDismissedDatasourcePrompts((current) => ({
+        ...current,
+        [`${datasourcePrompt.dataframeIndex}:${datasourcePrompt.filename}`]: true,
+      }))
+    }
+    setDatasourcePrompt(null)
+  }
+  const handleDatasourcePromptFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    const prompt = datasourcePrompt
+    event.target.value = ''
+    if (!file || !prompt) return
+
+    try {
+      const cachedFile = await cacheDatasourceFile(file, prompt.filename)
+      setDatasourceFilesByDataframe((current) => ({
+        ...current,
+        [prompt.dataframeIndex]: cachedFile,
+      }))
+      setImportedDatabaseStatus((current) => ({
+        ...current,
+        [prompt.dataframeIndex]: { imported: true, source: 'file' },
+      }))
+      setDismissedDatasourcePrompts((current) => {
+        const next = { ...current }
+        delete next[`${prompt.dataframeIndex}:${prompt.filename}`]
+        return next
+      })
+      setDatasourcePrompt(null)
+      setAlert({ tone: 'success', message: `Loaded ${prompt.filename} from browser storage.` })
+    } catch (error) {
+      setAlert({
+        tone: 'error',
+        message: error instanceof Error ? error.message : `Could not cache ${prompt.filename}.`,
+      })
     }
   }
   const parseJsonField = <T,>(value: string, fallback: T): T => {
@@ -433,11 +571,26 @@ function App() {
       setAlert({ tone: 'error', message: 'Invalid JSON in popup editor.' })
     }
   }
+  const clearStoredDatasourceFiles = async () => {
+    try {
+      await clearCachedDatasourceFiles()
+      setDatasourceFilesByDataframe({})
+      setImportedDatabaseStatus({})
+      setDatasourcePrompt(null)
+      setDismissedDatasourcePrompts({})
+      setAlert({ tone: 'success', message: 'Cleared all locally stored Excel data files.' })
+    } catch (error) {
+      setAlert({
+        tone: 'error',
+        message: error instanceof Error ? error.message : 'Could not clear locally stored data files.',
+      })
+    }
+  }
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
   const jsonHighlightedHtml = useMemo(() => highlightJson(jsonDraft, jsonMarker), [jsonDraft, jsonMarker])
   const headerProps = { activePage, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
   const tabProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
     <>
       <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
@@ -453,6 +606,11 @@ function App() {
           <option value="dark">{t('themeDark')}</option>
         </Select>
       </Field>
+      <Field language={uiLanguage} label="Local data files" jsonPath="ui.local_data_files">
+        <Button type="button" variant="outline" onClick={() => { void clearStoredDatasourceFiles() }}>
+          Delete all stored files
+        </Button>
+      </Field>
     </>
   )
   return (
@@ -461,6 +619,13 @@ function App() {
       {backendAvailable === false ? (
         <div className="mx-auto w-full max-w-[1800px] px-5 pt-5">
           <Alert variant="warning">{t('backendUnavailable')}</Alert>
+        </div>
+      ) : null}
+      {missingDatasourceDataframes.length > 0 ? (
+        <div className="mx-auto w-full max-w-[1800px] px-5 pt-5">
+          <Alert variant="warning">
+            {`Excel datasource data missing for ${missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => `dataframe ${dataframeIndex + 1} (${dataframe.importFileName})`).join(', ')}. Re-select the workbook before rendering.`}
+          </Alert>
         </div>
       ) : null}
       {activePage === 'config' ? (
@@ -475,7 +640,7 @@ function App() {
           <ConfigSections {...sectionProps} />
         </main>
       ) : (
-        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} />
+        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} />
       )}
       <AppPopouts
         showAbout={showAbout}
@@ -483,6 +648,7 @@ function App() {
         showGenerateColorsConfirm={showGenerateColorsConfirm}
         showJson={showJson}
         showResetConfirm={showResetConfirm}
+        datasourcePrompt={datasourcePrompt}
         jsonFullscreen={jsonFullscreen}
         jsonDraft={jsonDraft}
         jsonHighlightedHtml={jsonHighlightedHtml}
@@ -502,7 +668,9 @@ function App() {
           }
         }}
         onCloseResetConfirm={() => setShowResetConfirm(false)}
-        onConfirmReset={() => { setPlotConfig(createDefaultPlotConfig()); setShowResetConfirm(false) }}
+        onConfirmReset={() => { setPlotConfig(createDefaultPlotConfig()); setDatasourceFilesByDataframe({}); setDatasourcePrompt(null); setDismissedDatasourcePrompts({}); setImportedDatabaseStatus({}); setShowResetConfirm(false) }}
+        onCloseDatasourcePrompt={closeDatasourcePrompt}
+        onDatasourcePromptFile={handleDatasourcePromptFile}
         t={t}
         jsonOverlayRef={jsonOverlayRef}
         jsonTextareaRef={jsonTextareaRef}
