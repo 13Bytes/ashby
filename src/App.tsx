@@ -14,7 +14,7 @@ import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
 import { Field } from './components/AppControls'
 import { buildJsonFrameNeedle, getAxisBasesFromColumns, getConfigAxisColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, numberValue, parseColumnsFromImportResult, WHITELIST_OPTIONS, type MultiOption, type SourceMode } from './utils/appState'
-import { getJsonSyntaxMarkers, highlightJson } from './utils/jsonHighlight'
+import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
 import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile } from './utils/datasourceStorage'
@@ -587,7 +587,6 @@ function App() {
     }
   }
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
-  const jsonHighlightedHtml = useMemo(() => highlightJson(jsonDraft, jsonMarker), [jsonDraft, jsonMarker])
   const headerProps = { activePage, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
   const tabProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
   const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
@@ -651,7 +650,7 @@ function App() {
         datasourcePrompt={datasourcePrompt}
         jsonFullscreen={jsonFullscreen}
         jsonDraft={jsonDraft}
-        jsonHighlightedHtml={jsonHighlightedHtml}
+        jsonMarker={jsonMarker}
         settingsContent={settingsContent}
         onCloseAbout={() => setShowAbout(false)}
         onCloseSettings={() => setShowSettings(false)}

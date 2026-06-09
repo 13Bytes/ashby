@@ -45,15 +45,14 @@ test('appState keeps selected indices in sync when inserting, removing, and reor
   assert.deepEqual(reorderSelectionIndices(4, [0, 3], 3, 1), [0, 1])
 })
 
-test('jsonHighlight marks malformed brackets and escapes highlighted output', async () => {
-  const { getJsonSyntaxMarkers, highlightJson } = await importTypeScriptModule('src/utils/jsonHighlight.ts')
+test('jsonHighlight marks malformed brackets and unterminated strings', async () => {
+  const { getJsonSyntaxMarkers } = await importTypeScriptModule('src/utils/jsonHighlight.ts')
   const draft = '{"label":"<unsafe>",]'
   const markers = getJsonSyntaxMarkers(draft)
 
   assert.equal(markers.has(draft.indexOf('{')), true)
   assert.equal(markers.has(draft.indexOf(']')), true)
-  assert.match(highlightJson(draft, markers), /&lt;unsafe&gt;/)
-  assert.match(highlightJson(draft, markers), /bg-red-500\/20/)
+  assert.equal(getJsonSyntaxMarkers('{"label":"unterminated}').has(9), true)
 })
 
 test('plot language helpers trim, dedupe, and preserve at least one language', async () => {
