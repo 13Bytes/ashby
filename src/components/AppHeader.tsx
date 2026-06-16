@@ -13,7 +13,7 @@ type Props = {
   setPlotAction: (action: 'preview-current' | 'create-all') => void
   setPlotActionNonce: (patch: (current: number) => number) => void
   setShowAbout: (show: boolean) => void
-  setShowMenu: (show: boolean | ((current: boolean) => boolean)) => void
+  setShowMenu:  (show: boolean | ((current: boolean) => boolean)) => void
   setShowResetConfirm: (show: boolean) => void
   setShowSettings: (show: boolean) => void
   showMenu: boolean
@@ -37,7 +37,7 @@ export function AppHeader({
   t,
 }: Props) {
   const [showConfigActions, setShowConfigActions] = useState(false)
-  const [showPlotActions, setShowPlotActions] = useState(false)
+  const [showPlotActions,   setShowPlotActions  ] = useState(false)
 
   const runPlotAction = (action: 'preview-current' | 'create-all') => {
     setPlotAction(action)
@@ -53,7 +53,7 @@ export function AppHeader({
       </div>
       <nav className="flex rounded-md border border-zinc-300 p-1 dark:border-zinc-700" aria-label="Application view">
         <Button type="button" variant={activePage === 'config' ? 'default' : 'outline'} className={activePage === 'config' ? '' : 'border-transparent'} onClick={() => setActivePage('config')}>Config</Button>
-        <Button type="button" variant={activePage === 'plot' ? 'default' : 'outline'} className={activePage === 'plot' ? '' : 'border-transparent'} onClick={() => setActivePage('plot')}>Plot</Button>
+        <Button type="button" variant={activePage === 'plot'   ? 'default' : 'outline'} className={activePage === 'plot'   ? '' : 'border-transparent'} onClick={() => setActivePage('plot')}  >Plot</Button>
       </nav>
       <div className="relative flex">
         <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>
@@ -65,7 +65,7 @@ export function AppHeader({
         {showPlotActions ? (
           <div className="absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
             <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('preview-current')}>Generate current plot</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('create-all')}>Generate all plots</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('create-all')}     >Generate all plots</Button>
           </div>
         ) : null}
       </div>
@@ -78,9 +78,9 @@ export function AppHeader({
           {showConfigActions ? (
             <div className="absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
               <Button type="button" variant="outline" size="sm" onClick={() => { fileInputRef.current?.click(); setShowConfigActions(false) }}>Import config</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { exportConfig(plotConfig); setShowConfigActions(false) }}>Export config</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { openJsonEditor(); setShowConfigActions(false) }}>{t('json')}</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { setShowResetConfirm(true); setShowConfigActions(false) }}>Reset config</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { exportConfig(plotConfig);      setShowConfigActions(false) }}>Export config</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { openJsonEditor();              setShowConfigActions(false) }}>{t('json')}</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setShowResetConfirm(true);     setShowConfigActions(false) }}>Reset config</Button>
             </div>
           ) : null}
         </div>
@@ -90,7 +90,7 @@ export function AppHeader({
           {showMenu ? (
             <div className="absolute right-0 top-11 z-40 grid min-w-44 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
               <Button type="button" variant="outline" size="sm" onClick={() => { setShowSettings(true); setShowMenu(false) }}>Settings</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { setShowAbout(true); setShowMenu(false) }}>About</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setShowAbout(true);    setShowMenu(false) }}>About</Button>
             </div>
           ) : null}
         </div>

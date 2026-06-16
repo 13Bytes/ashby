@@ -16,10 +16,10 @@ except ImportError:
     from eventhandling import *
 
 
-CONFIG_NAME = "Tobi-26-04-19.json"
+CONFIG_NAME = "Tobi-26-06-07.json"
 
 
-def _aspect_ratio(value, fallback=16 / 9):
+def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
     if isinstance(value, (list, tuple)) and len(value) == 2 and value[1]:
         return value[0] / value[1]
     if isinstance(value, (int, float)) and value > 0:
@@ -27,8 +27,37 @@ def _aspect_ratio(value, fallback=16 / 9):
     return fallback
 
 
+def clear_empty_strings(config:dict|list|tuple|set,) -> dict:
+    '''removes keys that only have an empty string as value from a dict and its sub-dicts'''
+    try:
+        if isinstance(config, (list, tuple, set)):
+            config_ = []
+            for entry in config:
+                if isinstance(entry, (dict, list, tuple, set)):
+                    entry = clear_empty_strings(entry)
+                if entry not in ["", {}, []]:
+                    config_.append(entry) # remove empty entries
+
+        elif isinstance(config, dict):
+            config_ = {}
+            for key, value in config.items():
+                if isinstance(value, (dict, list, tuple, set)):
+                    value = clear_empty_strings(value)
+                if value not in ["", {}, []]:
+                    config_[key] = value
+
+        return config_
+    except Exception as e:
+        print(f"ERROR: could not parse config for {config}\n{e}")
+        return(config)
+
+
+
+
 def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
     handler = []
+
+    dataframe = clear_empty_strings(dataframe)
 
     df_language = dataframe.get('language', "en")
     df_darkmode = dataframe.get('dark_mode', False)
@@ -67,29 +96,30 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
             # fig = mpl_fig.figure
             # ax = fig.add_subplot(1,1, 1)        # & no subplots
         fig, ax = plt.subplots(1,1, figsize=figure_size)
-        if frame.get('legend_above',True) != None:
+        if frame.get('legend_flag',True) != None:           # & ❗ ⇒  ui
             plt.subplots_adjust(left=0.09, right=0.86)
         
         ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
         ax.spines[:].set_color(font_color)
 
-        plt.rcParams.update({'font.family': df_font.get('font_style',"sans-serif")})
-        plt.rcParams.update({f'font.{df_font.get('font_style',"sans-serif")}':df_font.get('font',"Arial")})
-        plt.rcParams.update({'font.size': df_font.get('font_size',22)})
-        # & weight, stretch, variant, style
-        # plt.rc('text',usetex='False')
-        # plt.rcParams['mathtext.default'] = True
+        rc_params: dict[str, Any] = {
+            'font.family': df_font.get('font_style',"sans-serif"),
+            'font.size':   df_font.get('font_size',22),
+           f'font.{df_font.get('font_style',"sans-serif")}': df_font.get('font',"Arial"),
+        }
         if fileformat == "svg":
             plt.rcParams.update({"savefig.format":"svg"})
 
         # : class init :
+        Format_Storage = format_storage(dataframe.get('material_colors',None), language)         # § class §
+
         Legend  = legend(dataframe.get('legend_title',""))          # § class §
 
         Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"alpha"))       # plot_hull.py   → legend()  # § class §
 
-        Sorted_data = data_handling(Graphics, dataframe, frame, language)   # plot_utilities.py # § class §
+        Sorted_data = data_handling(Format_Storage, Graphics, dataframe, frame)   # plot_utilities.py # § class §
 
-        Marker = marker(frame.get('annotations',[]), dataframe['material_colors'], Sorted_data.absolute.quantities, Sorted_data.relative.quantities, ax)   # plot_acessories.py # § class §
+        Marker = marker(frame.get('annotations',[]), Sorted_data.absolute.quantities, Sorted_data.relative.quantities, ax)   # plot_acessories.py # § class §
 
 
         # : import data :
@@ -111,19 +141,20 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
         if frame.get('legend_above',True) != None:
             Graphics.legend.create_legend(
-                language = language,
+                Format_Storage = Format_Storage,
                 font_color = font_color,
-                font_size = df_font.get('axis_label_size',15),
+                font_size  = df_font.get('legend_label_size',15),
+                title_size = df_font.get('legend_title_size',25),
                 above = frame.get("legend_above",False)
             )
 
         try:
             if len(frame.get('colored_areas',{})) > 0:
                 draw_colored_areas(
-                    frame['colored_areas'],
-                    Sorted_data,
-                    Marker,
-                    Plot_size,
+                    Format_Storage = Format_Storage,
+                    Sorted_data    = Sorted_data,
+                    colored_areas  = frame['colored_areas'],
+                    Plot_size      = Plot_size,
                     ax = ax
                 )
         except:
@@ -132,20 +163,20 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
         try:
             draw_guideline(
-                    frame.get('guidelines',{}),
+                    Format_Storage = Format_Storage,
+                    guidelines = frame.get('guidelines',{}),
                     x_min = Plot_size.x.low  / 2,
                     x_max = Plot_size.x.high * 2,
                     y_min = Plot_size.y.low  / 2,
                     y_max = Plot_size.y.high * 2,
-                    font_color=font_color,
-                    Marker = Marker,
+                    font_color = font_color,
                     ax = ax,
                 )
         except:
             cprint("ERROR drawing guidelines. Check config.json! continuing...","red")
 
 
-        Marker.create_annotations(Plot_size)
+        Marker.create_annotations(Format_Storage, Plot_size)
         # Graphics.legend.format_label_pos(Plot_size)
 
         # : Figure manipulation :
@@ -162,21 +193,17 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
         ax.set_xlabel(axe_label(Sorted_data, 0), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=10)
         ax.set_ylabel(axe_label(Sorted_data, 1), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=5 )
 
-        # ~ copyright
-        # ax.text(
-        #     x=100,
-        #     y=10,
-        #     s="copy",
-        #     fontsize = 8,
-        #     rotation = 90,
-        #     rotation_mode = 'anchor',
-        #     transform_rotates_text = True
-        # )
+        # ~ copyright & watermark
+        if dataframe.get('copyright', False) != False:          # & ❗ ⇒  ui
+            copyright(ax, dataframe.get('copyright', True))
+        if dataframe.get('watermark',False) != False:           # & ❗ ⇒  ui
+            watermark(fig, dataframe.get('watermark',True), alpha=0.5, pos=[0.72, 0.13], size=.13)
+
 
         # ~ add grid lines 
         ax.grid(
                 which = 'major',
-                axis = 'both',
+                axis  = 'both',
                 linestyle = '-.',
             )
         # .plt.tight_layout(pad=2.5)
@@ -186,9 +213,9 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
         # : export :
         if frame.get('export_file_name',None) == None:
-            frame_title = title(frame.get('title',""), language)
-            plt.title(frame_title, loc='center', size=df_font.get('title_size',40), pad=15)
-            # fig.canvas.manager.set_window_title(figurename(frame, dataframe_index, frame_index))
+            plt.title(label = Format_Storage.language_text(frame.get('title',""), language), 
+                      size=df_font.get('title_size',40), pad=15,
+                      loc='center') 
             watermark(fig, alpha=0.5, pos=[0.72, 0.13], size=.13)       # & add copyright text
 
             # + event handling +
@@ -202,7 +229,7 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
         else:
             os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
-            plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution/10, transparent=True) # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename
+            plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution, transparent=dataframe.get('transtarent', True))     # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename       # & ❗ ⇒  ui
             cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
             plt.close()
 

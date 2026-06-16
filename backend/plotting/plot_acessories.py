@@ -2,10 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from termcolor import (colored, cprint)
 
+from .formatting import format_storage
+
 
 # : Guideline :
-def draw_guideline(guidelines, x_min, x_max, y_min, y_max, font_color, Marker, ax):
-    num_points = 1000
+def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:float, y_min:float, y_max:float, font_color:str, ax:plt.subplot) -> None:
+    num_points = 500
     for guideline in guidelines:
 
         x = guideline.get('x', None)
@@ -17,13 +19,15 @@ def draw_guideline(guidelines, x_min, x_max, y_min, y_max, font_color, Marker, a
             y = 0
         if x == None:    # horizontal
             x_values = np.linspace(x_min, x_max, num_points)
-            y_values = np.ones(num_points)* y
+            y_values = np.ones(num_points) * y
+            x = (y_max - x_min ) /2
         elif y == None:    # vertical
-            x_values = np.ones(num_points)* x
+            x_values = np.ones(num_points) * x
             y_values = np.linspace(y_min, y_max, num_points)
+            y = (y_max - y_min ) /2
         else:
             x_values = np.linspace(x_min, x_max, num_points)
-            y_intercept = (y- (m*x))
+            y_intercept = (y - (m*x))
             y_values = m*x_values + y_intercept
 
         print(f"guideline: {guideline.get('label',"")} @ [{x_values[0]}|{y_values[0]}] - [{x_values[-1]}|{y_values[-1]}]")
@@ -48,22 +52,25 @@ def draw_guideline(guidelines, x_min, x_max, y_min, y_max, font_color, Marker, a
         x_text = x + np.cos(label_normal_angle)*guideline.get('label_padding',6)
         y_text = y + np.sin(label_normal_angle)*guideline.get('label_padding',6)
 
-        ax.text(
-            x_text,
-            y_text, 
-            guideline.get('label',""), 
-            color    = Marker.get_color(guideline.get("font_color", font_color)),
-            fontsize = guideline.get('fontsize', 18),
-            rotation = np.rad2deg(label_angle), 
-            rotation_mode = 'anchor',
-            transform_rotates_text = True
-        )
+        try:                # & only not working when plotting from frontend
+            ax.text(       
+                x_text,
+                y_text, 
+                Format_Storage.language_text(guideline.get('label',"")), 
+                color    = Format_Storage.get_color(guideline.get("font_color", font_color)),
+                fontsize = guideline.get('fontsize', 18),
+                rotation = np.rad2deg(label_angle), 
+                rotation_mode = 'anchor',
+                transform_rotates_text = True
+            )
+        except Exception as e:
+            print(f"ERROR: {e}, {type(font_color).__name__}")
 
 
 # :  Area  :
-def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> None:
+def draw_colored_areas(Format_Storage:object, Sorted_data:object, colored_areas:dict, Plot_size:object, ax) -> None:
     for colored_area in colored_areas:
-        color = Marker.get_color(colored_area['color'])
+        color = Format_Storage.get_color(colored_area['color'])
         alpha = colored_area.get('alpha',0.2)
 
         if colored_area.get("axes", None) == None:
@@ -78,7 +85,7 @@ def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> Non
                 break
 
             if len(x) == 2:
-                x,y = min_max_area(x, y, Plot_size, alpha, color)
+                x,y = min_max_area(x, y, Plot_size)
         
         else:
             values = [None, None]
@@ -89,9 +96,9 @@ def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> Non
                 #     if value != None: values[dim] /= value
                 #     else:          values[dim] = None
 
-            print(values)
+            print(f"colored area: {values}")
             if values[0] == None and values[1] == None: return
-            x,y = min_max_area(values[0], values[1], Plot_size, alpha, color)
+            x,y = min_max_area(values[0], values[1], Plot_size)
 
         ax.fill(
                 x, 
@@ -100,7 +107,7 @@ def draw_colored_areas(colored_areas, Sorted_data, Marker, Plot_size, ax) -> Non
                 alpha = alpha
             )
 
-def min_max_area(x, y, Plot_size, alpha, color) -> (list, list):
+def min_max_area(x:list, y:list, Plot_size:object) -> (list, list):
         x_lim = [Plot_size.x.low - Plot_size.x.space,  Plot_size.x.high + Plot_size.x.space]
         y_lim = [Plot_size.y.low - Plot_size.y.space,  Plot_size.y.high + Plot_size.y.space]
         if x [0] == None and x [1] == None:  x[0] = x_lim[1]
@@ -121,11 +128,10 @@ def min_max_area(x, y, Plot_size, alpha, color) -> (list, list):
 
 # :  Marker  : 
 class marker:
-    def __init__(self, annotations, material_colors, abs_axes, rel_axes, ax):
+    def __init__(self, annotations, abs_axes, rel_axes, ax):
         self.annotations_raw = annotations[1:]
         self.annotations     = []
         if len(self.annotations_raw):
-            self.material_colors = material_colors
             self.font_size       = annotations[0].get('font_size',18)
             self.marker_size     = annotations[0].get('marker_size',330)
             self.ax = ax
@@ -152,7 +158,7 @@ class marker:
     #     ann_axes.get(plt_axe,None)
 
 
-    def create_annotations(self, plot_size):
+    def create_annotations(self, Format_Storage:object, Plot_size:object):
         if len(self.annotations_raw) == 0: 
             return
         for annotation in self.annotations: 
@@ -165,7 +171,7 @@ class marker:
                         self.ax.scatter(
                             values[0],
                             values[1],
-                            c = self.get_color(marker['color']),
+                            c = Format_Storage.get_color(marker['color']),
                             marker = marker.get('marker_symbol','o'),
                             s = self.marker_size * marker.get('size_factor', 1),
                             edgecolors = self.get_color(marker.get('edgecolors',"black")),
@@ -174,11 +180,11 @@ class marker:
 
             text = annotation['text']
             font_size = text.get('font_size', self.font_size)
-            color = self.get_color(text.get('color','default'))
+            color = Format_Storage.get_color(text.get('color','default'))
             arrow = annotation.get('arrow', None)
             # print("label pos:", plot_size.x.offset(text['rel_pos'][0], values[0]) , plot_size.y.offset(text['rel_pos'][1], values[1]))
-            x = plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
-            y = plot_size.x.offset(values[1], text.get('rel_pos', [0,0])[1])
+            x = Plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
+            y = Plot_size.x.offset(values[1], text.get('rel_pos', [0,0])[1])
             if arrow == None:           # ~ Label 
                 self.ax.text(
                     x        = x,
@@ -201,16 +207,6 @@ class marker:
             print(f"marker: {text['name']} @ [{x}|{y}]")
 
 
-    def get_color(self, color):   # & moove out of marker class but keep material_colors
-        """takes a color string as input an returns the input or the corresponding materialcolor if exists"""
-        hex_characters = [0,1,2,3,4,5,6,7,8,9,'a','b','c','d','e','f','A','B','C','D','E','F']
-        if color in self.material_colors:
-            return self.material_colors[color] 
-        # elif color[0] == "#"   and   len(color) in [4,7]   and   all(char in hex_characters for char in color):   # re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color): # hex color code
-        #     return color
-        else:
-            return color
-        # & if not a color: self.material_colors['default']
     
     def limits(self, dim):
         ret = [np.nan, np.nan]

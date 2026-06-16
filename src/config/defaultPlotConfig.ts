@@ -30,14 +30,16 @@ export interface DataframeConfig {
     fontStyle: "serif" | "sans-serif" | "cursive" | "fantasy" | "monospace"
     font: string
     fontSize: number
-    tickSize: number
     titleSize: number
+    legendTitleSize: number
+    legendLabelSize: number
     axisLabelSize: number
-    legendSize: number
+    tickSize: number
   }
   language: string
   plotLanguages: string[]
   darkMode: boolean
+  transparent: boolean
   createAllFrames: true | number[]
   frames: FrameConfig[]
   axes: AxisConfig[]
@@ -163,14 +165,16 @@ export function createDefaultPlotConfig(): PlotConfig {
           fontStyle: 'sans-serif',
           font: 'Arial',
           fontSize: 22,
-          tickSize: 5,
           titleSize: 40,
+          legendTitleSize: 20,
+          legendLabelSize: 20,
           axisLabelSize: 15,
-          legendSize: 20,
+          tickSize: 5,
         },
         language: 'en',
         plotLanguages: ['en'],
         darkMode: false,
+        transparent: false,
         createAllFrames: true,
         frames: [
           {
