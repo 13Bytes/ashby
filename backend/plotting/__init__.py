@@ -11,10 +11,11 @@ from .plot_acessories import (
     )
 
 from .formatting import(
+        format_storage,
         legend,
-        title,
         axe_label,
         watermark,
+        copyright,
         figurename,
         plot_size,
     )

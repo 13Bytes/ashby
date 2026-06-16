@@ -158,7 +158,7 @@ export function createDefaultPlotConfig(): PlotConfig {
       {
         excelImport: true,
         importSheet: 0,
-        aspectRatio: [16, 9],
+        aspectRatio: [3, 2],
         resolution: 'svg',
         legendTitle: { en: '' },
         font: {
