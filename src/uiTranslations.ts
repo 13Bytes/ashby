@@ -14,7 +14,9 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     aspectRatio: "Aspect ratio",
     resolution: "Resolution",
     alpha: "Opacity",
-    dataframeDarkMode: "Dataframe dark mode",
+    DarkMode: "dark mode",
+    transparent: "transparency",
+
     createAllFrames: "Create all frames",
     fontStyle: "Font style",
     fontFamily: "Font family",
@@ -49,6 +51,7 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     enabled: "enabled",
     disabled: "disabled",
     close: "Close",
+
     about: "About",
     aboutIntro: "Program to create versatile Ashby plots.",
     credits: "Credits & copyright:",
@@ -56,6 +59,7 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     aboutRework: "Major rework by",
     aboutReworkSuffix: "Created as part of",
     aboutUiPrefix: "UI by ",
+    
     scaleLinear: "linear",
     scaleLog: "logarithmic",
     config: "Config",
@@ -76,7 +80,8 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     aspectRatio: "Seitenverhältnis",
     resolution: "Auflösung",
     alpha: "Deckkraft",
-    dataframeDarkMode: "Dunkelmodus Datenrahmen",
+    DarkMode: "Darkmode",
+    transparent: "Transparenz",
     createAllFrames: "Alle Frames erstellen",
     fontStyle: "Schriftstil",
     fontFamily: "Schriftfamilie",

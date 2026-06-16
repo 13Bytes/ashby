@@ -97,13 +97,23 @@ export function DataframeSection({
         />
       </Field>
 
-      <Field language={uiLanguage} label={t('dataframeDarkMode')} jsonPath="dataframes[i].dark_mode">
+      <Field language={uiLanguage} label={t('DarkMode')} jsonPath="dataframes[i].dark_mode">
         <Button
           type="button"
           variant="outline"
           onClick={() => patchActiveDataframe((current) => ({ ...current, darkMode: !current.darkMode }))}
         >
           {activeDataframe.darkMode ? t('enabled') : t('disabled')}
+        </Button>
+      </Field>
+
+      <Field language={uiLanguage} label={t('transparent')} jsonPath="dataframes[i].transparent">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => patchActiveDataframe((current) => ({ ...current, transparent: !current.transparent }))}
+        >
+          {activeDataframe.transparent ? t('enabled') : t('disabled')}
         </Button>
       </Field>
 
@@ -156,10 +166,11 @@ export function DataframeSection({
       </div>
 
       <div className="sm:col-span-2 grid gap-3 md:grid-cols-4">
-        <FontNumberField label="Tick size" path="font.tick_size" value={activeDataframe.font.tickSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, tickSize: numberValue(value, current.font.tickSize) } }))} />
-        <FontNumberField label="Title size" path="font.title_size" value={activeDataframe.font.titleSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, titleSize: numberValue(value, current.font.titleSize) } }))} />
-        <FontNumberField label="Axis label size" path="font.axis_label_size" value={activeDataframe.font.axisLabelSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, axisLabelSize: numberValue(value, current.font.axisLabelSize) } }))} />
-        <FontNumberField label="Legend size" path="font.legend_size" value={activeDataframe.font.legendSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendSize: numberValue(value, current.font.legendSize) } }))} />
+        <FontNumberField label="Title size"        path="font.title_size"      value={activeDataframe.font.titleSize}     uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, titleSize:     numberValue(value, current.font.titleSize    ) } }))} />
+        <FontNumberField label="Legend Title size" path="font.legend_size"     value={activeDataframe.font.legendSize}    uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendSize:    numberValue(value, current.font.legendSize   ) } }))} />
+        <FontNumberField label="Legend item size"  path="font.legend_size"     value={activeDataframe.font.legendSize}    uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendSize:    numberValue(value, current.font.legendSize   ) } }))} />
+        <FontNumberField label="Axis label size"   path="font.axis_label_size" value={activeDataframe.font.axisLabelSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, axisLabelSize: numberValue(value, current.font.axisLabelSize) } }))} />
+        <FontNumberField label="Tick size"         path="font.tick_size"       value={activeDataframe.font.tickSize}      uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, tickSize:      numberValue(value, current.font.tickSize     ) } }))} />
       </div>
 
       <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-6">

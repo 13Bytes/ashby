@@ -3,6 +3,43 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 from PIL import Image
 import numpy as np
+from datetime import datetime
+
+
+class format_storage():
+    def __init__(self, material_colors:dict|None, language:str="en"):
+        self.language = language
+        if material_colors != None:
+            self.material_colors = material_colors
+        else:
+            self.material_colors= {"default":"#333333"}
+        self.hex_characters = [0,1,2,3,4,5,6,7,8,9,'a','b','c','d','e','f','A','B','C','D','E','F']
+    
+    def get_color(self, color:str) -> str:
+        '''retirves the corresponding color mapped in material colors if set. otherwise returns input string'''
+        if isinstance(color, str):
+            if color in self.material_colors:
+                return self.material_colors[color] 
+            # elif color[0] == "#" and len(color) in [4,5,7,9] and all(char in hex_characters for char in color):   # ≙ re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color): # hex color code
+            return color
+            # else:
+            #     return self.material_colors['default']
+        else:
+            return self.material_colors['default']
+            
+
+    def language_text(self, label:dict|str,) -> str:
+        '''retrieves the label in the correct language'''
+        if isinstance(label, dict):
+            label = label.get(self.language, False)
+            if label == False:
+                label = next(iter(mydict.values()))
+        elif not isinstance(label, str):
+            label = ""
+        return label
+
+
+
 
 
 class legend():
@@ -31,8 +68,8 @@ class legend():
     #                 print(item.label_pos[1])
                 
 
-    def create_legend(self, language, font_color, font_size, above):
-        legend_title = title(self.legend_title, language)     
+    def create_legend(self, Format_Storage, font_color, font_size, title_size, above):
+        legend_title = Format_Storage.language_text(self.legend_title)     
 
         if above:
             self.legend = plt.legend(        
@@ -42,6 +79,7 @@ class legend():
                 mode = 'expand',
                 borderaxespad = 0,
                 fontsize = font_size,
+                title_fontsize = title_size,
                 labelcolor = font_color,
                 facecolor = 'none',
                 edgecolor = 'none',
@@ -56,6 +94,7 @@ class legend():
                 labelspacing = 1.05,
                 mode = 'expand',
                 fontsize = font_size,
+                title_fontsize = title_size,
                 alignment = 'left',
                 labelcolor = font_color,
                 facecolor = 'none',
@@ -70,13 +109,6 @@ class legend():
 
         plt.setp(self.legend.get_title(), color=font_color)  # legend title color
 
-def title(title, language):
-    if isinstance(title, dict):
-        title = title.get(language, "")
-    elif not isinstance(title, str):
-        title = ""
-    return title
-
 
 
 def axe_label(sorted_data, axe):
@@ -87,13 +119,16 @@ def axe_label(sorted_data, axe):
     return label
 
 
-def watermark(fig, alpha, pos, size):
+def watermark(fig:plt.subplot, file:str|bool, alpha:float, pos:[float, float], size:float) -> None:
+    if file == True:
+        file = 'watermark.png'
+    if not isinstance(file, str): return
+
     logo =  os.path.join(
             os.getcwd(),
             'media',
-            'watermark.png'
+            file
         )
-
     # change alpha value
     img = Image.open(logo).convert("RGBA")
     r, g, b, a = img.split()
@@ -104,6 +139,23 @@ def watermark(fig, alpha, pos, size):
     logo_ax = fig.add_axes([pos[0], pos[1], size, size], anchor='SE', zorder=101, )
     logo_ax.imshow(img_array)
     logo_ax.axis('off')
+
+
+def copyright(ax:plt.subplot , text:str|bool) -> None:
+    if not isinstance(text, str):
+        text = f"(C) Copyright RePoySat @ ASL ({datetime.today().year}) no disclosure without permission of a team member"
+
+    ax.text(
+        x=222,          # & calculate correct variable position and move legend
+        y=5,
+        s=text,
+        fontsize = 10,
+        rotation = 90,
+        rotation_mode = 'anchor',
+        transform_rotates_text = True
+    )
+
+
 
 def figurename(frame, dateframe_index, frame_index):
     frame_name  = frame.get('name', None)
