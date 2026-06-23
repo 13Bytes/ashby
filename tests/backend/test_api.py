@@ -58,6 +58,7 @@ class BackendApiTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.server_process: subprocess.Popen[str] | None = None
+        cls.server_output = None
         configured_base_url = os.environ.get('ASHBY_BACKEND_URL')
         if configured_base_url:
             cls.base_url = configured_base_url.rstrip('/')
@@ -75,6 +76,8 @@ class BackendApiTests(unittest.TestCase):
         except subprocess.TimeoutExpired:
             cls.server_process.kill()
             cls.server_process.wait(timeout=10)
+        if cls.server_output is not None:
+            cls.server_output.close()
 
     @classmethod
     def start_test_server(cls) -> str:
@@ -85,6 +88,7 @@ class BackendApiTests(unittest.TestCase):
         env = os.environ.copy()
         env['PYTHONPATH'] = str(PROJECT_DIR)
         env.setdefault('MPLCONFIGDIR', tempfile.mkdtemp(prefix='ashby-mpl-'))
+        cls.server_output = tempfile.TemporaryFile(mode='w+', encoding='utf-8')
         cls.server_process = subprocess.Popen(
             [
                 sys.executable,
@@ -100,7 +104,7 @@ class BackendApiTests(unittest.TestCase):
             ],
             cwd=PROJECT_DIR,
             env=env,
-            stdout=subprocess.PIPE,
+            stdout=cls.server_output,
             stderr=subprocess.STDOUT,
             text=True,
         )
@@ -108,7 +112,7 @@ class BackendApiTests(unittest.TestCase):
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             if cls.server_process.poll() is not None:
-                output = cls.server_process.stdout.read() if cls.server_process.stdout else ''
+                output = cls.read_server_output()
                 raise RuntimeError(f'Backend test server exited early:\n{output}')
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.settimeout(0.2)
@@ -118,11 +122,19 @@ class BackendApiTests(unittest.TestCase):
 
         cls.server_process.terminate()
         try:
-            output, _ = cls.server_process.communicate(timeout=5)
+            cls.server_process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             cls.server_process.kill()
-            output, _ = cls.server_process.communicate(timeout=5)
+            cls.server_process.communicate(timeout=5)
+        output = cls.read_server_output()
         raise RuntimeError(f'Backend test server did not start within 20 seconds:\n{output}')
+
+    @classmethod
+    def read_server_output(cls) -> str:
+        if cls.server_output is None:
+            return ''
+        cls.server_output.seek(0)
+        return cls.server_output.read()
 
     def post_json(self, path: str, payload: dict) -> tuple[int, dict[str, str], bytes]:
         request = urllib.request.Request(
