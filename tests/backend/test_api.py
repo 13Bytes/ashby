@@ -15,7 +15,7 @@ import urllib.request
 import unittest
 from pathlib import Path
 
-from backend.app import _extract_columns_from_xlsx
+from backend.app import _extract_metadata_from_xlsx
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
@@ -268,7 +268,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(payload['import_file_name'], UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_filament_xlsx_source(self) -> None:
-        columns = _extract_columns_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+        columns, _, _ = _extract_metadata_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
 
         self.assertGreater(len(columns), 200)
         self.assertIn('Material', columns)
@@ -297,7 +297,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(payload['import_file_name'], FILAMENT_UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_spritzguss_xlsx_source(self) -> None:
-        columns = _extract_columns_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+        columns, _, _ = _extract_metadata_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
 
         self.assertGreater(len(columns), 100)
         self.assertIn('Material', columns)
