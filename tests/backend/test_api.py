@@ -87,7 +87,7 @@ class BackendApiTests(unittest.TestCase):
             cls.server_output.close()
 
     @classmethod
-    def start_test_server(cls, properties_dir: str = None) -> str:
+    def start_test_server(cls, properties_dir: str | None = None) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
