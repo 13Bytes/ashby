@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -19,9 +20,9 @@ from backend.app import _extract_metadata_from_xlsx
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
-UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'backend' / 'material_properties' / 'MatWeb_materials_export_TDW25.xlsx'
-FILAMENT_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'backend' / 'material_properties' / 'MatWeb_materials_export_Filament.xlsx'
-SPRITZGUSS_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'MatWeb_materials_export_Spritzguss.xlsx'
+UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_1.xlsx'
+FILAMENT_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_2.xlsx'
+SPRITZGUSS_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_3.xlsx'
 
 
 def build_multipart_body(fields: dict[str, str], files: dict[str, Path]) -> tuple[bytes, str]:
@@ -59,6 +60,10 @@ class BackendApiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.server_process: subprocess.Popen[str] | None = None
         cls.server_output = None
+        cls.material_properties_dir = PROJECT_DIR / 'backend' / 'material_properties'
+        cls.material_properties_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(UPLOAD_FIXTURE_PATH, cls.material_properties_dir / UPLOAD_FIXTURE_PATH.name)
+        shutil.copy(FILAMENT_UPLOAD_FIXTURE_PATH, cls.material_properties_dir / FILAMENT_UPLOAD_FIXTURE_PATH.name)
         configured_base_url = os.environ.get('ASHBY_BACKEND_URL')
         if configured_base_url:
             cls.base_url = configured_base_url.rstrip('/')
@@ -68,6 +73,11 @@ class BackendApiTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
+        try:
+            (cls.material_properties_dir / UPLOAD_FIXTURE_PATH.name).unlink(missing_ok=True)
+            (cls.material_properties_dir / FILAMENT_UPLOAD_FIXTURE_PATH.name).unlink(missing_ok=True)
+        except Exception:
+            pass
         if cls.server_process is None:
             return
         cls.server_process.terminate()

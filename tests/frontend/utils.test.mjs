@@ -88,7 +88,7 @@ test('appState resolves dataset source mode from explicit metadata and server ca
   const { getSourceMode } = await importTypeScriptModule('src/utils/appState.ts')
 
   assert.equal(getSourceMode({ _extensions: { source_mode: 'dataset' }, teableUrl: undefined, apiKey: undefined, importFileName: undefined }), 'dataset')
-  assert.equal(getSourceMode({ _extensions: {}, teableUrl: undefined, apiKey: undefined, importFileName: 'MatWeb_materials_export_TDW25.xlsx' }, ['MatWeb_materials_export_TDW25.xlsx']), 'dataset')
+  assert.equal(getSourceMode({ _extensions: {}, teableUrl: undefined, apiKey: undefined, importFileName: 'dataset_1.xlsx' }, ['dataset_1.xlsx']), 'dataset')
   assert.equal(getSourceMode({ _extensions: {}, teableUrl: 'https://example.invalid', apiKey: undefined, importFileName: undefined }, []), 'teable')
 })
 
