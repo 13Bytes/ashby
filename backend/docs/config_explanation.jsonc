@@ -166,7 +166,7 @@
             "labels":{
                 "de":"",             // axis Label
                 "en":""              // more languages can be added  (#25)
-            }                        // a list to copy paste for our default axes is found at  material_properties\axen.json
+            }                        // a list to copy paste for our default axes is found at axen.json
         }],
     
         // + list of all colors +
