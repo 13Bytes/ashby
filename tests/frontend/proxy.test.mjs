@@ -55,6 +55,15 @@ test('App passes active selection and datasource files into PlotPage', async () 
   assert.match(source, /datasourceFilesByDataframe=\{datasourceFilesByDataframe\}/)
 })
 
+test('App fetches server dataset catalog and passes it into the source selector', async () => {
+  const source = `${await readSource(appPath)}\n${await readSource(dataframeSectionPath)}`
+
+  assert.match(source, /fetch\('\/api\/import-database\/datasets'/)
+  assert.match(source, /setAvailableDatasets/)
+  assert.match(source, /sourceModeDataset/)
+  assert.match(source, /selectedSourceMode === 'dataset'/)
+})
+
 test('PlotPage sends FormData with datasource descriptors when Excel files are available', async () => {
   const source = await readSource(plotPagePath)
 

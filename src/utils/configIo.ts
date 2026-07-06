@@ -13,6 +13,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
   return {
     version: config.version,
     create_all_dataframes: config.createAllDataframes,
+    _extensions: config._extensions,
     dataframes: config.dataframes.map((dataframe) => ({
       name: dataframe.name ?? null,
       API_Key: dataframe.apiKey ?? null,
@@ -35,6 +36,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
       plot_languages: dataframe.plotLanguages,
       dark_mode: dataframe.darkMode,
       create_all_frames: dataframe.createAllFrames,
+      _extensions: dataframe._extensions,
       frames: dataframe.frames.map((frame) => ({
         name: frame.name ?? null,
         legend_flag: frame.legendFlag,

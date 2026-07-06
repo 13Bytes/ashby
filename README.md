@@ -5,6 +5,7 @@ Browser-based editor for the Ashby `config.json` workflow with a live plot previ
 ## Features
 
 - Config editor for dataframe, frame, axis, layer, annotation, guideline, and color settings.
+- Source mode support for Teable, browser-uploaded Excel workbooks, and backend-provided Excel datasets.
 - Live plot preview rendered by the Python backend.
 - `POST /api/render-plot` endpoint that accepts the full JSON config, returns the generated image, and exposes non-fatal plot messages back to the frontend preview.
 - `POST /api/import-database` endpoint for spreadsheet column discovery without server-side upload storage.
@@ -33,6 +34,8 @@ You can also use the npm shortcut once the backend environment is active:
 ```powershell
 npm run backend
 ```
+
+The backend also exposes a dataset catalog endpoint at `/api/import-database/datasets`; the UI uses it to populate the fixed dataset source mode from Excel files stored under `backend/material_properties`.
 
 ### Frontend/backend URLs
 

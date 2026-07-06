@@ -2,6 +2,7 @@ import type { ChangeEvent, KeyboardEvent, RefObject } from 'react'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
 import type { FieldComponent } from '../types/componentProps'
+import { getSourceMode, type SourceMode } from '../utils/appState'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -21,6 +22,8 @@ type Props = {
   handleSpreadsheetSelection: (event: ChangeEvent<HTMLInputElement>) => Promise<void>
   importedDatabaseStatus: Record<number, { imported: boolean; source: string }>
   activeDataframeIndex: number
+  availableDatasets: string[]
+  availableSheets: string[]
   plotLanguageDraft: string
   setPlotLanguageDraft: (value: string) => void
   handlePlotLanguageKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
@@ -52,6 +55,8 @@ export function DataframeSection({
   handleSpreadsheetSelection,
   importedDatabaseStatus,
   activeDataframeIndex,
+  availableDatasets,
+  availableSheets,
   plotLanguageDraft,
   setPlotLanguageDraft,
   handlePlotLanguageKeyDown,
@@ -60,7 +65,27 @@ export function DataframeSection({
   FieldComponent: Field,
 }: Props) {
   const importStatus = importedDatabaseStatus[activeDataframeIndex]
+  const sourceMode = getSourceMode(activeDataframe, availableDatasets)
   const isKnownFontFamily = FONT_FAMILY_OPTIONS.includes(activeDataframe.font.font)
+  const selectedDataset = activeDataframe.importFileName && availableDatasets.includes(activeDataframe.importFileName)
+    ? activeDataframe.importFileName
+    : availableDatasets[0] ?? ''
+
+  const updateSourceMode = (nextSourceMode: SourceMode) => {
+    patchActiveDataframe((current) => {
+      const nextExtensions = { ...current._extensions, source_mode: nextSourceMode }
+      if (nextSourceMode === 'dataset') {
+        return {
+          ...current,
+          _extensions: nextExtensions,
+          importFileName: current.importFileName && availableDatasets.includes(current.importFileName)
+            ? current.importFileName
+            : (availableDatasets[0] ?? current.importFileName),
+        }
+      }
+      return { ...current, _extensions: nextExtensions }
+    })
+  }
 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
@@ -165,15 +190,16 @@ export function DataframeSection({
       <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-6">
         <Field language={uiLanguage} label={t('sourceMode')} jsonPath="_extensions.source_mode">
           <Select
-            value={activeDataframe.excelImport === true ? 'file' : 'teable'}
-            onChange={(event) => patchActiveDataframe((current) => ({ ...current, excelImport: event.target.value === 'file' }))}
+            value={sourceMode}
+            onChange={(event) => updateSourceMode(event.target.value as SourceMode)}
           >
-            <option value="file">Upload .xlsx</option>
-            <option value="teable">Teable URL + API key</option>
+            <option value="file">{t('sourceModeFile')}</option>
+            <option value="dataset">{t('sourceModeDataset')}</option>
+            <option value="teable">{t('sourceModeTeable')}</option>
           </Select>
         </Field>
 
-        {activeDataframe.excelImport === false ? (
+        {sourceMode === 'teable' ? (
           <>
             <Field language={uiLanguage} label={t('teableUrl')} jsonPath="teable_url" selfClassName="sm:col-span-2">
               <Input value={activeDataframe.teableUrl ?? ''} onChange={(event) => patchActiveDataframe((current) => ({ ...current, teableUrl: event.target.value || undefined }))} />
@@ -185,17 +211,53 @@ export function DataframeSection({
               {importInProgress ? 'Importing…' : 'Import database'}
             </Button>
           </>
+        ) : sourceMode === 'dataset' ? (
+          <>
+            <Field language={uiLanguage} label={t('datasetName')} jsonPath="import_file_name" selfClassName="sm:col-span-4">
+              <Select
+                value={selectedDataset}
+                onChange={(event) => patchActiveDataframe((current) => ({ ...current, importFileName: event.target.value || undefined }))}
+                disabled={availableDatasets.length === 0}
+              >
+                {availableDatasets.length === 0 ? <option value="">No datasets available</option> : null}
+                {availableDatasets.map((dataset) => <option key={dataset} value={dataset}>{dataset}</option>)}
+              </Select>
+            </Field>
+            <Field language={uiLanguage} label={t('importSheet')} jsonPath="import_sheet">
+              {availableSheets.length > 0 ? (
+                <Select
+                  value={activeDataframe.importSheet}
+                  onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: Number(event.target.value) }))}
+                >
+                  {availableSheets.map((sheet, index) => <option key={index} value={index}>{sheet}</option>)}
+                </Select>
+              ) : (
+                <Input type="number" value={activeDataframe.importSheet} onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: numberValue(event.target.valueAsNumber, current.importSheet) }))} />
+              )}
+            </Field>
+          </>
         ) : (
           <>
             <Field language={uiLanguage} label={t('uploadXlsx')} jsonPath="import_file_name" selfClassName="sm:col-span-3">
               <Input value={activeDataframe.importFileName ?? ''} readOnly placeholder="No file selected" />
             </Field>
-            <Field language={uiLanguage} label={t('importSheet')} jsonPath="import_sheet">
-              <Input type="number" value={activeDataframe.importSheet} onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: numberValue(event.target.valueAsNumber, current.importSheet) }))} />
-            </Field>
             <Button type="button" onClick={() => uploadInputRef.current?.click()} disabled={importInProgress} className="self-end-safe">
               {importInProgress ? 'Importing…' : t('uploadAndImport')}
             </Button>
+            {activeDataframe.importFileName ? (
+              <Field language={uiLanguage} label={t('importSheet')} jsonPath="import_sheet">
+                {availableSheets.length > 0 ? (
+                  <Select
+                    value={activeDataframe.importSheet}
+                    onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: Number(event.target.value) }))}
+                  >
+                    {availableSheets.map((sheet, index) => <option key={index} value={index}>{sheet}</option>)}
+                  </Select>
+                ) : (
+                  <Input type="number" value={activeDataframe.importSheet} onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: numberValue(event.target.valueAsNumber, current.importSheet) }))} />
+                )}
+              </Field>
+            ) : null}
             <input ref={uploadInputRef} type="file" accept=".xlsx" className="hidden" onChange={(event) => { void handleSpreadsheetSelection(event) }} />
           </>
         )}
@@ -203,8 +265,8 @@ export function DataframeSection({
         <div className="sm:col-span-full">
           <p className="m-0 text-xs text-zinc-600 dark:text-zinc-300">
             Database import status:{' '}
-            <strong className={importStatus?.imported ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-              {importStatus?.imported ? `Imported (${importStatus.source})` : 'Not imported'}
+            <strong className={importInProgress ? 'text-blue-600 dark:text-blue-400' : importStatus?.imported ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+              {importInProgress ? 'Importing…' : importStatus?.imported ? `Imported (${importStatus.source})` : 'Not imported'}
             </strong>
           </p>
         </div>

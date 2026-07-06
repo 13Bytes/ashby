@@ -18,6 +18,8 @@ export function ConfigSections(props: Props) {
     activeDataframe,
     activeDataframeIndex,
     activeFrame,
+    availableDatasets,
+    availableSheets,
     addAxis,
     addGuideline,
     addLayer,
@@ -75,6 +77,8 @@ export function ConfigSections(props: Props) {
         handleSpreadsheetSelection={handleSpreadsheetSelection}
         importedDatabaseStatus={importedDatabaseStatus}
         activeDataframeIndex={activeDataframeIndex}
+        availableDatasets={availableDatasets}
+        availableSheets={availableSheets}
         plotLanguageDraft={plotLanguageDraft}
         setPlotLanguageDraft={setPlotLanguageDraft}
         handlePlotLanguageKeyDown={handlePlotLanguageKeyDown}

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -15,13 +16,13 @@ import urllib.request
 import unittest
 from pathlib import Path
 
-from backend.app import _extract_columns_from_xlsx
+from backend.app import _extract_metadata_from_xlsx
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
-UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'backend' / 'material_properties' / 'MatWeb_materials_export_TDW25.xlsx'
-FILAMENT_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'backend' / 'material_properties' / 'MatWeb_materials_export_Filament.xlsx'
-SPRITZGUSS_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'MatWeb_materials_export_Spritzguss.xlsx'
+UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_1.xlsx'
+FILAMENT_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_2.xlsx'
+SPRITZGUSS_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_3.xlsx'
 
 
 def build_multipart_body(fields: dict[str, str], files: dict[str, Path]) -> tuple[bytes, str]:
@@ -59,15 +60,21 @@ class BackendApiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.server_process: subprocess.Popen[str] | None = None
         cls.server_output = None
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        cls.material_properties_dir = Path(cls.temp_dir.name)
+        shutil.copy(UPLOAD_FIXTURE_PATH, cls.material_properties_dir / UPLOAD_FIXTURE_PATH.name)
+        shutil.copy(FILAMENT_UPLOAD_FIXTURE_PATH, cls.material_properties_dir / FILAMENT_UPLOAD_FIXTURE_PATH.name)
         configured_base_url = os.environ.get('ASHBY_BACKEND_URL')
         if configured_base_url:
             cls.base_url = configured_base_url.rstrip('/')
         else:
-            cls.base_url = cls.start_test_server()
+            cls.base_url = cls.start_test_server(str(cls.material_properties_dir))
         cls.render_payload = json.loads(FIXTURE_PATH.read_text(encoding='utf-8'))
 
     @classmethod
     def tearDownClass(cls) -> None:
+        if hasattr(cls, 'temp_dir'):
+            cls.temp_dir.cleanup()
         if cls.server_process is None:
             return
         cls.server_process.terminate()
@@ -80,13 +87,15 @@ class BackendApiTests(unittest.TestCase):
             cls.server_output.close()
 
     @classmethod
-    def start_test_server(cls) -> str:
+    def start_test_server(cls, properties_dir: str | None = None) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
 
         env = os.environ.copy()
         env['PYTHONPATH'] = str(PROJECT_DIR)
+        if properties_dir:
+            env['ASHBY_MATERIAL_PROPERTIES_DIR'] = properties_dir
         env.setdefault('MPLCONFIGDIR', tempfile.mkdtemp(prefix='ashby-mpl-'))
         cls.server_output = tempfile.TemporaryFile(mode='w+', encoding='utf-8')
         cls.server_process = subprocess.Popen(
@@ -181,6 +190,16 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('application/json', self.header(headers, 'Content-Type'))
         self.assertEqual(payload, {'status': 'ok'})
 
+    def test_import_database_datasets_lists_material_property_workbooks(self) -> None:
+        status, headers, body = self.get('/api/import-database/datasets')
+        payload = json.loads(body.decode('utf-8'))
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/json', self.header(headers, 'Content-Type'))
+        self.assertTrue(payload['success'])
+        self.assertIn(UPLOAD_FIXTURE_PATH.name, payload['datasets'])
+        self.assertIn(FILAMENT_UPLOAD_FIXTURE_PATH.name, payload['datasets'])
+
     def test_render_plot_returns_warning_messages_header(self) -> None:
         warning_payload = json.loads(json.dumps(self.render_payload))
         warning_payload['config']['dataframes'][0]['axes'][0]['columns'] = [
@@ -241,8 +260,24 @@ class BackendApiTests(unittest.TestCase):
         self.assertIsInstance(payload['keywords_by_column'], dict)
         self.assertEqual(payload['import_file_name'], UPLOAD_FIXTURE_PATH.name)
 
+    def test_import_database_dataset_returns_columns_and_display_filename(self) -> None:
+        status, headers, body = self.post_multipart(
+            '/api/import-database',
+            fields={'import_sheet': '0', 'import_file_name': UPLOAD_FIXTURE_PATH.name},
+            files={},
+        )
+        payload = json.loads(body.decode('utf-8'))
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/json', self.header(headers, 'Content-Type'))
+        self.assertTrue(payload['success'])
+        self.assertGreater(len(payload['columns']), 0)
+        self.assertIn('keywords_by_column', payload)
+        self.assertIsInstance(payload['keywords_by_column'], dict)
+        self.assertEqual(payload['import_file_name'], UPLOAD_FIXTURE_PATH.name)
+
     def test_extract_columns_from_filament_xlsx_source(self) -> None:
-        columns = _extract_columns_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+        columns, _, _ = _extract_metadata_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
 
         self.assertGreater(len(columns), 200)
         self.assertIn('Material', columns)
@@ -271,7 +306,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(payload['import_file_name'], FILAMENT_UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_spritzguss_xlsx_source(self) -> None:
-        columns = _extract_columns_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+        columns, _, _ = _extract_metadata_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
 
         self.assertGreater(len(columns), 100)
         self.assertIn('Material', columns)

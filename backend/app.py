@@ -27,8 +27,10 @@ FRONTEND_INDEX_PATH = FRONTEND_DIR / 'index.html'
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
+    from backend import import_data as import_data_module
     from backend.plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
 else:
+    from . import import_data as import_data_module
     from .plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
 
 app = FastAPI(title='Ashby Backend API')
@@ -50,23 +52,16 @@ class DownloadPlotsRequest(BaseModel):
     plots: list[DownloadPlotItem]
 
 
-def _extract_columns_from_xlsx(file_bytes: bytes, sheet_index: int) -> list[str]:
+def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
     dataframes = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None)
     sheet_names = list(dataframes.keys())
     if not sheet_names:
-        return []
+        return [], {}, []
+
     index = min(max(sheet_index, 0), len(sheet_names) - 1)
     selected = dataframes[sheet_names[index]]
-    return [str(column).strip() for column in selected.columns if str(column).strip()]
 
-
-def _extract_keywords_by_column_from_xlsx(file_bytes: bytes, sheet_index: int) -> dict[str, list[str]]:
-    dataframes = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None)
-    sheet_names = list(dataframes.keys())
-    if not sheet_names:
-        return {}
-    index = min(max(sheet_index, 0), len(sheet_names) - 1)
-    selected = dataframes[sheet_names[index]]
+    columns = [str(column).strip() for column in selected.columns if str(column).strip()]
 
     keywords_by_column: dict[str, list[str]] = {}
     for raw_column in selected.columns:
@@ -81,7 +76,7 @@ def _extract_keywords_by_column_from_xlsx(file_bytes: bytes, sheet_index: int) -
         }, key=lambda entry: entry.lower())
         keywords_by_column[column] = keywords
 
-    return keywords_by_column
+    return columns, keywords_by_column, sheet_names
 
 
 def _extract_columns_and_keywords_from_teable(
@@ -104,7 +99,7 @@ def _extract_columns_and_keywords_from_teable(
     records = payload.get('records', []) if isinstance(payload, dict) else []
 
     columns: list[str] = []
-    keywords_by_column: dict[str, list[str]] = {}
+    keywords_by_column: dict[str, set[str]] = {}
     for record in records:
         fields = record.get('fields', {}) if isinstance(record, dict) else {}
         if not isinstance(fields, dict):
@@ -167,6 +162,11 @@ async def _parse_plot_request(request: Request) -> tuple[dict[str, Any], dict[in
     return await request.json(), {}
 
 
+@app.get('/api/import-database/datasets')
+def import_database_datasets() -> JSONResponse:
+    return JSONResponse({'success': True, 'datasets': import_data_module.list_available_import_files()})
+
+
 @app.get('/api/health')
 def health() -> JSONResponse:
     return JSONResponse({'status': 'ok'})
@@ -226,6 +226,7 @@ async def import_database(
     request: Request,
     import_sheet: int = Form(0),
     file: UploadFile | None = File(None),
+    import_file_name: str | None = Form(None),
     teable_url: str | None = Form(None),
     API_Key: str | None = Form(None),
 ) -> JSONResponse:
@@ -233,9 +234,23 @@ async def import_database(
         payload = await request.json()
         teable_url_json = payload.get('teable_url')
         api_key_json = payload.get('API_Key')
+        import_file_name_json = payload.get('import_file_name')
+        import_sheet_json = payload.get('import_sheet', import_sheet)
         verify_tls_json = payload.get('verify_tls', True)
         if not teable_url_json or not api_key_json:
-            return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
+            if not isinstance(import_file_name_json, str) or not import_file_name_json.strip():
+                return JSONResponse({'success': False, 'message': 'Missing teable_url, API_Key, or import_file_name.'}, status_code=400)
+            try:
+                columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name_json, int(import_sheet_json))
+            except Exception as error:
+                return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+            return JSONResponse({
+                'success': True,
+                'columns': columns,
+                'keywords_by_column': keywords_by_column,
+                'import_file_name': import_file_name_json,
+                'sheet_names': sheet_names,
+            })
         try:
             columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url_json, api_key_json, verify_tls=verify_tls_json)
         except requests.RequestException as error:
@@ -243,6 +258,18 @@ async def import_database(
         return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
 
     if file is None:
+        if import_file_name:
+            try:
+                columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name, import_sheet)
+            except Exception as error:
+                return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+            return JSONResponse({
+                'success': True,
+                'columns': columns,
+                'keywords_by_column': keywords_by_column,
+                'import_file_name': import_file_name,
+                'sheet_names': sheet_names,
+            })
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
         try:
@@ -253,8 +280,7 @@ async def import_database(
 
     file_bytes = await file.read()
     try:
-        columns = _extract_columns_from_xlsx(file_bytes, import_sheet)
-        keywords_by_column = _extract_keywords_by_column_from_xlsx(file_bytes, import_sheet)
+        columns, keywords_by_column, sheet_names = _extract_metadata_from_xlsx(file_bytes, import_sheet)
     except Exception as error:
         return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
 
@@ -263,6 +289,7 @@ async def import_database(
         'columns': columns,
         'keywords_by_column': keywords_by_column,
         'import_file_name': file.filename or 'uploaded.xlsx',
+        'sheet_names': sheet_names,
     })
 
 

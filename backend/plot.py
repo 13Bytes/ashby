@@ -50,7 +50,7 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
         if not (create_frames == True or frame_index +1 in create_frames):
             continue
 
-        cprint(f"\n::::::::::::::::::::::::::::  creating frame {frame_index + 1} of {len(dataframe['frames'])} {frame.get('name',"")} :::::::::::::::::::::::::::: \n","blue")
+        cprint(f"\n::::::::::::::::::::::::::::  creating frame {frame_index + 1} of {len(dataframe['frames'])} {frame.get('name', '')} :::::::::::::::::::::::::::: \n", "blue")
 
 
         # : General setup :
@@ -74,7 +74,8 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
         ax.spines[:].set_color(font_color)
 
         plt.rcParams.update({'font.family': df_font.get('font_style',"sans-serif")})
-        plt.rcParams.update({f'font.{df_font.get('font_style',"sans-serif")}':df_font.get('font',"Arial")})
+        font_style = df_font.get('font_style', 'sans-serif')
+        plt.rcParams.update({f'font.{font_style}': df_font.get('font', 'Arial')})
         plt.rcParams.update({'font.size': df_font.get('font_size',22)})
         # & weight, stretch, variant, style
         # plt.rc('text',usetex='False')
@@ -210,14 +211,14 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
 
 if __name__ == '__main__':
-    print(f"\n\n{colored(" starting Ashby-Plot Generator                     Ⓒ afffe18 @ RPS (ASL) 2025 ", on_color="on_blue")}")
+    print(f"\n\n{colored(' starting Ashby-Plot Generator                     Ⓒ afffe18 @ RPS (ASL) 2025 ', on_color='on_blue')}")
 
     config = import_json(CONFIG_NAME) # + input config +
     create_dataframes  = config.get('create_all_dataframes', True)
 
     for dataframe_index, dataframe in enumerate(config.get('dataframes',[])):
         if create_dataframes == True or dataframe_index +1 in create_dataframes:
-            cprint(f"\n::::::::::::::::::::::::::::::::::::  loading dataframe {dataframe_index + 1} of {len(config['dataframes'])} {dataframe.get('name',"")} ::::::::::::::::::::::::::::::::::::","blue", ["bold"])
+            cprint(f"\n::::::::::::::::::::::::::::::::::::  loading dataframe {dataframe_index + 1} of {len(config['dataframes'])} {dataframe.get('name', '')} ::::::::::::::::::::::::::::::::::::", "blue", ["bold"])
             main(dataframe, True)
             
     cprint(f" all selected plots displayed or saved ",color="white",on_color="on_green")

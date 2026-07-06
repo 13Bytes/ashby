@@ -182,6 +182,7 @@ const normalizeFrame = (
   }
 
   const known = new Set([
+    '_extensions',
     'name',
     'legend_flag',
     'legendFlag',
@@ -225,6 +226,9 @@ const normalizeFrame = (
   const extensions = Object.fromEntries(
     Object.entries(partial).filter(([key]) => !known.has(key)),
   )
+  if (isRecord(partial._extensions)) {
+    Object.assign(extensions, partial._extensions)
+  }
 
   const algorithm = partial.algorithm
   const normalizedAlgorithm: FrameConfig['algorithm'] =
@@ -313,6 +317,7 @@ const normalizeDataframe = (
     : fallback.frames
 
   const known = new Set([
+    '_extensions',
     'name',
     'API_Key',
     'apiKey',
@@ -349,6 +354,9 @@ const normalizeDataframe = (
   const extensions = Object.fromEntries(
     Object.entries(partial).filter(([key]) => !known.has(key)),
   )
+  if (isRecord(partial._extensions)) {
+    Object.assign(extensions, partial._extensions)
+  }
 
   const legacyImageWidth = coerceNumber(partial.image_width, 0)
   const legacyImageHeight = coerceNumber(partial.image_height, 0)
@@ -456,6 +464,9 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
   const extensions = Object.fromEntries(
     Object.entries(input).filter(([key]) => !known.has(key)),
   )
+  if (isRecord(input._extensions)) {
+    Object.assign(extensions, input._extensions)
+  }
 
   const dataframes = Array.isArray(rootSource.dataframes)
     ? rootSource.dataframes.map((entry, index) =>
