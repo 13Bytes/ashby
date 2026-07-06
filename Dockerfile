@@ -24,6 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY --from=builderjs /app/dist ./backend/production-frontend
 
+VOLUME ["/app/backend/material_properties"]
+
 ENV PORT=8000
 EXPOSE 8000
 
