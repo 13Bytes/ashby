@@ -8,8 +8,10 @@ import requests
 from .filter import filter_data
 
 
+import os
+
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-MATERIAL_PROPERTIES_DIR = BACKEND_DIR / 'material_properties'
+MATERIAL_PROPERTIES_DIR = Path(os.environ.get('ASHBY_MATERIAL_PROPERTIES_DIR', BACKEND_DIR / 'material_properties'))
 
 
 def _resolve_import_file_path(import_file_name: str) -> Path:

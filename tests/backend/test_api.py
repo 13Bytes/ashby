@@ -60,24 +60,21 @@ class BackendApiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.server_process: subprocess.Popen[str] | None = None
         cls.server_output = None
-        cls.material_properties_dir = PROJECT_DIR / 'backend' / 'material_properties'
-        cls.material_properties_dir.mkdir(parents=True, exist_ok=True)
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        cls.material_properties_dir = Path(cls.temp_dir.name)
         shutil.copy(UPLOAD_FIXTURE_PATH, cls.material_properties_dir / UPLOAD_FIXTURE_PATH.name)
         shutil.copy(FILAMENT_UPLOAD_FIXTURE_PATH, cls.material_properties_dir / FILAMENT_UPLOAD_FIXTURE_PATH.name)
         configured_base_url = os.environ.get('ASHBY_BACKEND_URL')
         if configured_base_url:
             cls.base_url = configured_base_url.rstrip('/')
         else:
-            cls.base_url = cls.start_test_server()
+            cls.base_url = cls.start_test_server(str(cls.material_properties_dir))
         cls.render_payload = json.loads(FIXTURE_PATH.read_text(encoding='utf-8'))
 
     @classmethod
     def tearDownClass(cls) -> None:
-        try:
-            (cls.material_properties_dir / UPLOAD_FIXTURE_PATH.name).unlink(missing_ok=True)
-            (cls.material_properties_dir / FILAMENT_UPLOAD_FIXTURE_PATH.name).unlink(missing_ok=True)
-        except Exception:
-            pass
+        if hasattr(cls, 'temp_dir'):
+            cls.temp_dir.cleanup()
         if cls.server_process is None:
             return
         cls.server_process.terminate()
@@ -90,13 +87,15 @@ class BackendApiTests(unittest.TestCase):
             cls.server_output.close()
 
     @classmethod
-    def start_test_server(cls) -> str:
+    def start_test_server(cls, properties_dir: str = None) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
 
         env = os.environ.copy()
         env['PYTHONPATH'] = str(PROJECT_DIR)
+        if properties_dir:
+            env['ASHBY_MATERIAL_PROPERTIES_DIR'] = properties_dir
         env.setdefault('MPLCONFIGDIR', tempfile.mkdtemp(prefix='ashby-mpl-'))
         cls.server_output = tempfile.TemporaryFile(mode='w+', encoding='utf-8')
         cls.server_process = subprocess.Popen(
