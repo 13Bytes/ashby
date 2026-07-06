@@ -181,6 +181,16 @@ class BackendApiTests(unittest.TestCase):
         self.assertIn('application/json', self.header(headers, 'Content-Type'))
         self.assertEqual(payload, {'status': 'ok'})
 
+    def test_import_database_datasets_lists_material_property_workbooks(self) -> None:
+        status, headers, body = self.get('/api/import-database/datasets')
+        payload = json.loads(body.decode('utf-8'))
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/json', self.header(headers, 'Content-Type'))
+        self.assertTrue(payload['success'])
+        self.assertIn(UPLOAD_FIXTURE_PATH.name, payload['datasets'])
+        self.assertIn(FILAMENT_UPLOAD_FIXTURE_PATH.name, payload['datasets'])
+
     def test_render_plot_returns_warning_messages_header(self) -> None:
         warning_payload = json.loads(json.dumps(self.render_payload))
         warning_payload['config']['dataframes'][0]['axes'][0]['columns'] = [
@@ -230,6 +240,22 @@ class BackendApiTests(unittest.TestCase):
             '/api/import-database',
             fields={'import_sheet': '0'},
             files={'file': UPLOAD_FIXTURE_PATH},
+        )
+        payload = json.loads(body.decode('utf-8'))
+
+        self.assertEqual(status, 200)
+        self.assertIn('application/json', self.header(headers, 'Content-Type'))
+        self.assertTrue(payload['success'])
+        self.assertGreater(len(payload['columns']), 0)
+        self.assertIn('keywords_by_column', payload)
+        self.assertIsInstance(payload['keywords_by_column'], dict)
+        self.assertEqual(payload['import_file_name'], UPLOAD_FIXTURE_PATH.name)
+
+    def test_import_database_dataset_returns_columns_and_display_filename(self) -> None:
+        status, headers, body = self.post_multipart(
+            '/api/import-database',
+            fields={'import_sheet': '0', 'import_file_name': UPLOAD_FIXTURE_PATH.name},
+            files={},
         )
         payload = json.loads(body.decode('utf-8'))
 

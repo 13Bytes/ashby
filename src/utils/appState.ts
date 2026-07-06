@@ -1,6 +1,6 @@
 import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
 
-export type SourceMode = 'teable' | 'file'
+export type SourceMode = 'teable' | 'file' | 'dataset'
 export type JsonRenderTarget = { dataframeIndex: number; frameIndex: number }
 export type MultiOption = { value: string; label: string }
 
@@ -155,12 +155,16 @@ export const getConfigWhitelistKeywords = (config: PlotConfig): string[] => {
   return [...new Set([...fromLayers, ...fromAxisColumns])].sort((a, b) => a.localeCompare(b))
 }
 
-export const getSourceMode = (dataframe: DataframeConfig): SourceMode =>
-  dataframe._extensions.sourceMode === 'teable' || dataframe._extensions.sourceMode === 'file'
-    ? dataframe._extensions.sourceMode
-    : dataframe.teableUrl || dataframe.apiKey
-      ? 'teable'
-      : 'file'
+export const getSourceMode = (dataframe: DataframeConfig, availableDatasets: string[] = []): SourceMode =>
+  dataframe._extensions.source_mode === 'teable' || dataframe._extensions.source_mode === 'file' || dataframe._extensions.source_mode === 'dataset'
+    ? dataframe._extensions.source_mode
+    : dataframe._extensions.sourceMode === 'teable' || dataframe._extensions.sourceMode === 'file' || dataframe._extensions.sourceMode === 'dataset'
+      ? dataframe._extensions.sourceMode
+      : dataframe.teableUrl || dataframe.apiKey
+        ? 'teable'
+        : dataframe.importFileName && availableDatasets.includes(dataframe.importFileName)
+          ? 'dataset'
+          : 'file'
 
 let nextUiKey = 0
 

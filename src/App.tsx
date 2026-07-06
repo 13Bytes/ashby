@@ -23,7 +23,7 @@ type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
 type PlotAction = 'preview-current' | 'create-all'
 
-type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean }
+type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[] }
 
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
@@ -40,12 +40,15 @@ function App() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const jsonOverlayRef = useRef<HTMLPreElement | null>(null)
+  const datasetAutoImportRef = useRef<string | null>(null)
+  const fileAutoImportRef = useRef<string | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [uiTheme, setUiTheme] = useState<UIThemePreference>(() => readStoredUITheme())
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
   const [availableWhitelistKeywords, setAvailableWhitelistKeywords] = useState<MultiOption[]>(WHITELIST_OPTIONS)
   const [availableKeywordsByColumn, setAvailableKeywordsByColumn] = useState<Record<string, string[]>>({})
+  const [availableSheetsByDataframe, setAvailableSheetsByDataframe] = useState<Record<number, string[]>>({})
   const [importInProgress, setImportInProgress] = useState(false)
   const [tabRename, setTabRename] = useState<{ type: 'dataframe' | 'frame'; index: number; value: string } | null>(null)
   const [showMenu, setShowMenu] = useState(false)
@@ -65,6 +68,7 @@ function App() {
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
+  const [availableDatasets, setAvailableDatasets] = useState<string[] | null>(null)
   const [datasourceFilesByDataframe, setDatasourceFilesByDataframe] = useState<Record<number, File>>({})
   const [datasourcePrompt, setDatasourcePrompt] = useState<{ dataframeIndex: number; filename: string } | null>(null)
   const [dismissedDatasourcePrompts, setDismissedDatasourcePrompts] = useState<Record<string, boolean>>({})
@@ -111,19 +115,29 @@ function App() {
   }, [activeDataframe.frames, availableKeywordsByColumn])
   const missingDatasourceDataframes = useMemo(
     () =>
-      plotConfig.dataframes
-        .map((dataframe, dataframeIndex) => ({ dataframe, dataframeIndex }))
-        .filter(({ dataframe, dataframeIndex }) => (
-          dataframe.excelImport === true &&
-          Boolean(dataframe.importFileName) &&
-          datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
-        )),
-    [datasourceFilesByDataframe, plotConfig.dataframes],
+      availableDatasets === null
+        ? []
+        : plotConfig.dataframes
+            .map((dataframe, dataframeIndex) => ({ dataframe, dataframeIndex }))
+            .filter(({ dataframe, dataframeIndex }) => {
+              const sourceMode = getSourceMode(dataframe, availableDatasets ?? [])
+              return (
+                sourceMode === 'file' &&
+                Boolean(dataframe.importFileName) &&
+                datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
+              )
+            }),
+    [availableDatasets, datasourceFilesByDataframe, plotConfig.dataframes],
   )
   const displayedImportedDatabaseStatus = useMemo(() => {
     const status = { ...importedDatabaseStatus }
 
     plotConfig.dataframes.forEach((dataframe, dataframeIndex) => {
+      const sourceMode = getSourceMode(dataframe, availableDatasets ?? [])
+      // For dataset mode the importedDatabaseStatus entry from the actual
+      // import call is authoritative — don't override it.
+      if (sourceMode === 'dataset') return
+
       if (dataframe.excelImport !== true) {
         return
       }
@@ -140,7 +154,7 @@ function App() {
     })
 
     return status
-  }, [datasourceFilesByDataframe, importedDatabaseStatus, plotConfig.dataframes])
+  }, [availableDatasets, datasourceFilesByDataframe, importedDatabaseStatus, plotConfig.dataframes])
   useEffect(() => {
     patchActiveDataframe((df) => {
       const defaultColor = df.materialColors.default
@@ -229,6 +243,27 @@ function App() {
     setAvailableWhitelistKeywords(keywords.map((entry) => ({ value: entry, label: entry })))
   }, [plotConfig])
   useEffect(() => {
+    let active = true
+    const loadDatasets = async () => {
+      try {
+        const response = await fetch('/api/import-database/datasets', { cache: 'no-store' })
+        const payload = await response.json().catch(() => ({})) as { datasets?: unknown }
+        if (active) {
+          setAvailableDatasets(Array.isArray(payload.datasets) ? payload.datasets.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [])
+        }
+      } catch {
+        if (active) {
+          setAvailableDatasets([])
+        }
+      }
+    }
+
+    void loadDatasets()
+    return () => {
+      active = false
+    }
+  }, [])
+  useEffect(() => {
     let cancelled = false
 
     const restoreCachedDatasources = async () => {
@@ -301,8 +336,11 @@ function App() {
   const importDatabase = async (file?: File) => {
     setImportInProgress(true)
     const selectedDataframe = activeDataframe
-    const selectedSourceMode = getSourceMode(selectedDataframe)
+    const selectedSourceMode = getSourceMode(selectedDataframe, availableDatasets ?? [])
     try {
+      if (selectedSourceMode === 'dataset' && !selectedDataframe.importFileName) {
+        throw new Error('Select a provided dataset before importing.')
+      }
       const response = await fetch('/api/import-database', {
         method: 'POST',
         headers: selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
@@ -313,7 +351,14 @@ function App() {
               teable_url: selectedDataframe.teableUrl,
               import_sheet: selectedDataframe.importSheet,
             })
-            : (() => {
+            : selectedSourceMode === 'dataset'
+              ? (() => {
+                const form = new FormData()
+                form.append('import_file_name', selectedDataframe.importFileName ?? '')
+                form.append('import_sheet', String(selectedDataframe.importSheet))
+                return form
+              })()
+              : (() => {
               const form = new FormData()
               if (file) {
                 form.append('file', file)
@@ -328,6 +373,7 @@ function App() {
       }
       const columns = parseColumnsFromImportResult(payload.columns)
       const keywordsByColumn = payload.keywords_by_column ?? {}
+      const sheetNames = payload.sheet_names ?? []
       let storageMessage = ''
       if (file) {
         let cachedFile = file
@@ -381,6 +427,10 @@ function App() {
         ...current,
         [activeDataframeIndex]: { imported: true, source: selectedSourceMode },
       }))
+      setAvailableSheetsByDataframe((current) => ({
+        ...current,
+        [activeDataframeIndex]: sheetNames,
+      }))
       setAvailableColumns(columns)
       setAvailableKeywordsByColumn(keywordsByColumn)
       setAvailableWhitelistKeywords(
@@ -392,12 +442,13 @@ function App() {
         unknownColumns.size > 0
           ? ` Unavailable config columns were removed for this source: ${[...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ')}.`
           : ''
+      const sourceLabel = selectedSourceMode === 'teable' ? 'Teable' : selectedSourceMode === 'dataset' ? 'Dataset' : 'Excel'
       setAlert({
         tone: 'success',
         message:
           columns.length > 0
-            ? `${selectedSourceMode === 'teable' ? 'Teable' : 'Excel'} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`
-            : `${selectedSourceMode === 'teable' ? 'Teable' : 'Excel'} import successful.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`,
+            ? `${sourceLabel} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`
+            : `${sourceLabel} import successful.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`,
       })
     } catch (error) {
       setAlert({
@@ -408,6 +459,31 @@ function App() {
       setImportInProgress(false)
     }
   }
+  useEffect(() => {
+    if (availableDatasets === null) return
+    const sourceMode = getSourceMode(activeDataframe, availableDatasets)
+    
+    if (sourceMode === 'dataset') {
+      if (!activeDataframe.importFileName) return
+      const key = `${activeDataframeIndex}:${activeDataframe.importFileName}:${activeDataframe.importSheet}`
+      if (key === datasetAutoImportRef.current) return
+      datasetAutoImportRef.current = key
+      void importDatabase()
+    } else if (sourceMode === 'file') {
+      if (!activeDataframe.importFileName) return
+      const cachedFile = datasourceFilesByDataframe[activeDataframeIndex]
+      if (!cachedFile || cachedFile.name !== activeDataframe.importFileName) return
+      
+      const key = `${activeDataframeIndex}:${activeDataframe.importFileName}:${activeDataframe.importSheet}`
+      if (key === fileAutoImportRef.current) return
+      fileAutoImportRef.current = key
+      void importDatabase(cachedFile)
+    } else {
+      datasetAutoImportRef.current = null
+      fileAutoImportRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDataframeIndex, activeDataframe.importFileName, activeDataframe.importSheet, activeDataframe._extensions.source_mode, availableDatasets, datasourceFilesByDataframe])
   const updateLanguages = (next: string[]) => {
     const sanitized = normalizePlotLanguages(activeDataframe.plotLanguages, next)
     patchActiveDataframe((df) => ({
@@ -589,7 +665,7 @@ function App() {
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
   const headerProps = { activePage, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
   const tabProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: availableSheetsByDataframe[activeDataframeIndex] ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
     <>
       <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
@@ -639,7 +715,7 @@ function App() {
           <ConfigSections {...sectionProps} />
         </main>
       ) : (
-        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} />
+        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets} />
       )}
       <AppPopouts
         showAbout={showAbout}

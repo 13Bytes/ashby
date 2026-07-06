@@ -19,7 +19,7 @@
     
         "API_Key": null,                    // Teable API Key   ["Bearer teable_ ..." str]
         "teable_url":null,                  // Teable url       ["https://www ..." str] if [null] → import Excel from import_file_name (#19) {null}
-        "import_file_name":"",              // Excel file name  [str "...xlsx"], Excel is expected to be in the material_properties folder {null}
+        "import_file_name":"",              // Excel file name  [str "...xlsx"], Excel is expected to be in the material_properties folder and can also be selected through the provided-dataset source mode {null}
         "import_sheet":0,                   // sheetnumber in Exel to import [num] {0}
     
         "image_ratio":2,                    // with/heigth [num] {16/9} 

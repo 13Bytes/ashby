@@ -25,6 +25,17 @@ def _resolve_import_file_path(import_file_name: str) -> Path:
     raise FileNotFoundError(f"Unable to locate import file '{import_file_name}'.")
 
 
+def list_available_import_files() -> list[str]:
+    if not MATERIAL_PROPERTIES_DIR.is_dir():
+        return []
+
+    return sorted(
+        path.relative_to(MATERIAL_PROPERTIES_DIR).as_posix()
+        for path in MATERIAL_PROPERTIES_DIR.rglob('*.xlsx')
+        if path.is_file()
+    )
+
+
 def import_data(dataframe, frame, Sorted_data, xlsx_file_bytes=None):
     if dataframe.get('teable_url',None) != None:
         data = import_teable(
@@ -48,6 +59,34 @@ def import_data(dataframe, frame, Sorted_data, xlsx_file_bytes=None):
     else:
         raise FileNotFoundError("no datasource selected. set teable_url or import_file_name in config")
     return data
+
+def import_excel_metadata(import_file_name: str, import_sheet: int):
+    file_path = _resolve_import_file_path(import_file_name)
+    xls = pd.ExcelFile(file_path)
+    sheet_names = xls.sheet_names
+
+    index = min(max(import_sheet, 0), len(sheet_names) - 1)
+    data = pd.read_excel(xls, sheet_name=sheet_names[index])
+
+    columns = [str(column).strip() for column in data.columns if str(column).strip()]
+
+    keywords_by_column: dict[str, list[str]] = {}
+    for column in data.columns:
+        normalized_column = str(column).strip()
+        if not normalized_column:
+            continue
+        series = data[column].dropna()
+        keywords = sorted(
+            {
+                str(entry).strip()
+                for entry in series
+                if isinstance(entry, str) and str(entry).strip()
+            },
+            key=lambda entry: entry.lower(),
+        )
+        keywords_by_column[normalized_column] = keywords
+
+    return columns, keywords_by_column, sheet_names
 
 def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     wanted_fields = collums_list(axes, layers)
