@@ -187,5 +187,5 @@ test('backend-format nested frame objects are normalized for the frontend editor
   assert.match(mapperSource, /const excelImportFallback = importFileName \? true : apiKey \|\| teableUrl \? false : fallback\.excelImport/)
   assert.match(mapperSource, /excelImport: coerceBool\(partial\.excelImport \?\? partial\.excel_import, excelImportFallback\)/)
   assert.match(configIoSource, /tick_size: dataframe\.font\.tickSize/)
-  assert.match(configIoSource, /legend_size: dataframe\.font\.legendTitleSize/)
+  assert.match(configIoSource, /legend_title_size: dataframe\.font\.legendTitleSize/)
 })

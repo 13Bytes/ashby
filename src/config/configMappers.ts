@@ -30,6 +30,9 @@ const coerceNumber = (value: unknown, fallback: number): number =>
 const coerceOptionalNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined
 
+const coerceSelection = (value: unknown, options: Array<any>, fallback: any): any =>  
+  options.includes(value) ? value : fallback
+
 const coerceFontStyle = (
   value: unknown,
   fallback: DataframeConfig['font']['fontStyle'],
@@ -371,11 +374,8 @@ const normalizeDataframe = (
       legacyImageWidth > 0 && legacyImageHeight > 0
         ? [legacyImageWidth, legacyImageHeight]
         : coerceNumberPair(partial.aspectRatio ?? partial.image_ratio, fallback.aspectRatio),
-    resolution:
-      typeof (partial.resolution ?? partial.image_dpi) === 'number' ||
-        (partial.resolution ?? partial.image_dpi) === 'svg'
-        ? ((partial.resolution ?? partial.image_dpi) as number | 'svg')
-        : fallback.resolution,
+    fileformat: coerceSelection(partial.fileformat ?? partial.fileformat, ["svg","png"], "svg"),
+    resolution: coerceNumber(partial.resolution ?? partial.resolution, fallback.resolution),
     legendTitle: isRecord(partial.legendTitle ?? partial.legend_title)
       ? Object.fromEntries(
         Object.entries((partial.legendTitle ?? partial.legend_title) as Record<string, unknown>).filter(
