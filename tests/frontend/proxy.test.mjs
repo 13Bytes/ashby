@@ -155,7 +155,7 @@ test('plot dark mode uses dataframe defaults and optional frame overrides', asyn
 
   assert.match(configIoSource, /frame\.darkMode === undefined \? \{\} : \{ dark_mode: frame\.darkMode \}/)
   assert.match(mapperSource, /darkMode: coerceOptionalBool\(partial\.darkMode \?\? partial\.dark_mode\)/)
-  assert.match(dataframeSource, /label=\{t\('dataframeDarkMode'\)\}/)
+  assert.match(dataframeSource, /label=\{t\('DarkMode'\)\}/)
   assert.match(actionsSource, /next\.darkMode = undefined/)
 })
 

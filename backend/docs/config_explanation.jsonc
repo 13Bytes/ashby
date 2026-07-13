@@ -23,7 +23,8 @@
         "import_sheet":0,                   // sheetnumber in Exel to import [num] {0}
     
         "image_ratio":[3,2],                // with/heigth [[num, num]] {[3,2]} 
-        "resolution":1000,                  // vertical resolution for .png export [num] or ["svg"] to export as .svg {"svg"}
+        "fileformat":"",                    // decides weather export is as png or svg ["png"]["svg"]   {"svg"}
+        "resolution":1000,                  // vertical resolution for .png export [num]
     
         "legend_title":"",                  // see Appendix PLACEHOLDER_LABEL
         "font":{                            // [{}]
@@ -34,7 +35,7 @@
             "legend_title_size":0,          // fontsize for lgend title [int] {25}
             "legend_label_size":0,          // fontsize for lgend item labels [int] {15}
             "axis_label_size":0,            // fontsize for axis label {20}
-            "tick_size":0,                  // fontsize for axis numbers [int] {15}
+            "tick_size":0                   // fontsize for axis numbers [int] {15}
         },
         "language":"",                      // [str] {"en"} language for axis-label & Legend Headline
         "dark_mode":false,                  // font color, black or white: {true}
@@ -105,6 +106,7 @@
                 "font_color":"",                // [str] {default font color: black / white} 
                 "label":"",                     // see Appendix PLACEHOLDER_LABEL
                 "label_above": true,            // should the label be placed above or below the line [true]/[false] {true}
+                "label_rotated": true,          // weather the label should be parallel to the tangency a t the selected point (x,y) or horizontal [true]/[false] {true}
                 "label_padding": 0              // padding between label and lien [num] {6}
             }],            
     
