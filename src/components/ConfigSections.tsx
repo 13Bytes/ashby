@@ -87,6 +87,19 @@ export function ConfigSections(props: Props) {
         FieldComponent={Field}
       />
 
+      
+      <MaterialColorsSection
+        t={t}
+        activeDataframe={activeDataframe}
+        customMaterialNames={customMaterialNames}
+        setCustomMaterialNames={setCustomMaterialNames}
+        materialKeywordOptions={materialKeywordOptions}
+        CUSTOM_SELECT_VALUE={CUSTOM_SELECT_VALUE}
+        patchActiveDataframe={patchActiveDataframe}
+        setShowGenerateColorsConfirm={setShowGenerateColorsConfirm}
+      />
+
+
       <AxesSection
         t={t}
         uiLanguage={uiLanguage}
@@ -103,6 +116,19 @@ export function ConfigSections(props: Props) {
         FieldComponent={Field}
         MultiSelectInputComponent={MultiSelectInput}
         RemoveIconButtonComponent={RemoveIconButton}
+      />
+
+      <FrameSection
+        t={t}
+        uiLanguage={uiLanguage}
+        activeFrame={activeFrame}
+        activeDataframe={activeDataframe}
+        patchActiveFrame={patchActiveFrame}
+        patchActiveDataframe={patchActiveDataframe}
+        PLOT_ALGORITHMS={PLOT_ALGORITHMS}
+        automaticDisplayAreaActive={automaticDisplayAreaActive}
+        numberValue={numberValue}
+        FieldComponent={Field}
       />
 
       <LayersSection
@@ -139,19 +165,6 @@ export function ConfigSections(props: Props) {
         ColorOrMaterialInputComponent={ColorOrMaterialInput}
       />
 
-      <FrameSection
-        t={t}
-        uiLanguage={uiLanguage}
-        activeFrame={activeFrame}
-        activeDataframe={activeDataframe}
-        patchActiveFrame={patchActiveFrame}
-        patchActiveDataframe={patchActiveDataframe}
-        PLOT_ALGORITHMS={PLOT_ALGORITHMS}
-        automaticDisplayAreaActive={automaticDisplayAreaActive}
-        numberValue={numberValue}
-        FieldComponent={Field}
-      />
-
       <GuidelinesSection
         t={t}
         uiLanguage={uiLanguage}
@@ -180,17 +193,6 @@ export function ConfigSections(props: Props) {
         FieldComponent={Field}
         RemoveIconButtonComponent={RemoveIconButton}
         ColorOrMaterialInputComponent={ColorOrMaterialInput}
-      />
-
-      <MaterialColorsSection
-        t={t}
-        activeDataframe={activeDataframe}
-        customMaterialNames={customMaterialNames}
-        setCustomMaterialNames={setCustomMaterialNames}
-        materialKeywordOptions={materialKeywordOptions}
-        CUSTOM_SELECT_VALUE={CUSTOM_SELECT_VALUE}
-        patchActiveDataframe={patchActiveDataframe}
-        setShowGenerateColorsConfirm={setShowGenerateColorsConfirm}
       />
 
       <AdvancedJsonSection

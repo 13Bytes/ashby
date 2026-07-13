@@ -129,6 +129,15 @@ export function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => vo
   )
 }
 
+export function DuplicateIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {    /* & use for guideline, annotation,... duplication */
+  return (
+    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2 hover:bg-red-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Remove">
+      ⧉
+    </Button>
+  )
+}
+
+
 export function ColorOrMaterialInput({
   value,
   onChange,
@@ -147,7 +156,7 @@ export function ColorOrMaterialInput({
       </Button>
       {mode === 'custom' ? (
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-          <Input type="color" value={isHexColor ? value : '#000000'} className="h-10 w-16 p-1" onChange={(e) => onChange(e.target.value)} />
+          <Input type="color" value={isHexColor ? value : '#000000'} className="w-16 p-1" onChange={(e) => onChange(e.target.value)} />
           <Input value={value} onChange={(e) => onChange(e.target.value)} />
         </div>
       ) : (

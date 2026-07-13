@@ -24,20 +24,23 @@ export interface DataframeConfig {
   importFileName?: string
   importSheet: number
   aspectRatio: [number, number]
-  resolution: number | "svg"
+  fileformat: "svg" | "png"
+  resolution: number
   legendTitle: Record<string, string>
   font: {
     fontStyle: "serif" | "sans-serif" | "cursive" | "fantasy" | "monospace"
     font: string
     fontSize: number
-    tickSize: number
     titleSize: number
+    legendTitleSize: number
+    legendLabelSize: number
     axisLabelSize: number
-    legendSize: number
+    tickSize: number
   }
   language: string
   plotLanguages: string[]
   darkMode: boolean
+  transparent: boolean
   createAllFrames: true | number[]
   frames: FrameConfig[]
   axes: AxisConfig[]
@@ -156,21 +159,24 @@ export function createDefaultPlotConfig(): PlotConfig {
       {
         excelImport: true,
         importSheet: 0,
-        aspectRatio: [16, 9],
-        resolution: 'svg',
+        aspectRatio: [3, 2],
+        fileformat: 'svg',
+        resolution: 100,
         legendTitle: { en: '' },
         font: {
           fontStyle: 'sans-serif',
           font: 'Arial',
           fontSize: 22,
-          tickSize: 5,
           titleSize: 40,
+          legendTitleSize: 20,
+          legendLabelSize: 20,
           axisLabelSize: 15,
-          legendSize: 20,
+          tickSize: 5,
         },
         language: 'en',
         plotLanguages: ['en'],
         darkMode: false,
+        transparent: false,
         createAllFrames: true,
         frames: [
           {

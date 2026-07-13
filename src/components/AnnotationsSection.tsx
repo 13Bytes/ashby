@@ -5,14 +5,33 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 
-const MARKER_SYMBOL_OPTIONS = [
-  { value: 'o', label: 'circle (o)' },
-  { value: 's', label: 'square (s)' },
-  { value: '^', label: 'triangle up (^)' },
-  { value: 'v', label: 'triangle down (v)' },
-  { value: 'D', label: 'diamond (D)' },
-  { value: 'x', label: 'x (x)' },
-  { value: '*', label: 'star (*)' },
+const MARKER_SYMBOL_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '.', label: 'point' },
+  { value: ',', label: 'pixel' },
+  { value: 'o', label: 'circle' },
+  { value: 'v', label: 'triangle_down' },
+  { value: '^', label: 'triangle_up' },
+  { value: '<', label: 'triangle_left' },
+  { value: '>', label: 'triangle_right' },
+  { value: '1', label: 'tri_down' },
+  { value: '2', label: 'tri_up' },
+  { value: '3', label: 'tri_left' },
+  { value: '4', label: 'tri_right' },
+  { value: '8', label: 'octagon' },
+  { value: 's', label: 'square' },
+  { value: 'p', label: 'pentagon' },
+  { value: 'P', label: 'plus_filled' },
+  { value: '*', label: 'star' },
+  { value: 'h', label: 'hexagon1' },
+  { value: 'H', label: 'hexagon2' },
+  { value: '+', label: 'plus' },
+  { value: 'x', label: 'x' },
+  { value: 'X', label: 'x_filled' },
+  { value: 'D', label: 'diamond' },
+  { value: 'd', label: 'thin_diamond' },
+  { value: '|', label: 'vline' },
+  { value: '_', label: 'hline' },
+
 ]
 
 type Props = {
@@ -85,14 +104,13 @@ export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGr
               </Button>
             </div>
 
-
             {annotation.marker ?
               <div className='sm:col-span-4 grid gap-2 sm:grid-cols-5'>
                 <div className="sm:col-span-5 mt-5 text-xs font-semibold uppercase tracking-wide text-zinc-500">Marker settings</div>
                 <Field language={uiLanguage} label="Marker symbol" jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`}>
                   <div className="grid gap-2">
                     <Select
-                      value={MARKER_SYMBOL_OPTIONS.some((option) => option.value === annotation.marker!.markerSymbol) ? annotation.marker!.markerSymbol : 'custom'}
+                      value={annotation.marker.markerSymbol}
                       onChange={(e) => {
                         const nextSelection = e.target.value
                         if (nextSelection !== 'custom') {
@@ -104,29 +122,9 @@ export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGr
                       }}
                     >
                       {MARKER_SYMBOL_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                        <option key={option.value} value={option.value}>{option.label}    ( {option.value} )</option>
                       ))}
-                      <option disabled>──────────</option>
-                      <option value="custom">custom…</option>
                     </Select>
-                      {!MARKER_SYMBOL_OPTIONS.some((option) => option.value === annotation.marker!.markerSymbol) ? (
-                        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                          <Input
-                            value={annotation.marker!.markerSymbol ?? ''}
-                            onChange={(e) => {
-                              const nextCustomValue = e.target.value
-                              patchActiveFrame((f) => ({
-                                ...f,
-                                annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, marker: { ...(entry.marker ?? { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }), markerSymbol: nextCustomValue } } : entry),
-                              }))
-                            }}
-                            placeholder="custom marker symbol"
-                        />
-                        <a href="https://matplotlib.org/stable/api/markers_api.html" target="_blank" rel="noreferrer">
-                          <Button type="button" size="sm" variant="outline">Help</Button>
-                        </a>
-                      </div>
-                    ) : null}
                   </div>
                 </Field>
                 {/* & save values if disabled */}

@@ -164,7 +164,7 @@ test('plot dark mode uses dataframe defaults and optional frame overrides', asyn
 
   assert.match(configIoSource, /frame\.darkMode === undefined \? \{\} : \{ dark_mode: frame\.darkMode \}/)
   assert.match(mapperSource, /darkMode: coerceOptionalBool\(partial\.darkMode \?\? partial\.dark_mode\)/)
-  assert.match(dataframeSource, /label=\{t\('dataframeDarkMode'\)\}/)
+  assert.match(dataframeSource, /label=\{t\('DarkMode'\)\}/)
   assert.match(actionsSource, /next\.darkMode = undefined/)
 })
 
@@ -196,5 +196,5 @@ test('backend-format nested frame objects are normalized for the frontend editor
   assert.match(mapperSource, /const excelImportFallback = importFileName \? true : apiKey \|\| teableUrl \? false : fallback\.excelImport/)
   assert.match(mapperSource, /excelImport: coerceBool\(partial\.excelImport \?\? partial\.excel_import, excelImportFallback\)/)
   assert.match(configIoSource, /tick_size: dataframe\.font\.tickSize/)
-  assert.match(configIoSource, /legend_size: dataframe\.font\.legendSize/)
+  assert.match(configIoSource, /legend_title_size: dataframe\.font\.legendTitleSize/)
 })

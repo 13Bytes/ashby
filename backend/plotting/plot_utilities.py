@@ -6,12 +6,12 @@ from matplotlib import colors
 from types import SimpleNamespace
 from termcolor import (colored, cprint)
 
+from .formatting import format_storage
 
-from .plot_hull  import plotter_graphics
-from .formatting import title
+
 
 class data_handling(): 
-    def __init__(self, graphics:type, dataframe:pd.DataFrame, frame:dict, language):
+    def __init__(self, Format_Storage:object, graphics:type, dataframe:pd.DataFrame, frame:dict):
         self.graphics        = graphics
         x_quantity = frame.get("x_quantity")
         y_quantity = frame.get("y_quantity")
@@ -19,8 +19,8 @@ class data_handling():
             raise ValueError("Frame requires x_quantity. Select an absolute X-axis quantity before rendering.")
         if not isinstance(y_quantity, str) or not y_quantity.strip():
             raise ValueError("Frame requires y_quantity. Select an absolute Y-axis quantity before rendering.")
-        self.absolute        = parse_data(dataframe['axes'], language, x_quantity, y_quantity)
-        self.relative        = parse_data(dataframe['axes'], language, frame.get("x_rel_quantity",None), frame.get("y_rel_quantity",None))
+        self.absolute        = parse_data(Format_Storage, dataframe['axes'], x_quantity, y_quantity)
+        self.relative        = parse_data(Format_Storage, dataframe['axes'], frame.get("x_rel_quantity",None), frame.get("y_rel_quantity",None))
         self.frame           = frame
         self.material_colors = dataframe['material_colors']
         self.layers          = frame.get('layers') or [{}]
@@ -190,7 +190,7 @@ class data_handling():
 
 
 class parse_data():   # relative & absolute separate
-    def __init__(self, axes:dict, language:str, x_quantity:str, y_quantity:str) -> None:
+    def __init__(self, Format_Storage:object, axes:dict, x_quantity:str, y_quantity:str) -> None:
         import_quantities = [x_quantity, y_quantity]
         self.quantities = [ None ,  None ]
         self.labels     = [ None ,  None ]
@@ -201,7 +201,7 @@ class parse_data():   # relative & absolute separate
             for axe in axes:
                 if axe['name'] == quantity:
                     self.quantities[dim]  = axe['name']
-                    self.labels[dim]      = title(axe.get('labels',""), language)
+                    self.labels[dim]      = Format_Storage.language_text(axe.get('labels',""))
                     self.columns[dim]     = axe['columns']
                     self.modes[dim]       = axe.get('mode',"default")
                     break

@@ -12,33 +12,37 @@
 // for colors see: https://matplotlib.org/stable/users/explain/colors/colors.html & https://matplotlib.org/stable/gallery/color/named_colors.html 
 
 {
-    "version":4,                            // version number
+    "version":5,                            // version number
     "create_all_dataframes":true,           // [true] create all dataframes in list,  [num array] only given frames (numbers can be retrieved from output when creating all frames) {true}
     "dataframes":[{
         "name":null,                        // title to show in console log, {""}
     
         "API_Key": null,                    // Teable API Key   ["Bearer teable_ ..." str]
         "teable_url":null,                  // Teable url       ["https://www ..." str] if [null] → import Excel from import_file_name (#19) {null}
-        "import_file_name":"",              // Excel file name  [str "...xlsx"], Excel is expected to be in the material_properties folder and can also be selected through the provided-dataset source mode {null}
+        "import_file_name":"",              // Excel file name  [str "...xlsx"], Excel is expected to be in the material_properties folder {null}
         "import_sheet":0,                   // sheetnumber in Exel to import [num] {0}
     
-        "image_ratio":2,                    // with/heigth [num] {16/9} 
-        "resolution":1000,                  // vertical resolution for .png export [num] or ["svg"] to export as .svg {"svg"}
+        "image_ratio":[3,2],                // with/heigth [[num, num]] {[3,2]} 
+        "fileformat":"",                    // decides weather export is as png or svg ["png"]["svg"]   {"svg"}
+        "resolution":1000,                  // vertical resolution for .png export [num]
     
-        "legend_title":{                    // legend title [str]/[dict] {""}
-            "en":""                         // language : tiltle [str]   (#31)
-        }, 
+        "legend_title":"",                  // see Appendix PLACEHOLDER_LABEL
         "font":{                            // [{}]
             "font_style":"",                // fort style {"sans-serif"}  ["serif"]["sans-serif"]["cursive"]["fantasy"]["monospace"]
             "font":"",                      // font [str] {"Arial"}
-            "font_size":0,                  // fontsize [int] {22}
-            "tick_size":0,                  // fontsize for axis numbers [int] {15}
+            "font_size":0,                  // fontsize [int] {22}      // & used for what ???
             "title_size":0,                 // fontsize for title [int] {40}
-            "axis_label_size":0,            // fontsize for axis label [int] {20}
-            "legend_size":0                 // fontsize for lgend title [int] {20}
+            "legend_title_size":0,          // fontsize for lgend title [int] {25}
+            "legend_label_size":0,          // fontsize for lgend item labels [int] {15}
+            "axis_label_size":0,            // fontsize for axis label {20}
+            "tick_size":0                   // fontsize for axis numbers [int] {15}
         },
         "language":"",                      // [str] {"en"} language for axis-label & Legend Headline
         "dark_mode":false,                  // font color, black or white: {true}
+        "transparent":true,                 // decide weather background should be transparent [bool]   // & implement
+        "copyright":"",                     // copyright text to be displayed vertivaly at the bottom right corner [str][false] {false}  // & implement
+        "watermark":"",                     // path to watermark [str][false]       // & implement
+    
     
     
     // : Frames :
@@ -46,10 +50,8 @@
         "frames":[{
             "name":null,                    // title to show in output and window header on popout {""}
             
-            "title":{                       // plot title for popout only [str]/[dict] {""}    // & implement
-                "en":""                     // language : tiltle [str]   (#31)
-            },                     
-            "legend_above":false,           // determine where legend should be printed [true]:above, [false]:right, [none]:no legend  {false}
+            "title":"",                     // see Appendix PLACEHOLDER_LABEL
+            "legend_above":false,           // determine where legend should be printed [true]:above, [false]:right, [null]:no legend  {false}
             "language":"",                  // [str] {dataframe:language }
             "dark_mode":false,              // font color, black or white: {dataframe:dark_mode}
     
@@ -58,18 +60,18 @@
             "x_quantity":"",                // axis name (see bottom) for value on x_axis       [str]
             "x_rel_quantity":null,          //   "                    to divide x_quantity by (per point)   [str / none] {none}
             "log_x_flag":false,             // [true]/[false] should the x-axis be displayed logarhithmic                  {false}
-            "x_lim":[0, 0],                 // [num, num] area on x-axis to be displayed (min/max). If automatic display area is active in UI this is shown as left/right.   {null}
+            "x_lim":[0, 0],                 // [num, num] area on x-axis to be displayed, [null] will calculate the area itself including padding (#47)   {null}
     
             "y_quantity":"",                // axis name (see bottom) for value on y_axis       [str]
             "y_rel_quantity":null,          //   "                    to divide y_quantity by (per point)   [str / none] {none}
             "log_y_flag":false,             // [true[/[false] should the y-axis be displayed logarhithmic                {false}
-            "y_lim":[0, 0],                 // [num, num] area on y-axis to be displayed (min/max). If automatic display area is active in UI this is shown as bottom/top.   {null}
+            "y_lim":[0, 0],                 // [num, num] area on y-axis to be displayed, [null] will calculate the area itself including padding (#47)   {null}
     
-            "automatic_Display_Area_margin": {   // relative automatic display area padding; UI toggle "Automatic display area" enables this block {0.12}
-                "left":0,                        // x-axis min-side padding (left)
+            "automatic_Display_Area_margin": {   // rellative padding around points/marker in every direction; 1 is size of all points [float]/[dict] {0.12}
+                "left":0,                        // rellative padding around points/marker in one direction
                 "right":0,
-                "top":0,                         // y-axis max-side padding (top)
-                "bottom":0                       // y-axis min-side padding (bottom)
+                "top":0,
+                "bottom":0
             },                              
     
             "algorithm":"",                 // approximation algorithm for hulls ["alpha" / "cubic"]  {cubic}
@@ -102,8 +104,9 @@
                 },
                 "fontsize": 20,                 // [num] {18}
                 "font_color":"",                // [str] {default font color: black / white} 
-                "label":"",                     // label [str] {""}
+                "label":"",                     // see Appendix PLACEHOLDER_LABEL
                 "label_above": true,            // should the label be placed above or below the line [true]/[false] {true}
+                "label_rotated": true,          // weather the label should be parallel to the tangency a t the selected point (x,y) or horizontal [true]/[false] {true}
                 "label_padding": 0              // padding between label and lien [num] {6}
             }],            
     
@@ -113,28 +116,28 @@
                 "font_size":0                   // default font size   {18}
             },{
                 "text":{
-                    "name":"",                  // label  {""}
+                    "name":"",                  // see Appendix PLACEHOLDER_LABEL
                     "rel_pos":[0,0],            // shift from axes position [x,y] ≙ [num,num]  in   * Plotsize / 100
                     "color":"",                 // color (#12), material_colors (#146)  [str]
                     "font_size":0               // fontsize to overwrite de default one (#88)
                 },
                 "axes":{                        // define position
                     "": 0,                      // axes name (#151) [str] : position [num]
-                    "": 0,                      //...
+                    "": 0, //...
                 },
                 "marker":{                      // [none] for no marker  {none}
                     "color":"",                 // color (#12), material_colors (#146)  [str]  {'default'}
                     "marker_symbol": "",        // see https://matplotlib.org/stable/api/markers_api.html for all options  {"o"}
                     "size_factor":1,            // multiplier to marker_size (#78)  {1}
                     "linewidths":0,             // outline width [num] {0}
-                    "edgecolors":""             // outline color (#12), material_colors (#146) [str] {"black"}
+                    "edgecolor":""             // outline color (#12), material_colors (#146) [str] {"black"}
                 },
                 "arrow":{                       // [none] for no arrow  {none},  see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.annotate.html arrowprops
                     "width": 0,                 // linewidth {}
                     "facecolor": "blue",        // arrow color: (#12), material_colors (#146)  [str] {}
                     "headlength": 0,            // headdimensions in points [num] {}
                     "headwidth": 0,             //   "       
-                    "linewidth": 0              // outline linewidth
+                    "linewidth":0               // outline linewidth
                 }
             }],
                 
@@ -160,22 +163,31 @@
         // : end of Frame :
         // + list of all possible axes +
         "axes":[{                    
-            "name":"",               // axis name    [str]
+            "name":"",               // see Appendix PLACEHOLDER_LABEL
             "columns":["",""],       // column names [str,str, ...] 
             "mode":"",               // ["default"] fist column that hast selected value will be plotted, ["max"]/["min"] highest/lowest value across all columns will be plotted, ["span"] highest and lowest can be from separate columns   {"default"}
-            "labels":{
-                "de":"",             // axis Label
-                "en":""              // more languages can be added  (#25)
-            }                        // a list to copy paste for our default axes is found at axen.json
-        }],
+            "labels":""              // see Appendix PLACEHOLDER_LABEL
+            }],     // a list to copy paste for our default axes is found at  material_properties\axen.json
     
         // + list of all colors +
         "material_colors":{       
-            "default":"",         // hex or color-name [str] (#12), default color for hulls, marker,.. if no color is given {"#000000"}
-            "": "",	              // material_name : [#rrggbb] or color-name [str]  (#12), [null] hides hulls ;  more colors can be added below
+            "default":"",         // hex or color-name [str] (#12), default color for hulls, marker,.. if no color is given {"#333333"}
+            "": "" 	              // material_name : [#rrggbb] or color-name [str]  (#12), [null] hides hulls ;  more colors can be added below
             }
     }],
     
     "credits":"",           // ignored by the tool
     "license":""            // ignored by the tool
+    
+    
+    
+    ,// Start of Appendix //  This is not part of the config but represents repeating snippets to keep it simple
+        "PLACEHOLDER_LABEL":{      //replace by true name of mos text elements (see above) as [str][dict]  {""}
+            "de":"",                    // if dict and there fore language dependant language and string can be set
+            "":""                       // other languages can be added as desired. The language can be selected by using the language flag above
+        }                               
+    
+     // END of Appendix //
     }
+    
+    

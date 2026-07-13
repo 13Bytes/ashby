@@ -30,6 +30,9 @@ const coerceNumber = (value: unknown, fallback: number): number =>
 const coerceOptionalNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined
 
+const coerceSelection = (value: unknown, options: Array<any>, fallback: any): any =>  
+  options.includes(value) ? value : fallback
+
 const coerceFontStyle = (
   value: unknown,
   fallback: DataframeConfig['font']['fontStyle'],
@@ -379,11 +382,8 @@ const normalizeDataframe = (
       legacyImageWidth > 0 && legacyImageHeight > 0
         ? [legacyImageWidth, legacyImageHeight]
         : coerceNumberPair(partial.aspectRatio ?? partial.image_ratio, fallback.aspectRatio),
-    resolution:
-      typeof (partial.resolution ?? partial.image_dpi) === 'number' ||
-        (partial.resolution ?? partial.image_dpi) === 'svg'
-        ? ((partial.resolution ?? partial.image_dpi) as number | 'svg')
-        : fallback.resolution,
+    fileformat: coerceSelection(partial.fileformat ?? partial.fileformat, ["svg","png"], "svg"),
+    resolution: coerceNumber(partial.resolution ?? partial.resolution, fallback.resolution),
     legendTitle: isRecord(partial.legendTitle ?? partial.legend_title)
       ? Object.fromEntries(
         Object.entries((partial.legendTitle ?? partial.legend_title) as Record<string, unknown>).filter(
@@ -395,11 +395,12 @@ const normalizeDataframe = (
       ? {
         fontStyle: coerceFontStyle(partial.font.fontStyle ?? partial.font.font_style, fallback.font.fontStyle),
         font: typeof partial.font.font === 'string' ? partial.font.font : fallback.font.font,
-        fontSize: coerceNumber(partial.font.fontSize ?? partial.font.font_size, fallback.font.fontSize),
-        tickSize: coerceNumber(partial.font.tickSize ?? partial.font.tick_size, fallback.font.tickSize),
-        titleSize: coerceNumber(partial.font.titleSize ?? partial.font.title_size, fallback.font.titleSize),
-        axisLabelSize: coerceNumber(partial.font.axisLabelSize ?? partial.font.axis_label_size, fallback.font.axisLabelSize),
-        legendSize: coerceNumber(partial.font.legendSize ?? partial.font.legend_size, fallback.font.legendSize),
+        fontSize:        coerceNumber(partial.font.fontSize ?? partial.font.font_size, fallback.font.fontSize),
+        titleSize:       coerceNumber(partial.font.titleSize ?? partial.font.title_size, fallback.font.titleSize),
+        legendTitleSize: coerceNumber(partial.font.legendTitleSize ?? partial.font.legend_title_size, fallback.font.legendTitleSize),
+        legendLabelSize: coerceNumber(partial.font.legendLabelSize ?? partial.font.legend_label_size, fallback.font.legendLabelSize),
+        axisLabelSize:   coerceNumber(partial.font.axisLabelSize ?? partial.font.axis_label_size, fallback.font.axisLabelSize),
+        tickSize:        coerceNumber(partial.font.tickSize ?? partial.font.tick_size, fallback.font.tickSize),
       }
       : fallback.font,
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
