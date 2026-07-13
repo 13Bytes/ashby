@@ -85,11 +85,11 @@ export function DataframeSection({
       </Field>
 
       <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution" className='grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2'>    {/* & fix */}
-        <Button type="button" variant="outline" onClick={() => patchActiveDataframe((c:any) => ({ ...c, fileformat: !c.fileformat }))}>{activeDataframe.fileformat === 'svg' ? "svg" : "png"}</Button>
+        <Button type="button" variant="outline" onClick={() => patchActiveDataframe((current) => ({ ...current, fileformat: current.fileformat === 'svg' ? "png" : "svg"}))}>{activeDataframe.fileformat}</Button>
         {activeDataframe.fileformat === 'svg' ? null : (
           <Input
             value={String(activeDataframe.resolution)}
-            onChange={(event) => patchActiveDataframe((current) => ({ ...current, resolution: Number(event.target.value)}))}    /* & not on change but click somewhere else */
+            onChange={(event) => patchActiveDataframe((current) => ({ ...current, resolution: Number(event.target.value) }))}    /* & not on change but click somewhere else */
           />
         )}
       </Field>
