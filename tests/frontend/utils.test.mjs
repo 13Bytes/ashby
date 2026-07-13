@@ -84,6 +84,14 @@ test('appState UI keys stay stable for reorderable entities and refresh for clon
   assert.notEqual(getUiKey(frame, 'frame'), firstKey)
 })
 
+test('appState resolves dataset source mode from explicit metadata and server catalogs', async () => {
+  const { getSourceMode } = await importTypeScriptModule('src/utils/appState.ts')
+
+  assert.equal(getSourceMode({ _extensions: { source_mode: 'dataset' }, teableUrl: undefined, apiKey: undefined, importFileName: undefined }), 'dataset')
+  assert.equal(getSourceMode({ _extensions: {}, teableUrl: undefined, apiKey: undefined, importFileName: 'dataset_1.xlsx' }, ['dataset_1.xlsx']), 'dataset')
+  assert.equal(getSourceMode({ _extensions: {}, teableUrl: 'https://example.invalid', apiKey: undefined, importFileName: undefined }, []), 'teable')
+})
+
 test('uiTheme validates stored values and resolves system preference', async () => {
   const { parseUIThemePreference, resolveUITheme } = await importTypeScriptModule('src/utils/uiTheme.ts')
 
@@ -109,4 +117,15 @@ test('new plot config frames inherit dataframe dark mode unless explicitly overr
   config.dataframes[0].frames[0].darkMode = false
   const overridden = toExternalConfig(config)
   assert.equal(overridden.dataframes[0].frames[0].dark_mode, false)
+})
+
+test('toExternalConfig preserves dataframe source mode metadata in _extensions', async () => {
+  const { createDefaultPlotConfig } = await importTypeScriptModule('src/config/defaultPlotConfig.ts')
+  const { toExternalConfig } = await importTypeScriptModule('src/utils/configIo.ts')
+  const config = createDefaultPlotConfig()
+  config.dataframes[0]._extensions.source_mode = 'dataset'
+
+  const external = toExternalConfig(config)
+
+  assert.equal(external.dataframes[0]._extensions.source_mode, 'dataset')
 })

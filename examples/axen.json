@@ -1,0 +1,83 @@
+{
+"axes":[{
+        "name":"nr",
+        "columns":["nr"],
+        "mode":"default",
+        "labels":{
+            "de":"",
+            "en":""
+        }
+    },{
+        "name":"HDT 0.46",
+        "columns":["Deflection Temperature at 0.46 MPa 66 psi"],
+        "mode":"default",
+        "labels":{
+            "de":"Verformungstemperatur [°C] @ 0.46 MPa",
+            "en":"Deflection Temperature $HDT$ [°C] @ 0.46 MPa"
+        }
+    },{
+        "name":"HDT 1.8",
+        "columns":["Deflection Temperature at 1.8 MPa 264 psi"],
+        "mode":"default",
+        "labels":{
+            "de":"Verformungstemperatur [°C] @ 1,8 MPa",
+            "en":"Deflection Temperature $HDT$ [°C] @ 1.8 MPa"
+        }
+    },{
+        "name":"melt",
+        "columns":["Melting Point", "Melt Temperature", "Processing Temperature"],
+        "mode":"default",
+        "labels":{
+            "de":"Schmelztemperatur $T_S$ [°C]",
+            "en":"melting point $T_M$ [°C]"
+        }
+    },{
+        "name":"Rm",
+        "columns":["Tensile Strength Ultimate", "Tensile Strength", "Tensile Strength at Break", "Tensile Strength Yield"],
+        "mode":"default",
+        "labels":{
+            "de":"Zugfestigkeit $R_m$ [MPa]",
+            "en":"Tensile Strength $R_m$ [MPa]"
+        }
+    },{
+        "name":"E-Mod",
+        "columns":["Tensile Modulus", "Modulus of Elasticity"],
+        "mode":"def",
+        "labels":{
+            "de":"E-Modul [GPa]",
+            "en":"E-Modulus [GPa]"
+        }
+    },{
+        "name":"Elong_br",
+        "columns":["Elongation at Break"],
+        "mode":"def",
+        "labels":{
+            "de":"Bruchdehnung [%]",
+            "en":"Elongation at Break [%]"
+        }
+    },{
+        "name":"dens",
+        "columns":["Density","Specific Gravity"],
+        "mode":"def",
+        "labels":{
+            "de":"Dichte $\\rho$ [kg/m$^3$]",
+            "en":"Density $\\rho$ [kg/m$^3$]"
+        }
+    },{
+        "name":"vicat",
+        "columns":["Vicat Softening Point"],
+        "mode":"def",
+        "labels":{
+            "de":"Vicat",
+            "en":"Vicat Softening Point"
+        }
+    },{
+        "name":"Tg",
+        "columns":["Glass Transition Temp Tg"],
+        "mode":"def",
+        "labels":{
+            "de":"Glassübergangstemperatur $T_g$ [°C]",
+            "en":"Glass Transition Temperature $T_g$ [°C]"
+        }
+    }]
+}

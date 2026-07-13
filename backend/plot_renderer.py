@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 import re
 import tempfile
+import logging
 from copy import deepcopy
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any
@@ -12,6 +13,7 @@ from typing import Any
 import matplotlib
 
 matplotlib.use('Agg')
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 
 from . import plot
 
@@ -107,7 +109,7 @@ def render_plot_image(
 
         plot_output = StringIO()
         try:
-            with redirect_stdout(plot_output):
+            with redirect_stdout(plot_output), redirect_stderr(plot_output):
                 source = (data_sources or {}).get(dataframe_index)
                 plot.main(
                     dataframe,

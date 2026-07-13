@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { toExternalConfig } from '../utils/configIo'
 import type { PlotConfig } from '../config/defaultPlotConfig'
 import { Alert } from './ui/alert'
+import { getSourceMode } from '../utils/appState'
 import { Button } from './ui/button'
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   plotAction: 'preview-current' | 'create-all'
   plotActionNonce: number
   datasourceFilesByDataframe: Record<number, File>
+  availableDatasets: string[] | null
 }
 interface RenderedPlotEntry {
   dataframeIndex: number
@@ -46,12 +48,13 @@ function buildPlotRequest(
   payload: PlotRequestPayload,
   plotConfig: PlotConfig,
   datasourceFilesByDataframe: Record<number, File>,
+  availableDatasets: string[] | null,
   dataframeIndices: number[],
 ): RequestInit {
   const uniqueIndices = [...new Set(dataframeIndices)]
   const missingDataframes = uniqueIndices.filter((dataframeIndex) => {
     const dataframe = plotConfig.dataframes[dataframeIndex]
-    return dataframe?.excelImport === true && Boolean(dataframe.importFileName) && datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
+    return getSourceMode(dataframe ?? plotConfig.dataframes[0], availableDatasets ?? []) === 'file' && Boolean(dataframe?.importFileName) && datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
   })
   if (missingDataframes.length > 0) {
     throw new Error(`Re-upload the Excel datasource for dataframe ${missingDataframes.map((index) => index + 1).join(', ')} before rendering. The server does not keep uploaded files.`)
@@ -91,7 +94,7 @@ function buildPlotRequest(
   }
 }
 
-export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe }: Props) {
+export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -122,6 +125,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           },
           plotConfig,
           datasourceFilesByDataframe,
+          availableDatasets,
           [dataframeIndex],
         ),
       )
@@ -239,6 +243,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           },
           plotConfig,
           datasourceFilesByDataframe,
+          availableDatasets,
           plots.map((plot) => plot.dataframe_index),
         ),
       )
@@ -261,18 +266,20 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   }
 
   useEffect(() => {
+    if (availableDatasets === null) return
     void fetchPlot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDataframeIndex, activeFrameIndex])
+  }, [activeDataframeIndex, activeFrameIndex, availableDatasets])
 
   useEffect(() => {
+    if (availableDatasets === null) return
     if (plotAction === 'create-all') {
       void createPlots()
       return
     }
     void fetchPlot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plotActionNonce])
+  }, [plotActionNonce, availableDatasets])
 
   useEffect(() => () => {
     if (imageUrl) {
