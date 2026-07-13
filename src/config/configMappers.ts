@@ -387,11 +387,12 @@ const normalizeDataframe = (
       ? {
         fontStyle: coerceFontStyle(partial.font.fontStyle ?? partial.font.font_style, fallback.font.fontStyle),
         font: typeof partial.font.font === 'string' ? partial.font.font : fallback.font.font,
-        fontSize: coerceNumber(partial.font.fontSize ?? partial.font.font_size, fallback.font.fontSize),
-        tickSize: coerceNumber(partial.font.tickSize ?? partial.font.tick_size, fallback.font.tickSize),
-        titleSize: coerceNumber(partial.font.titleSize ?? partial.font.title_size, fallback.font.titleSize),
-        axisLabelSize: coerceNumber(partial.font.axisLabelSize ?? partial.font.axis_label_size, fallback.font.axisLabelSize),
-        legendSize: coerceNumber(partial.font.legendSize ?? partial.font.legend_size, fallback.font.legendSize),
+        fontSize:        coerceNumber(partial.font.fontSize ?? partial.font.font_size, fallback.font.fontSize),
+        titleSize:       coerceNumber(partial.font.titleSize ?? partial.font.title_size, fallback.font.titleSize),
+        legendTitleSize: coerceNumber(partial.font.legendTitleSize ?? partial.font.legend_title_size, fallback.font.legendTitleSize),
+        legendLabelSize: coerceNumber(partial.font.legendLabelSize ?? partial.font.legend_label_size, fallback.font.legendLabelSize),
+        axisLabelSize:   coerceNumber(partial.font.axisLabelSize ?? partial.font.axis_label_size, fallback.font.axisLabelSize),
+        tickSize:        coerceNumber(partial.font.tickSize ?? partial.font.tick_size, fallback.font.tickSize),
       }
       : fallback.font,
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
