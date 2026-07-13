@@ -7,7 +7,7 @@ from .formatting import format_storage
 
 # : Guideline :
 def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:float, y_min:float, y_max:float, font_color:str, ax:plt.subplot) -> None:
-    num_points = 500
+    num_points = 400     # only relevant for semi-log-scaling
     for guideline in guidelines:
 
         x = guideline.get('x', None)
@@ -44,10 +44,13 @@ def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:fl
         else:
             label_angle = np.arctan(m)
 
-        if guideline.get('label_above',True) == True:
-            label_normal_angle = label_angle + np.pi/2
-        else: 
-            label_normal_angle = label_angle - np.pi/2
+        if guideline.get('label_rotated', True) == True:
+            if guideline.get('label_above', True) == True:
+                label_normal_angle = label_angle + np.pi/2
+            else: 
+                label_normal_angle = label_angle - np.pi/2
+        else:
+            label_normal_angle = 0   # & test
 
         x_text = x + np.cos(label_normal_angle)*guideline.get('label_padding',6)
         y_text = y + np.sin(label_normal_angle)*guideline.get('label_padding',6)
@@ -64,7 +67,7 @@ def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:fl
                 transform_rotates_text = True
             )
         except Exception as e:
-            print(f"ERROR: {e}, {type(font_color).__name__}")
+            print(f"ERROR: {e}")
 
 
 # :  Area  :

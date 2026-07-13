@@ -24,7 +24,8 @@ export interface DataframeConfig {
   importFileName?: string
   importSheet: number
   aspectRatio: [number, number]
-  resolution: number | "svg"
+  fileformat: "svg" | "png"
+  resolution: number
   legendTitle: Record<string, string>
   font: {
     fontStyle: "serif" | "sans-serif" | "cursive" | "fantasy" | "monospace"
@@ -159,7 +160,8 @@ export function createDefaultPlotConfig(): PlotConfig {
         excelImport: true,
         importSheet: 0,
         aspectRatio: [3, 2],
-        resolution: 'svg',
+        fileformat: 'svg',
+        resolution: 100,
         legendTitle: { en: '' },
         font: {
           fontStyle: 'sans-serif',

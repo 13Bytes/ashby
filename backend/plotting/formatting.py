@@ -21,7 +21,7 @@ class format_storage():
             if color in self.material_colors:
                 return self.material_colors[color] 
             # elif color[0] == "#" and len(color) in [4,5,7,9] and all(char in hex_characters for char in color):   # ≙ re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color): # hex color code
-            return color
+            return color                # & partial problems with inputs like "red"
             # else:
             #     return self.material_colors['default']
         else:
@@ -37,8 +37,6 @@ class format_storage():
         elif not isinstance(label, str):
             label = ""
         return label
-
-
 
 
 

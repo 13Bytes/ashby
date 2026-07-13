@@ -29,13 +29,7 @@ type Props = {
   FieldComponent: FieldComponent
 }
 
-const clampResolution = (raw: string): number | 'svg' => {
-  const normalized = raw.trim().toLowerCase()
-  if (normalized === 'svg') return 'svg'
-  const numeric = Number(normalized === '' ? 0 : normalized)
-  if (!Number.isFinite(numeric)) return 0
-  return Math.min(999, Math.max(30, Math.round(numeric)))
-}
+
 
 export function DataframeSection({
   t,
@@ -90,11 +84,14 @@ export function DataframeSection({
         </div>
       </Field>
 
-      <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution">
-        <Input
-          value={String(activeDataframe.resolution)}
-          onChange={(event) => patchActiveDataframe((current) => ({ ...current, resolution: clampResolution(event.target.value) }))}
-        />
+      <Field language={uiLanguage} label={t('resolution')} jsonPath="dataframes[i].resolution" className='grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2'>    {/* & fix */}
+        <Button type="button" variant="outline" onClick={() => patchActiveDataframe((c:any) => ({ ...c, fileformat: !c.fileformat }))}>{activeDataframe.fileformat === 'svg' ? "svg" : "png"}</Button>
+        {activeDataframe.fileformat === 'svg' ? null : (
+          <Input
+            value={String(activeDataframe.resolution)}
+            onChange={(event) => patchActiveDataframe((current) => ({ ...current, resolution: Number(event.target.value)}))}    /* & not on change but click somewhere else */
+          />
+        )}
       </Field>
 
       <Field language={uiLanguage} label={t('DarkMode')} jsonPath="dataframes[i].dark_mode">
@@ -165,12 +162,12 @@ export function DataframeSection({
         </Field>
       </div>
 
-      <div className="sm:col-span-2 grid gap-3 md:grid-cols-4">
-        <FontNumberField label="Title size"        path="font.title_size"      value={activeDataframe.font.titleSize}     uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, titleSize:     numberValue(value, current.font.titleSize    ) } }))} />
-        <FontNumberField label="Legend Title size" path="font.legend_size"     value={activeDataframe.font.legendSize}    uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendSize:    numberValue(value, current.font.legendSize   ) } }))} />
-        <FontNumberField label="Legend item size"  path="font.legend_size"     value={activeDataframe.font.legendSize}    uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendSize:    numberValue(value, current.font.legendSize   ) } }))} />
-        <FontNumberField label="Axis label size"   path="font.axis_label_size" value={activeDataframe.font.axisLabelSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, axisLabelSize: numberValue(value, current.font.axisLabelSize) } }))} />
-        <FontNumberField label="Tick size"         path="font.tick_size"       value={activeDataframe.font.tickSize}      uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, tickSize:      numberValue(value, current.font.tickSize     ) } }))} />
+      <div className="sm:col-span-2 grid gap-3 md:grid-cols-5">
+        <FontNumberField label="Title size"        path="font.title_size"        value={activeDataframe.font.titleSize}       uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, titleSize:       numberValue(value, current.font.titleSize      ) } }))} />
+        <FontNumberField label="Legend Title size" path="font.legend_title_size" value={activeDataframe.font.legendTitleSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendTitleSize: numberValue(value, current.font.legendTitleSize) } }))} />
+        <FontNumberField label="Legend item size"  path="font.legend_label_size" value={activeDataframe.font.legendLabelSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendLabelSize: numberValue(value, current.font.legendLabelSize) } }))} />
+        <FontNumberField label="Axis label size"   path="font.axis_label_size"   value={activeDataframe.font.axisLabelSize}   uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, axisLabelSize:   numberValue(value, current.font.axisLabelSize  ) } }))} />
+        <FontNumberField label="Tick size"         path="font.tick_size"         value={activeDataframe.font.tickSize}        uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, tickSize:        numberValue(value, current.font.tickSize       ) } }))} />
       </div>
 
       <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-6">

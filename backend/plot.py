@@ -27,48 +27,20 @@ def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
     return fallback
 
 
-def clear_empty_strings(config:dict|list|tuple|set,) -> dict:
-    '''removes keys that only have an empty string as value from a dict and its sub-dicts'''
-    try:
-        if isinstance(config, (list, tuple, set)):
-            config_ = []
-            for entry in config:
-                if isinstance(entry, (dict, list, tuple, set)):
-                    entry = clear_empty_strings(entry)
-                if entry not in ["", {}, []]:
-                    config_.append(entry) # remove empty entries
-
-        elif isinstance(config, dict):
-            config_ = {}
-            for key, value in config.items():
-                if isinstance(value, (dict, list, tuple, set)):
-                    value = clear_empty_strings(value)
-                if value not in ["", {}, []]:
-                    config_[key] = value
-
-        return config_
-    except Exception as e:
-        print(f"ERROR: could not parse config for {config}\n{e}")
-        return(config)
-
-
-
 
 def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
     handler = []
-
-    dataframe = clear_empty_strings(dataframe)
 
     df_language = dataframe.get('language', "en")
     df_darkmode = dataframe.get('dark_mode', False)
     df_font     = dataframe.get('font', {})
 
-    resolution = dataframe.get('resolution', None)
-    if resolution in [None,"svg"]:
-        fileformat = "svg"
-        resolution = 100
-    else:
-        fileformat = "png"
+    resolution = dataframe.get('resolution', None)          # & deprecated 
+    if resolution in [None,"svg"]:                          #
+        fileformat = "svg"                                  #
+        resolution = 100                                    #
+    else:                                                   #
+        fileformat = "png"                                  #
 
     df_image_ratio = _aspect_ratio(dataframe.get('image_ratio'))
     

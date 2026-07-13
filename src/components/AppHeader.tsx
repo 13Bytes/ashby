@@ -56,7 +56,7 @@ export function AppHeader({
         <Button type="button" variant={activePage === 'plot'   ? 'default' : 'outline'} className={activePage === 'plot'   ? '' : 'border-transparent'} onClick={() => setActivePage('plot')}  >Plot</Button>
       </nav>
       <div className="relative flex">
-        <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>
+        <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>      {/* & remember dropdown selection */}
           Generate plot
         </Button>
         <Button type="button" className="rounded-l-none border-l border-violet-400 px-3" aria-label="Choose plot action" aria-haspopup="menu" aria-expanded={showPlotActions} onClick={() => { setShowPlotActions((current) => !current); setShowConfigActions(false); setShowMenu(false) }}>
