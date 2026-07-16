@@ -22,7 +22,7 @@ const hsvToHex = (hue: number, saturation: number, value: number): string => {
 
 export const generateMaterialColorsForDataframe = (df: DataframeConfig): DataframeConfig => {
   const keys = Object.keys(df.materialColors)
-  const numberOfBrightnessLevels = Math.round(keys.length / 10)
+  const numberOfBrightnessLevels = Math.ceil(keys.length / 10)
   if (keys.length === 0) return df
 
   const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
