@@ -21,10 +21,5 @@ body {
   max-width: 100%;
   margin: 0 auto;
   min-height: 100svh;
-  border-inline: 1px solid rgb(228 228 231);
   box-sizing: border-box;
-}
-
-.dark #root {
-  border-inline-color: rgb(39 39 42);
 }

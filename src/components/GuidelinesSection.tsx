@@ -3,6 +3,7 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { FrameConfig, GuidelineConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
+import { DuplicateIconButton } from './AppControls'
 
 type Props = {
   t: (key: string) => string
@@ -36,12 +37,16 @@ export function GuidelinesSection({ t, uiLanguage, activeFrame, hoveredRemoveGro
   return (
   <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
     <div className="flex items-center gap-2">
-      <h3 className="text-sm font-semibold">{t('guidelines')}</h3>
+      <h3 className="m-0 text-m font-semibold text-violet-500">{t('guidelines')}</h3>
       <Button variant="outline" size="sm" onClick={addGuideline}>+ Guideline</Button>
     </div>{activeFrame.guidelines.map((guideline, guidelineIndex) => (
       <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
         <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (
           { ...f, guidelines: f.guidelines.filter((_, i) => i !== guidelineIndex) }))} />
+        {/* <DuplicateIconButton  */}
+
+
+
         <Field language={uiLanguage} label="x" jsonPath={`guidelines[${guidelineIndex}].x`}>
           <Input type="number" value={guideline.x ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
             { ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
@@ -64,18 +69,19 @@ export function GuidelinesSection({ t, uiLanguage, activeFrame, hoveredRemoveGro
           <Input type="number" value={guideline.lineProps.linewidth} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
             { ...g, lineProps: { ...g.lineProps, linewidth: numberValue(e.target.valueAsNumber, g.lineProps.linewidth) } }))} />
         </Field>
-        <Field language={uiLanguage} label="fontsize" jsonPath={`guidelines[${guidelineIndex}].fontsize`}>
-          <Input type="number" value={guideline.fontsize} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontsize: numberValue(e.target.valueAsNumber, g.fontsize) }))} />
-        </Field>
         <Field language={uiLanguage} label="font_color" jsonPath={`guidelines[${guidelineIndex}].font_color`}>
           <ColorOrMaterialInput materialOptions={materialColorOptions} value={guideline.fontColor} onChange={(next: string) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
+        </Field>
+        <Field language={uiLanguage} label="fontsize" jsonPath={`guidelines[${guidelineIndex}].fontsize`}>
+          <Input type="number" value={guideline.fontsize} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontsize: numberValue(e.target.valueAsNumber, g.fontsize) }))} />
         </Field>
         <Field language={uiLanguage} label="label" jsonPath={`guidelines[${guidelineIndex}].label`}>
           <Input value={guideline.label} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, label: e.target.value }))} />
         </Field>
         <Field language={uiLanguage} label="label_above" jsonPath={`guidelines[${guidelineIndex}].label_above`}>
-          <Select value={guideline.labelAbove ? 'true' : 'false'} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
-            { ...g, labelAbove: e.target.value === 'true' }))}><option value="true">true</option><option value="false">false</option></Select>
+          <Button type="button" variant="outline" onClick={() => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: ! g.labelAbove }))}> 
+            {guideline.labelAbove ? 'true' : 'false'} 
+          </Button>
         </Field>
         <Field language={uiLanguage} label="label_padding" jsonPath={`guidelines[${guidelineIndex}].label_padding`}>
           <Input type="number" value={guideline.labelPadding} onChange={(e) => updateGuideline(guidelineIndex, (g) => (

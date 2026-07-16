@@ -63,7 +63,7 @@ export function AxesSection({
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold">{t('axes')}</h3>
+        <h3 className="m-0 text-m font-semibold text-violet-500">{t('axes')}</h3>
         <Button variant="outline" size="sm" onClick={addAxis}>
           + Axes
         </Button>

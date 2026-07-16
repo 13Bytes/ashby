@@ -153,7 +153,7 @@ export interface AxisConfig {
 
 export function createDefaultPlotConfig(): PlotConfig {
   return {
-    version: 3,
+    version: 0,
     createAllDataframes: true,
     dataframes: [
       {

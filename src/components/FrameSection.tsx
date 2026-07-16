@@ -12,7 +12,7 @@ export function FrameSection(props: Props) {
 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <h3 className="sm:col-span-2 text-sm font-semibold">Frame</h3>
+      <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">Frame</h3>
       <Field language={uiLanguage} label="Export file name" jsonPath="frames[j].export_file_name">
         <Input value={activeFrame.exportFileName ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, exportFileName: e.target.value || undefined }))} />
       </Field>
