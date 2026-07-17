@@ -42,7 +42,7 @@ export function GuidelinesSection({ t, uiLanguage, activeFrame, hoveredRemoveGro
       <h3 className="m-0 text-m font-semibold text-violet-500">{t('guidelines')}</h3>
       <Button variant="outline" size="sm" onClick={addGuideline}>+ Guideline</Button>
     </div>{activeFrame.guidelines.map((guideline, guidelineIndex) => (
-      <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-20 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+      <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
         <DuplicateIconButton onClick={() => patchActiveFrame((f) => (
           { ...f, guidelines: [...f.guidelines.slice(0, guidelineIndex + 1), structuredClone(f.guidelines[guidelineIndex]), ...f.guidelines.slice(guidelineIndex + 1)] }))} />
         <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (

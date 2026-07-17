@@ -30,7 +30,7 @@ export function ColoredAreasSection({ t, uiLanguage, activeFrame, hoveredRemoveG
         <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => addColoredAreaToFrame(f))}>+ Area</Button>
 
       </div>{activeFrame.coloredAreas.map((area, areaIndex) => (
-        <div key={areaIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-20 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+        <div key={areaIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
           <DuplicateIconButton onClick={() => patchActiveFrame((f) => (
             { ...f, coloredAreas: [...f.coloredAreas.slice(0, areaIndex + 1), structuredClone(f.coloredAreas[areaIndex]), ...f.coloredAreas.slice(areaIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `area-${areaIndex}` : null)} onClick={() => patchActiveFrame((f) => (

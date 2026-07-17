@@ -704,7 +704,7 @@ function App() {
         </div>
       ) : null}
       {activePage === 'config' ? (
-        <main className="grid min-h-0 w-full flex-1 grid-cols-1 gap-4 p-5 text-left">
+        <main className="grid min-h-0 w-full flex-1 grid-cols-1 gap-4 text-left">
           <ConfigTabs {...tabProps} />
           {alert ? (
             <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">

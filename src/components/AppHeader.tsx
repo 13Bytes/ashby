@@ -47,7 +47,7 @@ export function AppHeader({
   }
 
   return (
-    <header className="flex flex-wrap items-center gap-4 border-b border-zinc-200 px-4 py-3 text-left dark:border-zinc-800">
+    <header className="flex flex-wrap items-center gap-4 border-b border-zinc-200 py-3 text-left dark:border-zinc-800">
       <div className="mr-auto">
         <h1 className="m-0 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
       </div>

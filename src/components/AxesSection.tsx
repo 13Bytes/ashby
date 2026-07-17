@@ -76,7 +76,7 @@ export function AxesSection({
       {activeDataframe.axes.map((axis, axisIndex) => (
         <div
           key={axisIndex}
-          className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-3 pr-20 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${
+          className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-2 pr-15 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${
             hoveredRemoveGroup === `axis-${axisIndex}`
               ? 'border-red-500'
               : 'border-zinc-300 dark:border-zinc-700'

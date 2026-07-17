@@ -51,7 +51,7 @@ export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, 
       </div>
 
       {activeFrame.layers.map((layer, layerIndex) => (
-        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-20 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
           <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
           <div className="grid gap-3">

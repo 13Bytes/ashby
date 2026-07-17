@@ -131,7 +131,7 @@ export function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => vo
 
 export function DuplicateIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {
   return (
-    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-12 h-7 px-2 hover:bg-blue-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Duplicate">
+    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-10 h-7 px-2 hover:bg-blue-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Duplicate">
       ⧉
     </Button>
   )
