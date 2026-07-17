@@ -16,7 +16,7 @@ except ImportError:
     from eventhandling import *
 
 
-CONFIG_NAME = "Tobi-26-06-07.json"
+CONFIG_NAME = "ui_test.json"
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
