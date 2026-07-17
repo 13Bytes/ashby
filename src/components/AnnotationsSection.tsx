@@ -54,7 +54,7 @@ export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGr
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
         <div className="sm:col-span-2 flex items-center gap-2">
-          <h3 className="m-0 text-sm font-semibold">{t('annotations')}</h3>
+          <h3 className="m-0 text-m font-semibold text-violet-500">{t('annotations')}</h3>
           <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: {}, marker: undefined, arrow: undefined }] }))}>+ Annotation</Button>
         </div>
 

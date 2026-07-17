@@ -37,7 +37,7 @@ export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold">{t('layers')}</h3>
+        <h3 className="m-0 text-m font-semibold text-violet-500">{t('layers')}</h3>
         <Button variant="outline" size="sm" onClick={addLayer}>+ Layer</Button>
       </div>
 
