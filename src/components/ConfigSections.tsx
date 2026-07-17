@@ -4,7 +4,7 @@ import { AnnotationsSection } from './AnnotationsSection'
 import { AxesSection } from './AxesSection'
 import { ColoredAreasSection } from './ColoredAreasSection'
 import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '../config/uiOptions'
-import { ColorOrMaterialInput, Field, MultiSelectInput, RemoveIconButton } from './AppControls'
+import { ColorOrMaterialInput, DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton } from './AppControls'
 import { DataframeSection } from './DataframeSection'
 import { FrameSection } from './FrameSection'
 import { GuidelinesSection } from './GuidelinesSection'
@@ -104,6 +104,7 @@ export function ConfigSections(props: Props) {
         t={t}
         uiLanguage={uiLanguage}
         activeDataframe={activeDataframe}
+        patchActiveDataframe={patchActiveDataframe}
         hoveredRemoveGroup={hoveredRemoveGroup}
         setHoveredRemoveGroup={setHoveredRemoveGroup}
         addAxis={addAxis}
@@ -116,6 +117,7 @@ export function ConfigSections(props: Props) {
         FieldComponent={Field}
         MultiSelectInputComponent={MultiSelectInput}
         RemoveIconButtonComponent={RemoveIconButton}
+        DuplicateIconButtonComponent={DuplicateIconButton}
       />
 
       <FrameSection
@@ -148,6 +150,7 @@ export function ConfigSections(props: Props) {
         FieldComponent={Field}
         MultiSelectInputComponent={MultiSelectInput}
         RemoveIconButtonComponent={RemoveIconButton}
+        DuplicateIconButtonComponent={DuplicateIconButton}
       />
 
       <ColoredAreasSection
@@ -162,6 +165,7 @@ export function ConfigSections(props: Props) {
         materialColorOptions={materialColorOptions}
         FieldComponent={Field}
         RemoveIconButtonComponent={RemoveIconButton}
+        DuplicateIconButtonComponent={DuplicateIconButton}
         ColorOrMaterialInputComponent={ColorOrMaterialInput}
       />
 
@@ -178,6 +182,7 @@ export function ConfigSections(props: Props) {
         numberValue={numberValue}
         FieldComponent={Field}
         RemoveIconButtonComponent={RemoveIconButton}
+        DuplicateIconButtonComponent={DuplicateIconButton}
         ColorOrMaterialInputComponent={ColorOrMaterialInput}
       />
 
@@ -192,6 +197,7 @@ export function ConfigSections(props: Props) {
         materialColorOptions={materialColorOptions}
         FieldComponent={Field}
         RemoveIconButtonComponent={RemoveIconButton}
+        DuplicateIconButtonComponent={DuplicateIconButton}
         ColorOrMaterialInputComponent={ColorOrMaterialInput}
       />
 

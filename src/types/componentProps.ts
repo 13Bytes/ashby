@@ -11,5 +11,7 @@ export type FieldComponentProps = {
 }
 
 export type FieldComponent = (props: FieldComponentProps) => ReactNode
-export type RemoveIconButtonComponent = (props: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) => ReactNode
+export type IconButtonComponent = (props: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) => ReactNode
+export type RemoveIconButtonComponent = IconButtonComponent
+export type DuplicateIconButtonComponent = IconButtonComponent
 export type ColorOrMaterialInputComponent = (props: { value: string; onChange: (next: string) => void; materialOptions: string[] }) => ReactNode

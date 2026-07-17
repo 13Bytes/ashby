@@ -24,6 +24,7 @@ type Props = {
   FieldComponent: any
   MultiSelectInputComponent: any
   RemoveIconButtonComponent: any
+  DuplicateIconButtonComponent: any
 }
 
 export const addLayerToFrame = (frame: FrameConfig): FrameConfig => ({
@@ -31,7 +32,8 @@ export const addLayerToFrame = (frame: FrameConfig): FrameConfig => ({
   layers: [...frame.layers, { name: '', whitelist: [], alphaPoints: undefined, alphaAreas: undefined, linewidth: 1.5, alpha: undefined, whitelistFlag: false }],
 })
 
-export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords, numberValue, FieldComponent: Field, MultiSelectInputComponent: MultiSelectInput, RemoveIconButtonComponent: RemoveIconButton }: Props) {
+export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords, numberValue, FieldComponent: Field, MultiSelectInputComponent: MultiSelectInput, RemoveIconButtonComponent: RemoveIconButton,
+  DuplicateIconButtonComponent: DuplicateIconButton }: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="flex items-center gap-2">
@@ -49,7 +51,8 @@ export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, 
       </div>
 
       {activeFrame.layers.map((layer, layerIndex) => (
-        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-20 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+          <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
           <div className="grid gap-3">
             <Field language={uiLanguage} label={`Layer ${layerIndex + 1} Name`} jsonPath={`layers[${layerIndex}].name`}>

@@ -17,6 +17,7 @@ type Props = {
   numberValue: (value: number, fallback: number) => number
   FieldComponent: any
   RemoveIconButtonComponent: any
+  DuplicateIconButtonComponent: any
   ColorOrMaterialInputComponent: any
 }
 
@@ -32,14 +33,17 @@ export const updateGuidelineInFrame = (frame: FrameConfig, guidelineIndex: numbe
 
 const LINE_STYLE_OPTIONS = ['-', '--', '-.', ':', 'None']
 
-export function GuidelinesSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, updateGuideline, addGuideline, materialColorOptions, numberValue, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
+export function GuidelinesSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, updateGuideline, addGuideline, materialColorOptions, numberValue, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton,
+  DuplicateIconButtonComponent: DuplicateIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
   return (
   <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
     <div className="flex items-center gap-2">
       <h3 className="text-sm font-semibold">{t('guidelines')}</h3>
       <Button variant="outline" size="sm" onClick={addGuideline}>+ Guideline</Button>
     </div>{activeFrame.guidelines.map((guideline, guidelineIndex) => (
-      <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+      <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-20 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+        <DuplicateIconButton onClick={() => patchActiveFrame((f) => (
+          { ...f, guidelines: [...f.guidelines.slice(0, guidelineIndex + 1), structuredClone(f.guidelines[guidelineIndex]), ...f.guidelines.slice(guidelineIndex + 1)] }))} />
         <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (
           { ...f, guidelines: f.guidelines.filter((_, i) => i !== guidelineIndex) }))} />
         <Field language={uiLanguage} label="x" jsonPath={`guidelines[${guidelineIndex}].x`}>
