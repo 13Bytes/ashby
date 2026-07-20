@@ -17,10 +17,15 @@ export function FrameSection(props: Props) {
         <Input value={activeFrame.exportFileName ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, exportFileName: e.target.value || undefined }))} />
       </Field>
       <Field language={uiLanguage} label="Algorithm" jsonPath="frames[j].algorithm">
-        <Select value={activeFrame.algorithm} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, algorithm: e.target.value as any }))}>{PLOT_ALGORITHMS.map((a:string) => <option key={a} value={a}>{a}</option>)}</Select></Field>
-      <Field language={uiLanguage} label="Automatic display area" jsonPath="automatic_Display_Area_margin"><div className="grid gap-2"><Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { left: 0, right: 0, top: 0, bottom: 0 } }))}>{automaticDisplayAreaActive ? 'active' : 'inactive'}</Button></div></Field>
+        <Select value={activeFrame.algorithm} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, algorithm: e.target.value as any }))}>{PLOT_ALGORITHMS.map((a:string) => <option key={a} value={a}>{a}</option>)}
+      </Select></Field>
+      <Field language={uiLanguage} label="Automatic display area" jsonPath="automatic_Display_Area_margin">
+        <div className="grid gap-2">
+          <Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { left: 0, right: 0, top: 0, bottom: 0 } }))}>
+            {automaticDisplayAreaActive ? 'active' : 'inactive'}
+      </Button></div></Field>
       <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
-          <h4 className="m-0 text-sm font-semibold">X-Axis</h4>
+        <h4 className="m-0 text-sm font-semibold">X-Axis</h4>
         <div className="grid gap-2 sm:grid-cols-4">
           <Field language={uiLanguage} label="quantity" jsonPath="x_quantity">
             <Select value={activeFrame.xQuantity ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, xQuantity: e.target.value || undefined }))}>

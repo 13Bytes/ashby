@@ -11,7 +11,7 @@ from .formatting import format_storage
 
 
 class data_handling(): 
-    def __init__(self, Format_Storage:object, graphics:type, dataframe:pd.DataFrame, frame:dict):
+    def __init__(self, Format_Storage:object, graphics:object, dataframe:pd.DataFrame, frame:dict):
         self.graphics        = graphics
         x_quantity = frame.get("x_quantity")
         y_quantity = frame.get("y_quantity")
@@ -52,8 +52,8 @@ class data_handling():
             layer_alpha          = self.layers[current_layer_number].get('alpha',None)
             layer_linewidth      = self.layers[current_layer_number].get('linewidth',1.5)
             combined_DATA        = np.full((1, 2), np.nan)      # & leer erstelen?
-            plotted = False            
-           
+            plotted = False     
+         
             for category, material_data in data.groupby(layer_name, dropna=False):
                 if pd.isna(category):
                     category = None
@@ -117,7 +117,7 @@ class data_handling():
 
 
 
-    def single_values(self, data:pd.DataFrame, hirachie:list, legend_item:str, current_color:str) -> pd.DataFrame:
+    def single_values(self, data:pd.DataFrame, hirachie:list, legend_item:str, current_color:str) -> np.ndarray:
         point_list = np.full((1, 2), np.nan)     # [x, y][low, high][datapoints]
 
         for data_point in range(len(data)):

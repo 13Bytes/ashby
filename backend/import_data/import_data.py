@@ -113,7 +113,7 @@ def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
             raise
         print("WARNING: TLS certificate verification failed for Teable. Retrying with verify=False.")
         verify_tls = False
-        status = requests.head(teable_url, headers=headers, verify=False, timeout=30)
+        status = requests.head(teable_url, headers=headers, verify=verify_tls, timeout=30)
 
     if status.status_code == 200:
         data = []
@@ -126,7 +126,7 @@ def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
                     raise
                 print("WARNING: TLS certificate verification failed for Teable GET request. Retrying with verify=False.")
                 verify_tls = False
-                response = requests.get(teable_url, params=params, headers=headers, verify=False, timeout=30).json()
+                response = requests.get(teable_url, params=params, headers=headers, verify=verify_tls, timeout=30).json()
 
             records = [rec["fields"] for rec in response["records"]]
 

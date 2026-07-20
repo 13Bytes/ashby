@@ -114,6 +114,7 @@ def render_plot_image(
                 plot.main(
                     dataframe,
                     interactive=False,
+                    frontend=True,
                     xlsx_file_bytes=source.content if source and source.kind == 'xlsx' else None,
                 )
         except Exception as exc:
