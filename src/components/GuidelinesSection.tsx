@@ -3,7 +3,6 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { FrameConfig, GuidelineConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
-import { DuplicateIconButton } from './AppControls'
 
 type Props = {
   t: (key: string) => string
