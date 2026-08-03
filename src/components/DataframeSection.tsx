@@ -319,7 +319,7 @@ export function DataframeSection({
           <span key={language} className="inline-flex items-center overflow-hidden rounded-full border border-zinc-300 text-xs">
             <button
               type="button"
-              className={`px-3 py-1 ${activeDataframe.language === language ? 'bg-violet-600' : ''}`}
+              className={`px-3 py-1 ${activeDataframe.language === language ? 'bg-violet-600 text-white hover:bg-violet-500' : 'hover:bg-gray-300'}`}
               onClick={() => patchActiveDataframe((current) => ({ ...current, language }))}
             >
               {language}

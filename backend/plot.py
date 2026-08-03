@@ -184,26 +184,25 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         cprint(f"skipped a total of {Sorted_data.point_count['skipped']} Datapoints due to missing entries.  {Sorted_data.point_count['plotted']} were plotted.","green")
 
         # : export :
-        if frontend == False:
-            if frame.get('export_file_name',None) == None:
-                plt.title(label = Format_Storage.language_text(frame.get('title',"")), 
-                        size=df_font.get('title_size',40), pad=15,
-                        loc='center') 
+        if frame.get('export_file_name',None) == None:
+            plt.title(label = Format_Storage.language_text(frame.get('title',"")), 
+                    size=df_font.get('title_size',40), pad=15,
+                    loc='center') 
 
-                # + event handling +
-                if interactive:
-                    handler.append(pick_event_handing(fig, ax, Graphics))
-                # +                +
+            # + event handling +
+            if interactive:
+                handler.append(pick_event_handing(fig, ax, Graphics))
+            # +                +
 
-                plt.show(block=False)
-                cprint("-> plot displayed \n","green")
-                plt.pause(.3)
+            plt.show(block=False)
+            cprint("-> plot displayed \n","green")
+            plt.pause(.3)
 
-            else:
-                os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
-                plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution, transparent=dataframe.get('transtarent', True))     # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename       # & ❗ ⇒  ui
-                cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
-                plt.close()
+        else:
+            os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
+            plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution, transparent=dataframe.get('transtarent', True))     # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename       # & ❗ ⇒  ui
+            cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
+            plt.close()
 
         # mpl_fig.update()
 

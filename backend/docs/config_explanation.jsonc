@@ -39,9 +39,9 @@
         },
         "language":"",                      // [str] {"en"} language for axis-label & Legend Headline
         "dark_mode":false,                  // font color, black or white: {true}
-        "transparent":true,                 // decide weather background should be transparent [bool]   // & implement
-        "copyright":"",                     // copyright text to be displayed vertivaly at the bottom right corner [str][false] {false}  // & implement
-        "watermark":"",                     // path to watermark [str][false]       // & implement
+        "transparent":true,                 // decide weather background should be transparent [bool]
+        "copyright":"",                     // copyright text to be displayed vertivaly at the bottom right corner [str][true][false] {false}
+        "watermark":"",                     // path to watermark [str][true][false]
     
     
     
