@@ -16,7 +16,7 @@ except ImportError:
     from eventhandling import *
 
 
-CONFIG_NAME = "ui_test.json"
+CONFIG_NAME = "ashby-config-2026-08-03.json"
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
@@ -117,7 +117,8 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
                 font_color = font_color,
                 font_size  = df_font.get('legend_label_size',15),
                 title_size = df_font.get('legend_title_size',25),
-                above = frame.get("legend_above",False)
+                above = frame.get("legend_above",False),
+                copyright = (dataframe.get('copyright', False) != False)
             )
 
         try:
@@ -161,7 +162,11 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         if frame.get('log_y_flag',False):
             ax.set_yscale('log')
         
-        # ~ set x- and y-labels 
+
+
+        
+        # ~ labels 
+        plt.title(label = Format_Storage.language_text(frame.get('title',"")), size = df_font.get('title_size',40), pad=15, loc='left') 
         ax.set_xlabel(axe_label(Sorted_data, 0), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=10)
         ax.set_ylabel(axe_label(Sorted_data, 1), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=5 )
 
@@ -185,9 +190,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
         # : export :
         if frame.get('export_file_name',None) == None:
-            plt.title(label = Format_Storage.language_text(frame.get('title',"")), 
-                    size=df_font.get('title_size',40), pad=15,
-                    loc='center') 
 
             # + event handling +
             if interactive:

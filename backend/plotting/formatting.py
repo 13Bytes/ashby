@@ -66,7 +66,7 @@ class legend():
     #                 print(item.label_pos[1])
                 
 
-    def create_legend(self, Format_Storage:object, font_color:str, font_size:int, title_size:int, above:bool) -> None:
+    def create_legend(self, Format_Storage:object, font_color:str, font_size:int, title_size:int, above:bool=False, copyright:bool=False) -> None:
         legend_title = Format_Storage.language_text(self.legend_title)     
 
         if above:
@@ -83,7 +83,7 @@ class legend():
                 edgecolor = 'none',
                 ncol = 5
             )
-        elif not above:
+        elif not above and not copyright:
             self.legend = plt.legend(
                 handles=self.handles,
                 bbox_to_anchor = (1, 0, 1, 1),
@@ -100,6 +100,24 @@ class legend():
                 ncols = np.ceil(len(self.handles)/16),  # & test
                 # draggable = True
             )
+        elif not above and copyright:
+            self.legend = plt.legend(
+                handles=self.handles,
+                bbox_to_anchor = (1.012, 0, 1, 1),
+                title= legend_title,
+                loc  = 'center right',
+                labelspacing = 1.05,
+                mode = 'expand',
+                fontsize = font_size,
+                title_fontsize = title_size,
+                alignment = 'left',
+                labelcolor = font_color,
+                facecolor = 'none',
+                edgecolor = 'none',
+                ncols = np.ceil(len(self.handles)/16),  # & test
+                draggable = True
+            )
+
 
 
         for entry in self.legend.legend_handles: # edit copy
@@ -127,7 +145,9 @@ def watermark(fig:plt.subplot, file:str|bool, alpha:float, dark_mode:bool, pos:[
 
     logo =  os.path.join(
             os.getcwd(),
+            'backend',
             'media',
+            'watermarks',
             file
         )
     # change alpha value
@@ -144,19 +164,21 @@ def watermark(fig:plt.subplot, file:str|bool, alpha:float, dark_mode:bool, pos:[
 
 def copyright(ax:plt.subplot, text:str|bool, font_color:str) -> None:
     if not isinstance(text, str):
-        text = f"(C) Copyright RePoySat @ ASL ({datetime.today().year}) no disclosure without permission of a team member"
-
-    ax.text(
-        x=222,          # & calculate correct variable position and move legend
-        y=5,
-        s=text,
+        text = f"(C) copyright by RePoySat @ ASL {datetime.today().year} - no disclosure without permission"
+ 
+    ax.annotate(
+        xy=(1,0),
+        xycoords=ax.transAxes,
+        xytext=(6,0),
+        textcoords="offset points",
+        ha='left',
+        va='bottom',
+        text=text,
         color=font_color,
-        fontsize = 10,
+        fontsize = 12,   # & → .json
         rotation = 90,
-        rotation_mode = 'anchor',
-        transform_rotates_text = True
+        annotation_clip=False
     )
-
 
 
 def figurename(frame:dict, dateframe_index:int, frame_index:int) -> str:
