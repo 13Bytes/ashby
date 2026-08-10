@@ -83,7 +83,7 @@ export function DataframeSection({
 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <h3 className="sm:col-span-2 text-sm font-semibold">{t('globalDataframe')}</h3>
+      <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">{t('globalDataframe')}</h3>
 
       <Field language={uiLanguage} label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" className="grid grid-cols-[1fr_auto] items-center gap-2">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -119,26 +119,48 @@ export function DataframeSection({
         )}
       </Field>
 
-      <Field language={uiLanguage} label={t('DarkMode')} jsonPath="dataframes[i].dark_mode">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => patchActiveDataframe((current) => ({ ...current, darkMode: !current.darkMode }))}
-        >
-          {activeDataframe.darkMode ? t('enabled') : t('disabled')}
-        </Button>
-      </Field>
+      <div className="sm:col-span-2 grid gap-3 md:grid-cols-4">
+        <Field language={uiLanguage} label={t('DarkMode')} jsonPath="dataframes[i].dark_mode">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => patchActiveDataframe((current) => ({ ...current, darkMode: !current.darkMode }))}
+          >
+            {activeDataframe.darkMode ? t('enabled') : t('disabled')}
+          </Button>
+        </Field>
 
-      <Field language={uiLanguage} label={t('transparent')} jsonPath="dataframes[i].transparent">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => patchActiveDataframe((current) => ({ ...current, transparent: !current.transparent }))}
-        >
-          {activeDataframe.transparent ? t('enabled') : t('disabled')}
-        </Button>
-      </Field>
+        <Field language={uiLanguage} label={t('transparent')} jsonPath="dataframes[i].transparent">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => patchActiveDataframe((current) => ({ ...current, transparent: !current.transparent }))}
+          >
+            {activeDataframe.transparent ? t('enabled') : t('disabled')}
+          </Button>
+        </Field>
 
+        <Field language={uiLanguage} label={t('watermark')} jsonPath="dataframes[i].watermark">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => patchActiveDataframe((current) => ({ ...current, watermark: !current.watermark }))}
+          >
+            {activeDataframe.watermark ? t('enabled') : t('disabled')}
+          </Button>
+        </Field>
+
+        <Field language={uiLanguage} label={"copyright"} jsonPath="dataframes[i].copyright">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => patchActiveDataframe((current) => ({ ...current, copyright: !current.copyright }))}
+          >
+            {activeDataframe.copyright ? t('enabled') : t('disabled')}
+          </Button>
+        </Field>
+
+      </div>
       <div className="sm:col-span-2 grid gap-3 md:grid-cols-3">
         <Field language={uiLanguage} label={t('fontStyle')} jsonPath="font.font_style">
           <Select
@@ -284,7 +306,7 @@ export function DataframeSection({
         <div className="flex items-center gap-2">
           <Input
             value={plotLanguageDraft}
-            placeholder="Add language and press comma"
+            placeholder="Add language"
             onChange={(event) => setPlotLanguageDraft(event.target.value)}
             onKeyDown={handlePlotLanguageKeyDown}
           />
@@ -292,12 +314,12 @@ export function DataframeSection({
         </div>
       </Field>
 
-      <div className="flex flex-wrap items-center gap-2 self-end-safe">
+      <div className="flex flex-wrap items-center gap-2 self-end-safe pb-1.5">
         {activeDataframe.plotLanguages.map((language) => (
           <span key={language} className="inline-flex items-center overflow-hidden rounded-full border border-zinc-300 text-xs">
             <button
               type="button"
-              className={`px-3 py-1 ${activeDataframe.language === language ? 'bg-violet-400' : ''}`}
+              className={`px-3 py-1 ${activeDataframe.language === language ? 'bg-violet-600 text-white hover:bg-violet-500' : 'hover:bg-gray-300'}`}
               onClick={() => patchActiveDataframe((current) => ({ ...current, language }))}
             >
               {language}

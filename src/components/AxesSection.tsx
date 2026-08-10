@@ -11,6 +11,7 @@ type Props = {
   t: (key: string) => string
   uiLanguage: UILanguage
   activeDataframe: DataframeConfig
+  patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
   addAxis: () => void
@@ -23,6 +24,7 @@ type Props = {
   FieldComponent: any
   MultiSelectInputComponent: any
   RemoveIconButtonComponent: any
+  DuplicateIconButtonComponent: any
 }
 
 export const addAxisToDataframe = (df: DataframeConfig): DataframeConfig => ({
@@ -47,6 +49,7 @@ export function AxesSection({
   t,
   uiLanguage,
   activeDataframe,
+  patchActiveDataframe,
   hoveredRemoveGroup,
   setHoveredRemoveGroup,
   addAxis,
@@ -59,11 +62,12 @@ export function AxesSection({
   FieldComponent: Field,
   MultiSelectInputComponent: MultiSelectInput,
   RemoveIconButtonComponent: RemoveIconButton,
+  DuplicateIconButtonComponent: DuplicateIconButton,
 }: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm font-semibold">{t('axes')}</h3>
+        <h3 className="m-0 text-m font-semibold text-violet-500">{t('axes')}</h3>
         <Button variant="outline" size="sm" onClick={addAxis}>
           + Axes
         </Button>
@@ -72,12 +76,22 @@ export function AxesSection({
       {activeDataframe.axes.map((axis, axisIndex) => (
         <div
           key={axisIndex}
-          className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-3 pr-12 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${
+          className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-2 pr-15 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${
             hoveredRemoveGroup === `axis-${axisIndex}`
               ? 'border-red-500'
               : 'border-zinc-300 dark:border-zinc-700'
           }`}
         >
+          <DuplicateIconButton
+            onClick={() => patchActiveDataframe((df) => ({
+              ...df,
+              axes: [
+                ...df.axes.slice(0, axisIndex + 1),
+                structuredClone(df.axes[axisIndex]),
+                ...df.axes.slice(axisIndex + 1),
+              ],
+            }))}
+          />
           <RemoveIconButton
             onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `axis-${axisIndex}` : null)}
             onClick={() => removeAxis(axisIndex)}

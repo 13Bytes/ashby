@@ -692,19 +692,19 @@ function App() {
     <div className="flex min-h-screen flex-col">
       <AppHeader {...headerProps} />
       {backendAvailable === false ? (
-        <div className="mx-auto w-full max-w-[1800px] px-5 pt-5">
+        <div className="mx-auto w-full px-5 pt-5">
           <Alert variant="warning">{t('backendUnavailable')}</Alert>
         </div>
       ) : null}
       {missingDatasourceDataframes.length > 0 ? (
-        <div className="mx-auto w-full max-w-[1800px] px-5 pt-5">
+        <div className="mx-auto w-full px-5 pt-5">
           <Alert variant="warning">
             {`Excel datasource data missing for ${missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => `dataframe ${dataframeIndex + 1} (${dataframe.importFileName})`).join(', ')}. Re-select the workbook before rendering.`}
           </Alert>
         </div>
       ) : null}
       {activePage === 'config' ? (
-        <main className="mx-auto grid min-h-0 w-full max-w-[1800px] flex-1 grid-cols-1 gap-4 p-5 text-left">
+        <main className="grid min-h-0 w-full flex-1 grid-cols-1 gap-4 text-left">
           <ConfigTabs {...tabProps} />
           {alert ? (
             <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">

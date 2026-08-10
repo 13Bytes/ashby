@@ -41,6 +41,8 @@ export interface DataframeConfig {
   plotLanguages: string[]
   darkMode: boolean
   transparent: boolean
+  watermark: boolean|string
+  copyright: boolean|string
   createAllFrames: true | number[]
   frames: FrameConfig[]
   axes: AxisConfig[]
@@ -153,7 +155,7 @@ export interface AxisConfig {
 
 export function createDefaultPlotConfig(): PlotConfig {
   return {
-    version: 3,
+    version: 0,
     createAllDataframes: true,
     dataframes: [
       {
@@ -177,6 +179,8 @@ export function createDefaultPlotConfig(): PlotConfig {
         plotLanguages: ['en'],
         darkMode: false,
         transparent: false,
+        watermark: true,
+        copyright: true,
         createAllFrames: true,
         frames: [
           {

@@ -36,6 +36,9 @@ export function toExternalConfig(config: PlotConfig): unknown {
       language: dataframe.language,
       plot_languages: dataframe.plotLanguages,
       dark_mode: dataframe.darkMode,
+      transparent: dataframe.transparent,
+      watermark: dataframe.watermark,
+      copyright: dataframe.copyright,
       create_all_frames: dataframe.createAllFrames,
       _extensions: dataframe._extensions,
       frames: dataframe.frames.map((frame) => ({

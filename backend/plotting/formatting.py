@@ -41,12 +41,12 @@ class format_storage():
 
 
 class legend():
-    def __init__(self, legend_title):   
+    def __init__(self, legend_title:str) -> object:   
         self.legend_title = legend_title    
         self.handles = []
         self.map = {}
 
-    def append_category(self, item, color):
+    def append_category(self, item:str, color:str) -> None:
         patch = patches.Patch(
                 color   = color,
                 label   = item,
@@ -54,7 +54,7 @@ class legend():
         self.handles.append(patch)
         self.map[item] = [patch]
 
-    def append_content(self, category, item):
+    def append_content(self, category:str, item:object) -> None:
         if category != 'default':
             self.map[category].append(item)
 
@@ -66,7 +66,7 @@ class legend():
     #                 print(item.label_pos[1])
                 
 
-    def create_legend(self, Format_Storage, font_color, font_size, title_size, above):
+    def create_legend(self, Format_Storage:object, font_color:str, font_size:int, title_size:int, above:bool) -> None:
         legend_title = Format_Storage.language_text(self.legend_title)     
 
         if above:
@@ -109,7 +109,7 @@ class legend():
 
 
 
-def axe_label(sorted_data, axe):
+def axe_label(sorted_data:object, axe:int) -> str:
     if sorted_data.relative.labels[axe] == None:
         label = f"{sorted_data.absolute.labels[axe]}"
     else:
@@ -117,9 +117,12 @@ def axe_label(sorted_data, axe):
     return label
 
 
-def watermark(fig:plt.subplot, file:str|bool, alpha:float, pos:[float, float], size:float) -> None:
+def watermark(fig:plt.subplot, file:str|bool, alpha:float, dark_mode:bool, pos:[float, float], size:float) -> None:
     if file == True:
-        file = 'watermark.png'
+        if dark_mode == False:
+            file = 'RPS_lightmode.png'
+        if dark_mode == True:
+            file = 'RPS_lightmode.png'  # & dark
     if not isinstance(file, str): return
 
     logo =  os.path.join(
@@ -139,7 +142,7 @@ def watermark(fig:plt.subplot, file:str|bool, alpha:float, pos:[float, float], s
     logo_ax.axis('off')
 
 
-def copyright(ax:plt.subplot , text:str|bool) -> None:
+def copyright(ax:plt.subplot, text:str|bool, font_color:str) -> None:
     if not isinstance(text, str):
         text = f"(C) Copyright RePoySat @ ASL ({datetime.today().year}) no disclosure without permission of a team member"
 
@@ -147,6 +150,7 @@ def copyright(ax:plt.subplot , text:str|bool) -> None:
         x=222,          # & calculate correct variable position and move legend
         y=5,
         s=text,
+        color=font_color,
         fontsize = 10,
         rotation = 90,
         rotation_mode = 'anchor',
@@ -155,7 +159,7 @@ def copyright(ax:plt.subplot , text:str|bool) -> None:
 
 
 
-def figurename(frame, dateframe_index, frame_index):
+def figurename(frame:dict, dateframe_index:int, frame_index:int) -> str:
     frame_name  = frame.get('name', None)
     export_name = frame.get('export_file_name', None)
     if frame_name != None:
@@ -167,11 +171,11 @@ def figurename(frame, dateframe_index, frame_index):
 
 
 class plot_size():
-    def __init__(self, frame, DATA, marker, image_ratio):
+    def __init__(self, frame:dict, DATA:np.ndarray, marker:object, image_ratio:float) -> object:
         margin       = self.margin(frame.get("automatic_Display_Area_margin",0.12))
         self.DATA    = DATA                                                                      
-        self.x = dimension(DATA, 0, marker, frame.get('log_x_flag',False), frame.get("x_lim",None), margin['left'  ],margin['right'], image_ratio**(-0.7)) # § class §
-        self.y = dimension(DATA, 1, marker, frame.get('log_y_flag',False), frame.get("y_lim",None), margin['bottom'],margin['top'  ], 1                  ) # § class §
+        self.x = dimension(DATA, 0, marker, frame.get('log_x_flag',False), frame.get("x_lim",None), margin['left'  ], margin['right'], image_ratio**(-0.7)) # § class §
+        self.y = dimension(DATA, 1, marker, frame.get('log_y_flag',False), frame.get("y_lim",None), margin['bottom'], margin['top'  ], 1                  ) # § class §
     
     def margin(self, m:float|dict) -> [float]:
         keys = ["left","right","top","bottom"]
@@ -185,15 +189,15 @@ class plot_size():
         return margin
 
 class dimension():
-    def __init__(self, DATA, dim, marker, log_flag, limit, margin_1, margin_2, shrink):
+    def __init__(self, DATA:np.ndarray, dim:int, marker:type, log_flag:bool, limit:[float], margin_1:float, margin_2:float, shrink:float) -> object:
         self.log_flag = log_flag
         if limit == None:
             self.plot_padding(float(np.nanmin(DATA[:,dim])), float(np.nanmax(DATA[:,dim])), margin_1, margin_2, marker.limits(dim), shrink)
         else:
-            self.plot_padding(limit[0], limit[1], 0, marker.limits(dim), shrink)
+            self.plot_padding(limit[0], limit[1], 0, 0, marker.limits(dim), shrink)
 
         
-    def plot_padding(self, min, max, margin_1, margin_2, marker, shrink):
+    def plot_padding(self, min:float, max:float, margin_1:float, margin_2:float, marker:[float], shrink:float) -> None:
         low  = np.nanmin([marker[0], min])
         high = np.nanmax([marker[1], max])
         # & take hull splines into account
@@ -205,12 +209,12 @@ class dimension():
             self.high = 10 ** (high_log + margin_2 * (high_log - low_log) * shrink)
             self.space = (np.log10(self.high) - np.log10(self.low)) / 100
         else:
-            self.low  = low    -   margin_1 * (high - low) * shrink
-            self.high = high   +   margin_2 * (high - low) * shrink
+            self.low  = low  - margin_1 * (high - low) * shrink
+            self.high = high + margin_2 * (high - low) * shrink
             self.space = (self.high - self.low) /100
     
     
-    def offset(self, pos, diff) -> float:   # for relative annotation placement
+    def offset(self, pos:float, diff:float) -> float:   # for relative annotation placement
         if self.log_flag:
             return 10**(np.log10(pos) + self.space * diff)
         else:

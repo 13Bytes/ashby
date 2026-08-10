@@ -6,10 +6,10 @@ CURRENT_VERSION = 5
 
 def import_json(filename):
     try:
-        with open('./configs/' + filename, 'r', encoding="utf-8") as file:
+        with open('./backend/configs/' + filename, 'r', encoding="utf-8") as file:
             config = json.load(file)
 
-        load_json(config)
+        return load_json(config)
 
     except FileNotFoundError:
         print(f"{filename} does not exist in './configs/'. please verify the name and position of your config")
@@ -25,7 +25,7 @@ def load_json(config:dict) -> dict:
 
 
 
-def clear_empty_strings(config:dict|list|tuple|set,) -> dict:
+def clear_empty_strings(config:dict|list|tuple|set) -> dict:
     '''removes keys that only have an empty string as value from a dict and its sub-dicts'''
     try:
         if isinstance(config, (list, tuple, set)):

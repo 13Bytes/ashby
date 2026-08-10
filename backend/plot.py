@@ -16,7 +16,7 @@ except ImportError:
     from eventhandling import *
 
 
-CONFIG_NAME = "Tobi-26-06-07.json"
+CONFIG_NAME = "ui_test.json"
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
@@ -28,7 +28,7 @@ def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
 
 
 
-def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
+def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> None:
     handler = []
 
     df_language = dataframe.get('language', "en")
@@ -167,9 +167,9 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
         # ~ copyright & watermark
         if dataframe.get('copyright', False) != False:          # & ❗ ⇒  ui
-            copyright(ax, dataframe.get('copyright', True))
-        if dataframe.get('watermark',False) != False:           # & ❗ ⇒  ui
-            watermark(fig, dataframe.get('watermark',True), alpha=0.5, pos=[0.72, 0.13], size=.13)
+            copyright(ax, text=dataframe.get('copyright', True), font_color=font_color)
+        if dataframe.get('watermark', False) != False:           # & ❗ ⇒  ui
+            watermark(fig, dataframe.get('watermark',True), alpha=0.5, dark_mode=df_darkmode, pos=[0.72, 0.13], size=.13)
 
 
         # ~ add grid lines 
@@ -185,10 +185,9 @@ def main(dataframe:dict, interactive:bool, xlsx_file_bytes=None) -> None:
 
         # : export :
         if frame.get('export_file_name',None) == None:
-            plt.title(label = Format_Storage.language_text(frame.get('title',""), language), 
-                      size=df_font.get('title_size',40), pad=15,
-                      loc='center') 
-            watermark(fig, alpha=0.5, pos=[0.72, 0.13], size=.13)       # & add copyright text
+            plt.title(label = Format_Storage.language_text(frame.get('title',"")), 
+                    size=df_font.get('title_size',40), pad=15,
+                    loc='center') 
 
             # + event handling +
             if interactive:
@@ -217,7 +216,7 @@ if __name__ == '__main__':
     for dataframe_index, dataframe in enumerate(config.get('dataframes',[])):
         if create_dataframes == True or dataframe_index +1 in create_dataframes:
             cprint(f"\n::::::::::::::::::::::::::::::::::::  loading dataframe {dataframe_index + 1} of {len(config['dataframes'])} {dataframe.get('name', '')} ::::::::::::::::::::::::::::::::::::", "blue", ["bold"])
-            main(dataframe, True)
+            main(dataframe, interactive=True, frontend=False)
             
     cprint(f" all selected plots displayed or saved ",color="white",on_color="on_green")
     plt.show()

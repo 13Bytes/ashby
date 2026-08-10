@@ -84,7 +84,7 @@ export const UI_LABELS: Record<UILanguage, Record<string, string>> = {
     aspectRatio: "Seitenverhältnis",
     resolution: "Dateiformat & Auflösung",
     alpha: "Deckkraft",
-    DarkMode: "Darkmode",
+    DarkMode: "Dunkelmodus",
     transparent: "Transparenz",
     createAllFrames: "Alle Frames erstellen",
     fontStyle: "Schriftstil",

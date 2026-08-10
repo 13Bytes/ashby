@@ -1,5 +1,5 @@
 import type { FrameConfig } from '../config/defaultPlotConfig'
-import type { ColorOrMaterialInputComponent, FieldComponent, RemoveIconButtonComponent } from '../types/componentProps'
+import type { ColorOrMaterialInputComponent, FieldComponent, RemoveIconButtonComponent, DuplicateIconButtonComponent } from '../types/componentProps'
 import type { UILanguage } from '../uiTranslations'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -45,21 +45,24 @@ type Props = {
   materialColorOptions: string[]
   FieldComponent: FieldComponent
   RemoveIconButtonComponent: RemoveIconButtonComponent
+  DuplicateIconButtonComponent: DuplicateIconButtonComponent
   ColorOrMaterialInputComponent: ColorOrMaterialInputComponent
 }
 
-export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, numberValue, materialColorOptions, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
+export function AnnotationsSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, numberValue, materialColorOptions, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton,
+  DuplicateIconButtonComponent: DuplicateIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
         <div className="sm:col-span-2 flex items-center gap-2">
-          <h3 className="m-0 text-sm font-semibold">{t('annotations')}</h3>
+          <h3 className="m-0 text-m font-semibold text-violet-500">{t('annotations')}</h3>
           <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations, { text: { name: '', relPos: [0, 0], color: '#111827' }, axes: {}, marker: undefined, arrow: undefined }] }))}>+ Annotation</Button>
         </div>
 
         <Field language={uiLanguage} label="Default marker size" jsonPath="annotations[0].marker_size"><Input type="number" value={activeFrame.annotations[0]?.markerSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === 0 ? { ...entry, markerSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : entry) }))} /></Field>
         <Field language={uiLanguage} label="Default font size" jsonPath="annotations[0].font_size"><Input type="number" value={activeFrame.annotations[0]?.fontSize ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === 0 ? { ...entry, fontSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : entry) }))} /></Field>
         {activeFrame.annotations.map((annotation, annotationIndex) => (
-          <div key={annotationIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-4  ${hoveredRemoveGroup === `annotation-${annotationIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+          <div key={annotationIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-4  ${hoveredRemoveGroup === `annotation-${annotationIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+            <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations.slice(0, annotationIndex + 1), structuredClone(f.annotations[annotationIndex]), ...f.annotations.slice(annotationIndex + 1)] }))} />
             <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `annotation-${annotationIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.filter((_, i) => i !== annotationIndex) }))} />
             <Field language={uiLanguage} label="Text label" jsonPath={`annotations[${annotationIndex}].text.name`} className='sm:col-span-2'>
               <Input value={annotation.text?.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.map((entry, i) => i === annotationIndex ? { ...entry, text: { name: e.target.value, relPos: entry.text?.relPos ?? [0, 0], color: entry.text?.color ?? '#111827', fontSize: entry.text?.fontSize } } : entry) }))} /></Field>

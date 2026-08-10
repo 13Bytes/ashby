@@ -129,9 +129,9 @@ export function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => vo
   )
 }
 
-export function DuplicateIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {    /* & use for guideline, annotation,... duplication */
+export function DuplicateIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {
   return (
-    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2 hover:bg-red-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Remove">
+    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-10 h-7 px-2 hover:bg-blue-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Duplicate">
       ⧉
     </Button>
   )

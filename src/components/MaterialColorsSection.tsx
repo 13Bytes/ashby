@@ -22,7 +22,7 @@ const hsvToHex = (hue: number, saturation: number, value: number): string => {
 
 export const generateMaterialColorsForDataframe = (df: DataframeConfig): DataframeConfig => {
   const keys = Object.keys(df.materialColors)
-  const numberOfBrightnessLevels = Math.round(keys.length / 10)
+  const numberOfBrightnessLevels = Math.ceil(keys.length / 10)
   if (keys.length === 0) return df
 
   const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
@@ -60,7 +60,7 @@ export function MaterialColorsSection({
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="sm:col-span-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{t('materialColors')}</h3>
+          <h3 className="m-0 text-m font-semibold text-violet-500">{t('materialColors')}</h3>
           <Button
             type="button"
             variant="outline"

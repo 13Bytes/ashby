@@ -2,7 +2,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import type { FrameConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
-import type { ColorOrMaterialInputComponent, FieldComponent, RemoveIconButtonComponent } from '../types/componentProps'
+import type { ColorOrMaterialInputComponent, FieldComponent, RemoveIconButtonComponent, DuplicateIconButtonComponent } from '../types/componentProps'
 import { addColoredAreaToFrame, parseNumberList, toCommaList } from '../utils/coloredAreas'
 
 type Props = {
@@ -17,18 +17,22 @@ type Props = {
   materialColorOptions: string[]
   FieldComponent: FieldComponent
   RemoveIconButtonComponent: RemoveIconButtonComponent
+  DuplicateIconButtonComponent: DuplicateIconButtonComponent
   ColorOrMaterialInputComponent: ColorOrMaterialInputComponent
 }
 
-export function ColoredAreasSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, parseJsonField, numberValue, materialColorOptions, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
+export function ColoredAreasSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, parseJsonField, numberValue, materialColorOptions, FieldComponent: Field, RemoveIconButtonComponent: RemoveIconButton,
+  DuplicateIconButtonComponent: DuplicateIconButton, ColorOrMaterialInputComponent: ColorOrMaterialInput }: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="sm:col-span-2 flex items-center gap-2">
-        <h3 className="m-0 text-sm font-semibold">{t('coloredAreas')}</h3>
+        <h3 className="m-0 text-m font-semibold text-violet-500">{t('coloredAreas')}</h3>
         <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame((f) => addColoredAreaToFrame(f))}>+ Area</Button>
 
       </div>{activeFrame.coloredAreas.map((area, areaIndex) => (
-        <div key={areaIndex} className={`relative grid gap-2 rounded-lg border p-3 pr-12 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+        <div key={areaIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+          <DuplicateIconButton onClick={() => patchActiveFrame((f) => (
+            { ...f, coloredAreas: [...f.coloredAreas.slice(0, areaIndex + 1), structuredClone(f.coloredAreas[areaIndex]), ...f.coloredAreas.slice(areaIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `area-${areaIndex}` : null)} onClick={() => patchActiveFrame((f) => (
             { ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />
           <Field language={uiLanguage} label="Axis ranges JSON" jsonPath={`colored_areas[${areaIndex}].axes`}>
