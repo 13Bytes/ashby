@@ -103,7 +103,7 @@ class legend():
         elif not above and copyright:
             self.legend = plt.legend(
                 handles=self.handles,
-                bbox_to_anchor = (1.012, 0, 1, 1),
+                bbox_to_anchor = (1.014, 0, 1, 1),
                 title= legend_title,
                 loc  = 'center right',
                 labelspacing = 1.05,
@@ -140,7 +140,7 @@ def watermark(fig:plt.subplot, file:str|bool, alpha:float, dark_mode:bool, pos:[
         if dark_mode == False:
             file = 'RPS_lightmode.png'
         if dark_mode == True:
-            file = 'RPS_lightmode.png'  # & dark
+            file = 'RPS_darkmode.png'  # & dark
     if not isinstance(file, str): return
 
     logo =  os.path.join(

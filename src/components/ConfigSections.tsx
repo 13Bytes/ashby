@@ -172,6 +172,7 @@ export function ConfigSections(props: Props) {
       <GuidelinesSection
         t={t}
         uiLanguage={uiLanguage}
+        activeDataframe={activeDataframe}
         activeFrame={activeFrame}
         hoveredRemoveGroup={hoveredRemoveGroup}
         setHoveredRemoveGroup={setHoveredRemoveGroup}

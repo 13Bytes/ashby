@@ -13,17 +13,18 @@ export function FrameSection(props: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">Frame</h3>
-      <Field language={uiLanguage} label="Export file name" jsonPath="frames[j].export_file_name">
-        <Input value={activeFrame.exportFileName ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, exportFileName: e.target.value || undefined }))} />
-      </Field>
-      <Field language={uiLanguage} label="Algorithm" jsonPath="frames[j].algorithm">
-        <Select value={activeFrame.algorithm} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, algorithm: e.target.value as any }))}>{PLOT_ALGORITHMS.map((a:string) => <option key={a} value={a}>{a}</option>)}
-      </Select></Field>
-      <Field language={uiLanguage} label="Automatic display area" jsonPath="automatic_Display_Area_margin">
-        <div className="grid gap-2">
-          <Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { left: 0, right: 0, top: 0, bottom: 0 } }))}>
-            {automaticDisplayAreaActive ? 'active' : 'inactive'}
-      </Button></div></Field>
+      <div className="grid gap-3 dark:border-zinc-800 dark:bg-transparent sm:col-span-2 sm:grid-cols-4">
+        <Field language={uiLanguage} selfClassName="sm:col-span-2" label="Export file name" jsonPath="frames[j].export_file_name">
+          <Input value={activeFrame.exportFileName ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, exportFileName: e.target.value || undefined }))} />
+        </Field>
+        <Field language={uiLanguage} label="Algorithm" jsonPath="frames[j].algorithm">
+          <Select value={activeFrame.algorithm} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, algorithm: e.target.value as any }))}>{PLOT_ALGORITHMS.map((a:string) => <option key={a} value={a}>{a}</option>)}
+        </Select></Field>
+        <Field language={uiLanguage} label="Automatic display area" jsonPath="automatic_Display_Area_margin">
+          <div className="grid gap-2">
+            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { left: 0, right: 0, top: 0, bottom: 0 } }))}>
+              {automaticDisplayAreaActive ? 'active' : 'inactive'}
+      </Button></div></Field></div>
       <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
         <h4 className="m-0 text-sm font-semibold">X-Axis</h4>
         <div className="grid gap-2 sm:grid-cols-4">
@@ -79,13 +80,16 @@ export function FrameSection(props: Props) {
         </div>
       </div>
       <div className="grid gap-2">
-        <label className="font-medium text-zinc-900 dark:text-zinc-100">Title</label>{activeDataframe.plotLanguages.map((lang:string) => (<div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2"><span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
+        <label className="font-medium text-zinc-900 dark:text-zinc-100">Title</label>
+          {activeDataframe.plotLanguages.map((lang:string) => (
+            <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+              <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
         <Input value={activeFrame.title[lang] ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} /></div>))}</div>
       <div className="grid gap-2">
         <label className="font-medium text-zinc-900 dark:text-zinc-100">Legend title</label>
-        {activeDataframe.plotLanguages.map((lang:string) => (
-          <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-            <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
+          {activeDataframe.plotLanguages.map((lang:string) => (
+            <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+              <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
         <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e:any) => props.patchActiveDataframe((c:any) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} /></div>))}
       </div>
     </section>

@@ -166,7 +166,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
         
         # ~ labels 
-        plt.title(label = Format_Storage.language_text(frame.get('title',"")), size = df_font.get('title_size',40), pad=15, loc='left') 
+        plt.title(label = Format_Storage.language_text(frame.get('title',"")), color=font_color, size = df_font.get('title_size',40), pad=15, loc='left') 
         ax.set_xlabel(axe_label(Sorted_data, 0), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=10)
         ax.set_ylabel(axe_label(Sorted_data, 1), color=font_color, fontsize=df_font.get('axis_label_size',20), labelpad=5 )
 
@@ -174,7 +174,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         if dataframe.get('copyright', False) != False:          # & ❗ ⇒  ui
             copyright(ax, text=dataframe.get('copyright', True), font_color=font_color)
         if dataframe.get('watermark', False) != False:           # & ❗ ⇒  ui
-            watermark(fig, dataframe.get('watermark',True), alpha=0.5, dark_mode=df_darkmode, pos=[0.72, 0.13], size=.13)
+            watermark(fig, dataframe.get('watermark',True), alpha=0.6, dark_mode=df_darkmode, pos=[0.72, 0.13], size=.13)
 
 
         # ~ add grid lines 
