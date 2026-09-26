@@ -1,10 +1,9 @@
-import json
 import io
 from pathlib import Path
 
 import pandas as pd
-import requests
 
+from . import teable
 from .filter import filter_data
 
 
@@ -92,60 +91,10 @@ def import_excel_metadata(import_file_name: str, import_sheet: int):
 
 def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     wanted_fields = collums_list(axes, layers)
-
-    params = {
-        "take": 1000,
-        "skip": 0,
-        "filter": json.dumps(filter),
-        "fields": wanted_fields
-    }
-
-    headers = {
-        "Authorization": api_key,
-        "Accept": "application/json"
-    }
-
-
-    try:
-        status = requests.head(teable_url, headers=headers, verify=verify_tls, timeout=30)
-    except requests.exceptions.SSLError:
-        if verify_tls is False:
-            raise
-        print("WARNING: TLS certificate verification failed for Teable. Retrying with verify=False.")
-        verify_tls = False
-        status = requests.head(teable_url, headers=headers, verify=verify_tls, timeout=30)
-
-    if status.status_code == 200:
-        data = []
-        print("importing...")
-        while True:
-            try:
-                response = requests.get(teable_url, params=params, headers=headers, verify=verify_tls, timeout=30).json()
-            except requests.exceptions.SSLError:
-                if verify_tls is False:
-                    raise
-                print("WARNING: TLS certificate verification failed for Teable GET request. Retrying with verify=False.")
-                verify_tls = False
-                response = requests.get(teable_url, params=params, headers=headers, verify=verify_tls, timeout=30).json()
-
-            records = [rec["fields"] for rec in response["records"]]
-
-            if not records:
-                break
-
-            params["skip"] += params["take"] 
-
-            data.extend(records)
-        dataframe = pd.DataFrame(data, columns=wanted_fields)        # & raise error if _low or layer column not found
-
-        # print(dataframe)
-        print(f"data received successfully  (Total of {len(data)} points)")  
-  
-        return dataframe
-    elif status.status_code == 403:
-        raise PermissionError("ERROR 403 - Teable API: kein Zugriffsrecht. Bitte API Key & URL prüfen")
-    else:
-        raise Exception(f"unknown Teable error {status.status_code}: {status.text}")
+    records = teable.fetch_records(teable_url, api_key, verify_tls=verify_tls, filter_clause=filter or None)
+    dataframe = pd.DataFrame(records, columns=wanted_fields)        # & raise error if _low or layer column not found
+    print(f"data received successfully  (Total of {len(records)} points)")
+    return dataframe
 
 def collums_list(axes, layers):  # returns a list of all columns that should be requested via API
     wanted_fields = []

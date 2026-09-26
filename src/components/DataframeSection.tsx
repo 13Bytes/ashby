@@ -220,10 +220,10 @@ export function DataframeSection({
         {sourceMode === 'teable' ? (
           <>
             <Field label={t('teableUrl')} jsonPath="teable_url" selfClassName="sm:col-span-2">
-              <Input value={activeDataframe.teableUrl ?? ''} onChange={(event) => patchActiveDataframe((current) => ({ ...current, teableUrl: event.target.value || undefined }))} />
+              <Input value={activeDataframe.teableUrl ?? ''} placeholder={t('teableUrlPlaceholder')} onChange={(event) => patchActiveDataframe((current) => ({ ...current, teableUrl: event.target.value || undefined }))} />
             </Field>
             <Field label={t('apiKey')} jsonPath="API_Key" selfClassName="sm:col-span-2">
-              <Input value={activeDataframe.apiKey ?? ''} onChange={(event) => patchActiveDataframe((current) => ({ ...current, apiKey: event.target.value || undefined }))} />
+              <Input type="password" autoComplete="off" value={activeDataframe.apiKey ?? ''} placeholder="teable_…" onChange={(event) => patchActiveDataframe((current) => ({ ...current, apiKey: event.target.value || undefined }))} />
             </Field>
             <Button type="button" onClick={() => { void importDatabase() }} disabled={importInProgress} className="self-end-safe">
               {importInProgress ? t('importing') : t('importDatabase')}

@@ -28,9 +28,11 @@ FRONTEND_INDEX_PATH = FRONTEND_DIR / 'index.html'
 if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
     from backend import import_data as import_data_module
+    from backend.import_data import teable as teable_api
     from backend.plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
 else:
     from . import import_data as import_data_module
+    from .import_data import teable as teable_api
     from .plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
 
 app = FastAPI(title='Ashby Backend API')
@@ -79,45 +81,44 @@ def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[li
     return columns, keywords_by_column, sheet_names
 
 
+TEABLE_KEYWORD_RECORD_LIMIT = 5000
+
+
 def _extract_columns_and_keywords_from_teable(
     teable_url: str,
     api_key: str,
     verify_tls: bool = True,
 ) -> tuple[list[str], dict[str, list[str]]]:
-    headers = {
-        'Authorization': api_key,
-        'Accept': 'application/json',
-    }
-    try:
-        response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30, verify=verify_tls)
-    except requests.exceptions.SSLError:
-        if verify_tls is False:
-            raise
-        response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30, verify=False)
-    response.raise_for_status()
-    payload = response.json() if response.content else {}
-    records = payload.get('records', []) if isinstance(payload, dict) else []
+    # Columns come from the table's field list: records omit empty cells, so reading them from
+    # records would miss columns that happen to be empty in the fetched rows.
+    columns = teable_api.fetch_field_names(teable_url, api_key, verify_tls=verify_tls)
+    records = teable_api.fetch_records(teable_url, api_key, verify_tls=verify_tls, max_records=TEABLE_KEYWORD_RECORD_LIMIT)
 
-    columns: list[str] = []
-    keywords_by_column: dict[str, set[str]] = {}
-    for record in records:
-        fields = record.get('fields', {}) if isinstance(record, dict) else {}
+    # Keywords like in the Excel import: the distinct text values of each column.
+    keywords_by_column: dict[str, set[str]] = {column: set() for column in columns}
+    for fields in records:
         if not isinstance(fields, dict):
             continue
         for key, value in fields.items():
             column = str(key).strip()
-            if not column:
-                continue
-            if column not in columns:
-                columns.append(column)
-            if isinstance(value, (str, int, float, bool)):
-                keywords_by_column.setdefault(column, set()).add(str(value))
+            if column in keywords_by_column and isinstance(value, str) and value.strip():
+                keywords_by_column[column].add(value.strip())
 
     normalized_keywords = {
-        column: sorted(list(values))[:200]
+        column: sorted(values, key=lambda entry: entry.lower())
         for column, values in keywords_by_column.items()
     }
-    return sorted(columns), normalized_keywords
+    return columns, normalized_keywords
+
+
+def _teable_import_response(teable_url: str, api_key: str, verify_tls: bool = True) -> JSONResponse:
+    try:
+        columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, api_key, verify_tls=verify_tls)
+    except teable_api.TeableError as error:
+        return JSONResponse({'success': False, 'message': str(error)}, status_code=400)
+    except requests.RequestException as error:
+        return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
+    return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
 
 
 def _encode_messages_header(messages: list[str]) -> str:
@@ -251,11 +252,7 @@ async def import_database(
                 'import_file_name': import_file_name_json,
                 'sheet_names': sheet_names,
             })
-        try:
-            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url_json, api_key_json, verify_tls=verify_tls_json)
-        except requests.RequestException as error:
-            return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
-        return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
+        return _teable_import_response(teable_url_json, api_key_json, verify_tls=verify_tls_json is not False)
 
     if file is None:
         if import_file_name:
@@ -272,11 +269,7 @@ async def import_database(
             })
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
-        try:
-            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, API_Key, verify_tls=True)
-        except requests.RequestException as error:
-            return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
-        return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
+        return _teable_import_response(teable_url, API_Key)
 
     file_bytes = await file.read()
     try:
