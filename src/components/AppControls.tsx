@@ -121,6 +121,54 @@ export function MultiSelectInput({
   )
 }
 
+/**
+ * Text input for values that are parsed from text (JSON, number lists). Keeps the raw text while
+ * the field is focused so intermediate, not-yet-valid input is not thrown away, and only commits
+ * values that parse. `parse` returns undefined for invalid text.
+ */
+export function DraftInput<T>({
+  value,
+  parse,
+  onCommit,
+  multiline = false,
+  className,
+}: {
+  value: string
+  parse: (text: string) => T | undefined
+  onCommit: (next: T) => void
+  multiline?: boolean
+  className?: string
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const text = draft ?? value
+  const invalid = draft !== null && parse(draft) === undefined
+  const handleChange = (next: string) => {
+    setDraft(next)
+    const parsed = parse(next)
+    if (parsed !== undefined) onCommit(parsed)
+  }
+  const invalidClassName = invalid ? 'border-red-500 focus-visible:ring-red-500' : ''
+
+  return multiline ? (
+    <textarea
+      className={`min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${invalidClassName} ${className ?? ''}`}
+      value={text}
+      aria-invalid={invalid}
+      onChange={(event) => handleChange(event.target.value)}
+      onBlur={() => setDraft(null)}
+      spellCheck={false}
+    />
+  ) : (
+    <Input
+      className={`${invalidClassName} ${className ?? ''}`}
+      value={text}
+      aria-invalid={invalid}
+      onChange={(event) => handleChange(event.target.value)}
+      onBlur={() => setDraft(null)}
+    />
+  )
+}
+
 export function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {
   return (
     <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2 hover:bg-red-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Remove">
@@ -156,7 +204,7 @@ export function ColorOrMaterialInput({
       </Button>
       {mode === 'custom' ? (
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
-          <Input type="color" value={isHexColor ? value : '#000000'} className="w-16 p-1" onChange={(e) => onChange(e.target.value)} />
+          <Input type="color" value={/^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : '#000000'} className="w-16 p-1" onChange={(e) => onChange(e.target.value)} />
           <Input value={value} onChange={(e) => onChange(e.target.value)} />
         </div>
       ) : (

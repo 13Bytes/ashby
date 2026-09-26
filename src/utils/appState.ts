@@ -1,10 +1,7 @@
 import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
 
 export type SourceMode = 'teable' | 'file' | 'dataset'
-export type JsonRenderTarget = { dataframeIndex: number; frameIndex: number }
 export type MultiOption = { value: string; label: string }
-
-export const WHITELIST_OPTIONS: MultiOption[] = []
 
 export const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
 
@@ -124,14 +121,6 @@ export const reorderSelectionIndices = (length: number, value: true | number[], 
   })
   const normalized = getSelectedIndices(length, moved)
   return normalized.length === length && length > 0 ? true : normalized
-}
-
-export const buildJsonFrameNeedle = (config: PlotConfig, target: JsonRenderTarget): string | null => {
-  const frame = config.dataframes[target.dataframeIndex]?.frames[target.frameIndex]
-  if (!frame) return null
-  const snippet = JSON.stringify(frame, null, 2).trim()
-  const lines = snippet.split('\n')
-  return lines.length > 2 ? lines.slice(1, -1).join('\n') : snippet
 }
 
 export const getConfigLanguages = (config: PlotConfig): string[] => {

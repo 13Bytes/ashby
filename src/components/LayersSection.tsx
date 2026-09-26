@@ -4,8 +4,8 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { FrameConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
-
-type MultiOption = { value: string; label: string }
+import { numberValue, type MultiOption } from '../utils/appState'
+import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton } from './AppControls'
 
 type Props = {
   t: (key: string) => string
@@ -20,20 +20,9 @@ type Props = {
   availableWhitelistKeywords: MultiOption[]
   expandedLayerKeywords: Record<number, boolean>
   setExpandedLayerKeywords: Dispatch<SetStateAction<Record<number, boolean>>>
-  numberValue: (value: number, fallback: number) => number
-  FieldComponent: any
-  MultiSelectInputComponent: any
-  RemoveIconButtonComponent: any
-  DuplicateIconButtonComponent: any
 }
 
-export const addLayerToFrame = (frame: FrameConfig): FrameConfig => ({
-  ...frame,
-  layers: [...frame.layers, { name: '', whitelist: [], alphaPoints: undefined, alphaAreas: undefined, linewidth: 1.5, alpha: undefined, whitelistFlag: false }],
-})
-
-export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords, numberValue, FieldComponent: Field, MultiSelectInputComponent: MultiSelectInput, RemoveIconButtonComponent: RemoveIconButton,
-  DuplicateIconButtonComponent: DuplicateIconButton }: Props) {
+export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="flex items-center gap-2">
@@ -53,7 +42,7 @@ export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, 
       {activeFrame.layers.map((layer, layerIndex) => (
         <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
           <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
-          <RemoveIconButton onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
+          <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
           <div className="grid gap-3">
             <Field language={uiLanguage} label={`Layer ${layerIndex + 1} Name`} jsonPath={`layers[${layerIndex}].name`}>
               <Select value={layer.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, name: e.target.value } : x) }))}>
@@ -72,12 +61,12 @@ export function LayersSection({ t, uiLanguage, activeFrame, hoveredRemoveGroup, 
           <MultiSelectInput
             title="Whitelist keywords"
             value={layer.whitelist ?? []}
-            options={!layer.name ? [] : (availableKeywordsByColumn[layer.name] ?? []).length > 0 ? (availableKeywordsByColumn[layer.name] ?? []).map((entry: string) => ({ value: entry, label: entry })) : availableWhitelistKeywords}
+            options={!layer.name ? [] : (availableKeywordsByColumn[layer.name] ?? []).length > 0 ? (availableKeywordsByColumn[layer.name] ?? []).map((entry) => ({ value: entry, label: entry })) : availableWhitelistKeywords}
             expanded={expandedLayerKeywords[layerIndex] === true}
             onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
             modeValue={layer.whitelistFlag ?? false}
-            onModeChange={(next: boolean) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => (i === layerIndex ? { ...x, whitelistFlag: next } : x)) }))}
-            onChange={(next: string[]) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))}
+            onModeChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => (i === layerIndex ? { ...x, whitelistFlag: next } : x)) }))}
+            onChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))}
           />
         </div>
       ))}

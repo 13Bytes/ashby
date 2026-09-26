@@ -74,6 +74,66 @@ test('colored area helpers parse numbers and append a default area', async () =>
   assert.deepEqual(addColoredAreaToFrame(frame).coloredAreas[0], { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 })
 })
 
+test('strict number list parsing rejects incomplete input while typing', async () => {
+  const { parseStrictNumberList } = await importTypeScriptModule('src/utils/coloredAreas.ts')
+
+  assert.deepEqual(parseStrictNumberList(''), [])
+  assert.deepEqual(parseStrictNumberList('1, 2.5, -3'), [1, 2.5, -3])
+  assert.equal(parseStrictNumberList('1,'), undefined)
+  assert.equal(parseStrictNumberList('1, -'), undefined)
+})
+
+test('JSONC comment stripping keeps comment-like text inside strings', async () => {
+  const { parseImportedConfig } = await importTypeScriptModule('src/utils/configIo.ts')
+  const text = '{\n  // comment\n  "url": "https://example.invalid/a//b", /* block */\n  "glob": "dir/*.xlsx",\n  "quote": "say \\"//hi\\""\n}'
+
+  assert.deepEqual(parseImportedConfig(text), { url: 'https://example.invalid/a//b', glob: 'dir/*.xlsx', quote: 'say "//hi"' })
+})
+
+test('toExternalConfig encodes the file format the way the backend reads it', async () => {
+  const { createDefaultPlotConfig } = await importTypeScriptModule('src/config/defaultPlotConfig.ts')
+  const { toExternalConfig } = await importTypeScriptModule('src/utils/configIo.ts')
+  const config = createDefaultPlotConfig()
+
+  config.dataframes[0].fileformat = 'svg'
+  assert.equal(toExternalConfig(config).dataframes[0].resolution, 'svg')
+  config.dataframes[0].fileformat = 'png'
+  config.dataframes[0].resolution = 300
+  assert.equal(toExternalConfig(config).dataframes[0].resolution, 300)
+})
+
+test('toExternalConfig keeps alpha_points/alpha_areas on named last layers', async () => {
+  const { createDefaultPlotConfig } = await importTypeScriptModule('src/config/defaultPlotConfig.ts')
+  const { toExternalConfig } = await importTypeScriptModule('src/utils/configIo.ts')
+  const config = createDefaultPlotConfig()
+  Object.assign(config.dataframes[0].frames[0].layers[0], { name: 'Material', alphaPoints: 0.5, alphaAreas: 0.2 })
+
+  const [layer] = toExternalConfig(config).dataframes[0].frames[0].layers
+  assert.equal(layer.alpha_points, 0.5)
+  assert.equal(layer.alpha_areas, 0.2)
+})
+
+test('findExternalFrameOffset points at the frame inside the exported JSON', async () => {
+  const { createDefaultPlotConfig } = await importTypeScriptModule('src/config/defaultPlotConfig.ts')
+  const { findExternalFrameOffset, toExternalConfig } = await importTypeScriptModule('src/utils/configIo.ts')
+  const config = createDefaultPlotConfig()
+  config.dataframes[0].frames.push({ ...structuredClone(config.dataframes[0].frames[0]), name: 'Second' })
+  const draft = JSON.stringify(toExternalConfig(config), null, 2)
+
+  const offset = findExternalFrameOffset(config, 0, 1)
+  assert.ok(offset > 0)
+  assert.match(draft.slice(offset), /^\{\s*"name": "Second"/)
+  assert.equal(findExternalFrameOffset(config, 0, 5), -1)
+})
+
+test('localized guideline labels keep every plot language', async () => {
+  const { getLocalizedLabel, setLocalizedLabel } = await importTypeScriptModule('src/utils/configEditing.ts')
+
+  assert.equal(getLocalizedLabel('plain', 'de'), 'plain')
+  assert.deepEqual(setLocalizedLabel('plain', 'de', 'Linie', ['en', 'de']), { en: 'plain', de: 'Linie' })
+  assert.deepEqual(setLocalizedLabel({ en: 'line', fr: 'ligne' }, 'de', 'Linie', ['en', 'de']), { en: 'line', fr: 'ligne', de: 'Linie' })
+})
+
 test('appState UI keys stay stable for reorderable entities and refresh for clones', async () => {
   const { getUiKey, refreshUiKey } = await importTypeScriptModule('src/utils/appState.ts')
   const frame = { _extensions: {} }

@@ -5,6 +5,7 @@ import { Button } from './ui/button'
 
 type Props = {
   activePage: 'config' | 'plot'
+  configBaseName: string
   fileInputRef: RefObject<HTMLInputElement | null>
   handleImportFile: (event: ChangeEvent<HTMLInputElement>) => void
   openJsonEditor: () => void
@@ -22,6 +23,7 @@ type Props = {
 
 export function AppHeader({
   activePage,
+  configBaseName,
   fileInputRef,
   handleImportFile,
   openJsonEditor,
@@ -53,7 +55,7 @@ export function AppHeader({
       </div>
       <nav className="flex rounded-md border border-zinc-300 p-1 dark:border-zinc-700" aria-label="Application view">
         <Button type="button" variant={activePage === 'config' ? 'default' : 'outline'} className={activePage === 'config' ? '' : 'border-transparent'} onClick={() => setActivePage('config')}>Config</Button>
-        <Button type="button" variant={activePage === 'plot'   ? 'default' : 'outline'} className={activePage === 'plot'   ? '' : 'border-transparent'} onClick={() => setActivePage('plot')}  >Plot</Button>
+        <Button type="button" variant={activePage === 'plot'   ? 'default' : 'outline'} className={activePage === 'plot'   ? '' : 'border-transparent'} onClick={() => { setPlotAction('preview-current'); setActivePage('plot') }}>Plot</Button>
       </nav>
       <div className="relative flex">
         <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>      {/* & remember dropdown selection */}
@@ -78,7 +80,7 @@ export function AppHeader({
           {showConfigActions ? (
             <div className="absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
               <Button type="button" variant="outline" size="sm" onClick={() => { fileInputRef.current?.click(); setShowConfigActions(false) }}>Import config</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { exportConfig(plotConfig);      setShowConfigActions(false) }}>Export config</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { exportConfig(plotConfig, configBaseName); setShowConfigActions(false) }}>Export config</Button>
               <Button type="button" variant="outline" size="sm" onClick={() => { openJsonEditor();              setShowConfigActions(false) }}>{t('json')}</Button>
               <Button type="button" variant="outline" size="sm" onClick={() => { setShowResetConfirm(true);     setShowConfigActions(false) }}>Reset config</Button>
             </div>

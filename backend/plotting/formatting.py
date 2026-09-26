@@ -31,12 +31,12 @@ class format_storage():
     def language_text(self, label:dict|str,) -> str:
         '''retrieves the label in the correct language'''
         if isinstance(label, dict):
-            label = label.get(self.language, False)
-            if label == False:
-                label = next(iter(mydict.values()))
+            label_ = label.get(self.language, False)
+            if label_ == False:
+                label_ = next(iter(label.values()))
         elif not isinstance(label, str):
-            label = ""
-        return label
+            label_ = ""
+        return label_
 
 
 
@@ -140,7 +140,7 @@ def watermark(fig:plt.subplot, file:str|bool, alpha:float, dark_mode:bool, pos:[
         if dark_mode == False:
             file = 'RPS_lightmode.png'
         if dark_mode == True:
-            file = 'RPS_darkmode.png'  # & dark
+            file = 'RPS_darkmode.png'
     if not isinstance(file, str): return
 
     logo =  os.path.join(

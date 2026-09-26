@@ -2,10 +2,10 @@ import type { Dispatch, SetStateAction } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
-import type { AxisConfig, DataframeConfig } from '../config/defaultPlotConfig'
+import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
-
-type MultiOption = { value: string; label: string }
+import type { MultiOption } from '../utils/appState'
+import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton } from './AppControls'
 
 type Props = {
   t: (key: string) => string
@@ -20,30 +20,7 @@ type Props = {
   availableAxisColumns: MultiOption[]
   expandedAxisColumns: Record<number, boolean>
   setExpandedAxisColumns: Dispatch<SetStateAction<Record<number, boolean>>>
-  AXIS_MODES: readonly AxisConfig['mode'][]
-  FieldComponent: any
-  MultiSelectInputComponent: any
-  RemoveIconButtonComponent: any
-  DuplicateIconButtonComponent: any
 }
-
-export const addAxisToDataframe = (df: DataframeConfig): DataframeConfig => ({
-  ...df,
-  axes: [
-    ...df.axes,
-    {
-      name: `axis_${df.axes.length + 1}`,
-      columns: [],
-      mode: 'default',
-      labels: df.plotLanguages.reduce<Record<string, string>>((acc, lang) => ({ ...acc, [lang]: '' }), {}),
-    },
-  ],
-})
-
-export const updateAxisInDataframe = (df: DataframeConfig, axisIndex: number, patch: (axis: AxisConfig) => AxisConfig): DataframeConfig => ({
-  ...df,
-  axes: df.axes.map((axis, index) => (index === axisIndex ? patch(axis) : axis)),
-})
 
 export function AxesSection({
   t,
@@ -58,11 +35,6 @@ export function AxesSection({
   availableAxisColumns,
   expandedAxisColumns,
   setExpandedAxisColumns,
-  AXIS_MODES,
-  FieldComponent: Field,
-  MultiSelectInputComponent: MultiSelectInput,
-  RemoveIconButtonComponent: RemoveIconButton,
-  DuplicateIconButtonComponent: DuplicateIconButton,
 }: Props) {
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
@@ -93,7 +65,7 @@ export function AxesSection({
             }))}
           />
           <RemoveIconButton
-            onHoverChange={(hovered: boolean) => setHoveredRemoveGroup(hovered ? `axis-${axisIndex}` : null)}
+            onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `axis-${axisIndex}` : null)}
             onClick={() => removeAxis(axisIndex)}
           />
 
@@ -149,7 +121,7 @@ export function AxesSection({
               }))
             }
             hideModeToggle
-            onChange={(next: string[]) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))}
+            onChange={(next) => updateAxis(axisIndex, (a) => ({ ...a, columns: next }))}
           />
         </div>
       ))}

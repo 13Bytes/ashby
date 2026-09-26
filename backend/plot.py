@@ -202,7 +202,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
         else:
             os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
-            plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution, transparent=dataframe.get('transtarent', True))     # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename       # & ❗ ⇒  ui
+            plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution, transparent=dataframe.get('transparent', True))     # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename       # & ❗ ⇒  ui
             cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
             plt.close()
 

@@ -1,54 +1,99 @@
+import { PLOT_ALGORITHMS, type DataframeConfig, type FrameConfig } from '../config/defaultPlotConfig'
+import type { UILanguage } from '../uiTranslations'
+import { numberValue } from '../utils/appState'
+import { Field } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 
-type Props = Record<string, any>
+type Props = {
+  t: (key: string) => string
+  uiLanguage: UILanguage
+  activeFrame: FrameConfig
+  activeDataframe: DataframeConfig
+  patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
+  patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
+  automaticDisplayAreaActive: boolean
+}
 
-export function FrameSection(props: Props) {
-  const {
-    uiLanguage, t, activeFrame, patchActiveFrame, PLOT_ALGORITHMS, automaticDisplayAreaActive,
-    activeDataframe, numberValue, FieldComponent: Field,
-  } = props
+type Margin = NonNullable<FrameConfig['automaticDisplayAreaMargin']>
+type Limits = NonNullable<FrameConfig['xLim']>
+
+const EMPTY_MARGIN: Margin = { left: 0, right: 0, top: 0, bottom: 0 }
+
+/** Empty input means "no limit" (null in the exported config), so the backend picks the bound automatically. */
+const withLimit = (limits: FrameConfig['xLim'], bound: 0 | 1, value: number): Limits => {
+  const next: Limits = [limits?.[0], limits?.[1]]
+  next[bound] = Number.isFinite(value) ? value : undefined
+  return next
+}
+
+export function FrameSection({ t, uiLanguage, activeFrame, activeDataframe, patchActiveFrame, patchActiveDataframe, automaticDisplayAreaActive }: Props) {
+  const setMargin = (side: keyof Margin, value: number) =>
+    patchActiveFrame((c) => {
+      const margin = c.automaticDisplayAreaMargin ?? EMPTY_MARGIN
+      return { ...c, automaticDisplayAreaMargin: { ...margin, [side]: numberValue(value, margin[side]) } }
+    })
+
+  const limitField = (axis: 'x' | 'y', bound: 0 | 1, side: keyof Margin) => {
+    const limitKey = axis === 'x' ? 'xLim' : 'yLim'
+    return (
+      <Field
+        language={uiLanguage}
+        label={automaticDisplayAreaActive ? side : bound === 0 ? 'min' : 'max'}
+        jsonPath={automaticDisplayAreaActive ? `automatic_Display_Area_margin.${side}` : `${axis}_lim[${bound}]`}
+      >
+        <Input
+          type="number"
+          value={automaticDisplayAreaActive ? (activeFrame.automaticDisplayAreaMargin?.[side] ?? 0) : (activeFrame[limitKey]?.[bound] ?? '')}
+          onChange={(e) => automaticDisplayAreaActive
+            ? setMargin(side, e.target.valueAsNumber)
+            : patchActiveFrame((c) => ({ ...c, [limitKey]: withLimit(c[limitKey], bound, e.target.valueAsNumber) }))}
+        />
+      </Field>
+    )
+  }
+
+  const axisOptions = activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)
 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">Frame</h3>
       <div className="grid gap-3 dark:border-zinc-800 dark:bg-transparent sm:col-span-2 sm:grid-cols-4">
         <Field language={uiLanguage} selfClassName="sm:col-span-2" label="Export file name" jsonPath="frames[j].export_file_name">
-          <Input value={activeFrame.exportFileName ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, exportFileName: e.target.value || undefined }))} />
+          <Input value={activeFrame.exportFileName ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, exportFileName: e.target.value || undefined }))} />
         </Field>
         <Field language={uiLanguage} label="Algorithm" jsonPath="frames[j].algorithm">
-          <Select value={activeFrame.algorithm} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, algorithm: e.target.value as any }))}>{PLOT_ALGORITHMS.map((a:string) => <option key={a} value={a}>{a}</option>)}
-        </Select></Field>
+          <Select value={activeFrame.algorithm} onChange={(e) => patchActiveFrame((c) => ({ ...c, algorithm: e.target.value as FrameConfig['algorithm'] }))}>
+            {PLOT_ALGORITHMS.map((a) => <option key={a} value={a}>{a}</option>)}
+          </Select>
+        </Field>
         <Field language={uiLanguage} label="Automatic display area" jsonPath="automatic_Display_Area_margin">
-          <div className="grid gap-2">
-            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { left: 0, right: 0, top: 0, bottom: 0 } }))}>
-              {automaticDisplayAreaActive ? 'active' : 'inactive'}
-      </Button></div></Field></div>
+          <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { ...EMPTY_MARGIN } }))}>
+            {automaticDisplayAreaActive ? 'active' : 'inactive'}
+          </Button>
+        </Field>
+      </div>
       <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
         <h4 className="m-0 text-sm font-semibold">X-Axis</h4>
         <div className="grid gap-2 sm:grid-cols-4">
           <Field language={uiLanguage} label="quantity" jsonPath="x_quantity">
-            <Select value={activeFrame.xQuantity ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, xQuantity: e.target.value || undefined }))}>
+            <Select value={activeFrame.xQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xQuantity: e.target.value || undefined }))}>
               <option value="" disabled>Select required axis</option>
-              {activeDataframe.axes.map((axis:any) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}
+              {axisOptions}
             </Select>
           </Field>
           <Field language={uiLanguage} label="relative quantity" jsonPath="x_rel_quantity">
-            <Select value={activeFrame.xRelQuantity ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, xRelQuantity: e.target.value || undefined }))}>
-              <option value="">none</option>{activeDataframe.axes.map((axis:any) => <option key={`x-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}
+            <Select value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))}>
+              <option value="">none</option>{axisOptions}
             </Select>
           </Field>
           <Field language={uiLanguage} label={t('Logarithmic')} jsonPath="log_x_flag">
-            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, logXFlag: !c.logXFlag }))}>{activeFrame.logXFlag === true ? t('scaleLog') : t('scaleLinear')}</Button>
+            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, logXFlag: !c.logXFlag }))}>{activeFrame.logXFlag ? t('scaleLog') : t('scaleLinear')}</Button>
           </Field>
           <div className="grid grid-cols-2 gap-2">
-            <Field language={uiLanguage} label={automaticDisplayAreaActive ? 'left' : 'min'} jsonPath={automaticDisplayAreaActive ? 'automatic_Display_Area_margin.left' : 'x_lim[0]'}>
-              <Input type="number" value={automaticDisplayAreaActive ? (activeFrame.automaticDisplayAreaMargin?.left ?? 0) : (activeFrame.xLim?.[0] ?? '')} onChange={(e:any) => automaticDisplayAreaActive ? patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: { ...(c.automaticDisplayAreaMargin ?? { left: 0, right: 0, top: 0, bottom: 0 }), left: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin?.left ?? 0) } })) : patchActiveFrame((c:any) => ({ ...c, xLim: [numberValue(e.target.valueAsNumber, c.xLim?.[0] ?? 0), c.xLim?.[1] ?? 0] }))} />
-            </Field>
-            <Field language={uiLanguage} label={automaticDisplayAreaActive ? 'right' : 'max'} jsonPath={automaticDisplayAreaActive ? 'automatic_Display_Area_margin.right' : 'x_lim[1]'}>
-              <Input type="number" value={automaticDisplayAreaActive ? (activeFrame.automaticDisplayAreaMargin?.right ?? 0) : (activeFrame.xLim?.[1] ?? '')} onChange={(e:any) => automaticDisplayAreaActive ? patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: { ...(c.automaticDisplayAreaMargin ?? { left: 0, right: 0, top: 0, bottom: 0 }), right: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin?.right ?? 0) } })) : patchActiveFrame((c:any) => ({ ...c, xLim: [c.xLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.xLim?.[1] ?? 0)] }))} />
-            </Field>
+            {limitField('x', 0, 'left')}
+            {limitField('x', 1, 'right')}
           </div>
         </div>
       </div>
@@ -56,41 +101,42 @@ export function FrameSection(props: Props) {
         <h4 className="m-0 text-sm font-semibold">Y-Axis</h4>
         <div className="grid gap-2 sm:grid-cols-4">
           <Field language={uiLanguage} label="quantity" jsonPath="y_quantity">
-            <Select value={activeFrame.yQuantity ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, yQuantity: e.target.value || undefined }))}>
+            <Select value={activeFrame.yQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value || undefined }))}>
               <option value="" disabled>Select required axis</option>
-              {activeDataframe.axes.map((axis:any) => <option key={axis.name} value={axis.name}>{axis.name}</option>)}
+              {axisOptions}
             </Select>
           </Field>
           <Field language={uiLanguage} label="relative quantity" jsonPath="y_rel_quantity">
-            <Select value={activeFrame.yRelQuantity ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, yRelQuantity: e.target.value || undefined }))}>
-              <option value="">none</option>{activeDataframe.axes.map((axis:any) => <option key={`y-rel-${axis.name}`} value={axis.name}>{axis.name}</option>)}
+            <Select value={activeFrame.yRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yRelQuantity: e.target.value || undefined }))}>
+              <option value="">none</option>{axisOptions}
             </Select>
           </Field>
           <Field language={uiLanguage} label={t('Logarithmic')} jsonPath="log_y_flag">
-            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c:any) => ({ ...c, logYFlag: !c.logYFlag }))}>{activeFrame.logYFlag === true ? t('scaleLog') : t('scaleLinear')}</Button>
+            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, logYFlag: !c.logYFlag }))}>{activeFrame.logYFlag ? t('scaleLog') : t('scaleLinear')}</Button>
           </Field>
           <div className="grid grid-cols-2 gap-2">
-            <Field language={uiLanguage} label={automaticDisplayAreaActive ? 'bottom' : 'min'} jsonPath={automaticDisplayAreaActive ? 'automatic_Display_Area_margin.bottom' : 'y_lim[0]'}>
-              <Input type="number" value={automaticDisplayAreaActive ? (activeFrame.automaticDisplayAreaMargin?.bottom ?? 0) : (activeFrame.yLim?.[0] ?? '')} onChange={(e:any) => automaticDisplayAreaActive ? patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: { ...(c.automaticDisplayAreaMargin ?? { left: 0, right: 0, top: 0, bottom: 0 }), bottom: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin?.bottom ?? 0) } })) : patchActiveFrame((c:any) => ({ ...c, yLim: [numberValue(e.target.valueAsNumber, c.yLim?.[0] ?? 0), c.yLim?.[1] ?? 0] }))} />
-            </Field>
-            <Field language={uiLanguage} label={automaticDisplayAreaActive ? 'top' : 'max'} jsonPath={automaticDisplayAreaActive ? 'automatic_Display_Area_margin.top' : 'y_lim[1]'}>
-              <Input type="number" value={automaticDisplayAreaActive ? (activeFrame.automaticDisplayAreaMargin?.top ?? 0) : (activeFrame.yLim?.[1] ?? '')} onChange={(e:any) => automaticDisplayAreaActive ? patchActiveFrame((c:any) => ({ ...c, automaticDisplayAreaMargin: { ...(c.automaticDisplayAreaMargin ?? { left: 0, right: 0, top: 0, bottom: 0 }), top: numberValue(e.target.valueAsNumber, c.automaticDisplayAreaMargin?.top ?? 0) } })) : patchActiveFrame((c:any) => ({ ...c, yLim: [c.yLim?.[0] ?? 0, numberValue(e.target.valueAsNumber, c.yLim?.[1] ?? 0)] }))} />
-            </Field>
+            {limitField('y', 0, 'bottom')}
+            {limitField('y', 1, 'top')}
           </div>
         </div>
       </div>
       <div className="grid gap-2">
         <label className="font-medium text-zinc-900 dark:text-zinc-100">Title</label>
-          {activeDataframe.plotLanguages.map((lang:string) => (
-            <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-              <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
-        <Input value={activeFrame.title[lang] ?? ''} onChange={(e:any) => patchActiveFrame((c:any) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} /></div>))}</div>
+        {activeDataframe.plotLanguages.map((lang) => (
+          <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+            <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
+            <Input value={activeFrame.title[lang] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} />
+          </div>
+        ))}
+      </div>
       <div className="grid gap-2">
         <label className="font-medium text-zinc-900 dark:text-zinc-100">Legend title</label>
-          {activeDataframe.plotLanguages.map((lang:string) => (
-            <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-              <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
-        <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e:any) => props.patchActiveDataframe((c:any) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} /></div>))}
+        {activeDataframe.plotLanguages.map((lang) => (
+          <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
+            <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
+            <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} />
+          </div>
+        ))}
       </div>
     </section>
   )
