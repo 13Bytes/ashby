@@ -1,12 +1,41 @@
 import type { PlotConfig } from '../config/defaultPlotConfig'
 
-const JSONC_BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g
-const JSONC_LINE_COMMENT = /(^|[^:\\])\/\/.*$/gm
+/** Removes // and /* *\/ comments from JSONC while leaving string contents (e.g. URLs) untouched. */
+export function stripJsonComments(text: string): string {
+  let result = ''
+  let index = 0
+  while (index < text.length) {
+    const char = text[index]
+    if (char === '"') {
+      const start = index
+      index += 1
+      while (index < text.length && text[index] !== '"') {
+        index += text[index] === '\\' ? 2 : 1
+      }
+      index += 1
+      result += text.slice(start, index)
+    } else if (char === '/' && text[index + 1] === '/') {
+      while (index < text.length && text[index] !== '\n') index += 1
+    } else if (char === '/' && text[index + 1] === '*') {
+      const end = text.indexOf('*/', index + 2)
+      index = end < 0 ? text.length : end + 2
+    } else {
+      result += char
+      index += 1
+    }
+  }
+  return result
+}
 
-function stripJsonComments(text: string): string {
-  return text
-    .replace(JSONC_BLOCK_COMMENT, '')
-    .replace(JSONC_LINE_COMMENT, (_match, prefix: string) => prefix)
+/** Triggers a browser download for a blob. */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  // Revoking synchronously can cancel the download in some browsers.
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
 export function toExternalConfig(config: PlotConfig): unknown {
@@ -21,7 +50,9 @@ export function toExternalConfig(config: PlotConfig): unknown {
       import_file_name: dataframe.importFileName ?? null,
       import_sheet: dataframe.importSheet,
       image_ratio: dataframe.aspectRatio,
-      resolution: dataframe.resolution,
+      fileformat: dataframe.fileformat,
+      // The backend picks SVG when resolution is "svg"/null and PNG when it is a number.
+      resolution: dataframe.fileformat === 'svg' ? 'svg' : dataframe.resolution,
       legend_title: dataframe.legendTitle,
       font: {
         font_style: dataframe.font.fontStyle,
@@ -82,6 +113,9 @@ export function toExternalConfig(config: PlotConfig): unknown {
             whitelist: layer.whitelist ?? null,
             alpha: layer.alpha ?? null,
             linewidth: layer.linewidth ?? 1.5,
+            // The backend reads alpha_points/alpha_areas from the last layer, which may be a named one.
+            ...(layer.alphaPoints !== undefined ? { alpha_points: layer.alphaPoints } : {}),
+            ...(layer.alphaAreas !== undefined ? { alpha_areas: layer.alphaAreas } : {}),
           }
         }),
         filter: frame.filter ?? {},
@@ -128,17 +162,35 @@ export function toExternalConfig(config: PlotConfig): unknown {
   }
 }
 
-export function exportConfig(config: PlotConfig): void {
+export function exportConfig(config: PlotConfig, baseName?: string): void {
   const payload = JSON.stringify(toExternalConfig(config), null, 2)
-  const blob = new Blob([payload], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
+  const name = baseName?.trim() || `ashby-config-${new Date().toISOString().slice(0, 10)}`
+  downloadBlob(new Blob([payload], { type: 'application/json' }), `${name}.json`)
+}
 
-  anchor.href = url
-  anchor.download = `ashby-config-${new Date().toISOString().slice(0, 10)}.json`
-  anchor.click()
+/**
+ * Returns the offset of a frame object inside `JSON.stringify(toExternalConfig(config), null, 2)`,
+ * so the JSON editor can jump to it. Everything before the frame is serialized identically when the
+ * frame is swapped for a sentinel, which makes the sentinel's offset the frame's offset.
+ */
+export function findExternalFrameOffset(config: PlotConfig, dataframeIndex: number, frameIndex: number): number {
+  const external = toExternalConfig(config) as { dataframes: Array<{ frames: unknown[] }> }
+  const frames = external.dataframes[dataframeIndex]?.frames
+  if (!frames || frameIndex >= frames.length) return -1
+  const sentinel = '__ashby_frame_sentinel__'
+  frames[frameIndex] = sentinel
+  return JSON.stringify(external, null, 2).indexOf(`"${sentinel}"`)
+}
 
-  URL.revokeObjectURL(url)
+/** Parses a JSON object/array typed into an editor field; empty text means `emptyValue`, invalid text undefined. */
+export function parseJsonField<T>(text: string, emptyValue: T): T | undefined {
+  if (!text.trim()) return emptyValue
+  try {
+    const parsed: unknown = JSON.parse(text)
+    return parsed !== null && typeof parsed === 'object' ? parsed as T : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export function parseImportedConfig(text: string, stripComments = true): unknown {

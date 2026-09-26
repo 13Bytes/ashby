@@ -41,6 +41,11 @@ function runStoreOperation<T>(
         db.close()
         reject(transaction.error ?? new Error('Datasource storage transaction failed.'))
       }
+      // e.g. QuotaExceededError aborts the transaction without a request error; don't leave the promise pending.
+      transaction.onabort = () => {
+        db.close()
+        reject(transaction.error ?? new Error('Datasource storage transaction was aborted.'))
+      }
     }),
   )
 }

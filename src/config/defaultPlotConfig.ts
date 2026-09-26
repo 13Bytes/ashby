@@ -4,7 +4,6 @@ export type PlotAlgorithm = (typeof PLOT_ALGORITHMS)[number]
 export const AXIS_MODES = ['default', 'max', 'min', 'span'] as const
 export type AxisMode = (typeof AXIS_MODES)[number]
 
-export const LOG_FLAGS = [true, false] as const
 export const FONT_STYLES = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monospace'] as const
 
 export type UnknownConfigBucket = Record<string, unknown>
@@ -98,7 +97,8 @@ export interface GuidelineConfig {
   }
   fontsize: number
   fontColor: string
-  label: string
+  /** Plain string or per-language labels (see PLACEHOLDER_LABEL in the backend docs). */
+  label: string | Record<string, string>
   labelAbove: boolean
   labelPadding: number
 }

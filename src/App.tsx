@@ -4,7 +4,7 @@ import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { normalizePlotConfig } from './config/configMappers'
 import { createDefaultPlotConfig, type PlotConfig } from './config/defaultPlotConfig'
-import { parseImportedConfig, toExternalConfig } from './utils/configIo'
+import { findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
 import { UI_LABELS, type UILanguage } from './uiTranslations'
 import { AppPopouts } from './components/AppPopouts'
@@ -13,7 +13,7 @@ import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
 import { Field } from './components/AppControls'
-import { buildJsonFrameNeedle, getAxisBasesFromColumns, getConfigAxisColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, numberValue, parseColumnsFromImportResult, WHITELIST_OPTIONS, type MultiOption, type SourceMode } from './utils/appState'
+import { getAxisBasesFromColumns, getConfigAxisColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
@@ -25,8 +25,22 @@ type PlotAction = 'preview-current' | 'create-all'
 
 type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[] }
 
+const CONFIG_STORAGE_KEY = 'ashby-plot-config'
+const JSON_EDITOR_LINE_HEIGHT = 18
+
+/** Restores the config of this browser tab (sessionStorage survives reloads and is copied into tabs opened from here). */
+function readStoredPlotConfig(): PlotConfig {
+  try {
+    const stored = window.sessionStorage.getItem(CONFIG_STORAGE_KEY)
+    if (stored) return normalizePlotConfig(parseImportedConfig(stored))
+  } catch {
+    // ignore unavailable storage or an invalid cached config
+  }
+  return createDefaultPlotConfig()
+}
+
 function App() {
-  const [plotConfig, setPlotConfig] = useState<PlotConfig>(() => createDefaultPlotConfig())
+  const [plotConfig, setPlotConfig] = useState<PlotConfig>(readStoredPlotConfig)
   const [configBaseName, setConfigBaseName] = useState('ashby-config')
   const [activePage, setActivePage] = useState<AppPage>('config')
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
@@ -40,13 +54,13 @@ function App() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const jsonOverlayRef = useRef<HTMLPreElement | null>(null)
+  const jsonJumpOffsetRef = useRef(-1)
   const datasetAutoImportRef = useRef<string | null>(null)
   const fileAutoImportRef = useRef<string | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
   const [uiTheme, setUiTheme] = useState<UIThemePreference>(() => readStoredUITheme())
   const [availableColumns, setAvailableColumns] = useState<string[]>([])
-  const [availableWhitelistKeywords, setAvailableWhitelistKeywords] = useState<MultiOption[]>(WHITELIST_OPTIONS)
   const [availableKeywordsByColumn, setAvailableKeywordsByColumn] = useState<Record<string, string[]>>({})
   const [availableSheetsByDataframe, setAvailableSheetsByDataframe] = useState<Record<number, string[]>>({})
   const [importInProgress, setImportInProgress] = useState(false)
@@ -77,6 +91,10 @@ function App() {
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const automaticDisplayAreaActive = activeFrame.automaticDisplayAreaMargin !== null
   const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
+  const availableWhitelistKeywords = useMemo(
+    () => getConfigWhitelistKeywords(plotConfig).map((entry) => ({ value: entry, label: entry })),
+    [plotConfig],
+  )
   const availableAxisColumns = useMemo(
     () => getAxisBasesFromColumns(availableColumns).map((column) => ({ value: column, label: column })),
     [availableColumns],
@@ -183,33 +201,24 @@ function App() {
     }
   }, [])
   useEffect(() => {
-    const stored = window.sessionStorage.getItem('ashby-plot-config')
-    if (!stored) return
     try {
-      const parsed = parseImportedConfig(stored)
-      const normalized = normalizePlotConfig(parsed)
-      setPlotConfig(normalized)
+      window.sessionStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(toExternalConfig(plotConfig)))
     } catch {
-      // ignore invalid cached config
+      // storage full or unavailable: the config still lives in memory
     }
-  }, [])
-  useEffect(() => {
-    window.sessionStorage.setItem('ashby-plot-config', JSON.stringify(toExternalConfig(plotConfig)))
   }, [plotConfig])
+  // Keep the selection valid when dataframes/frames disappear (reset, import, JSON edit, URL params).
   useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key !== 'ashby-plot-config' || !event.newValue) return
-      try {
-        const parsed = parseImportedConfig(event.newValue)
-        const normalized = normalizePlotConfig(parsed)
-        setPlotConfig(normalized)
-      } catch {
-        // ignore invalid incoming config
-      }
+    const lastDataframeIndex = plotConfig.dataframes.length - 1
+    if (activeDataframeIndex > lastDataframeIndex) {
+      setActiveDataframeIndex(lastDataframeIndex)
+      return
     }
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
+    const lastFrameIndex = (plotConfig.dataframes[activeDataframeIndex]?.frames.length ?? 1) - 1
+    if (activeFrameIndex > lastFrameIndex) {
+      setActiveFrameIndex(lastFrameIndex)
+    }
+  }, [activeDataframeIndex, activeFrameIndex, plotConfig.dataframes])
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     params.set('dataframe', String(activeDataframeIndex))
@@ -238,10 +247,6 @@ function App() {
       window.clearInterval(interval)
     }
   }, [])
-  useEffect(() => {
-    const keywords = getConfigWhitelistKeywords(plotConfig)
-    setAvailableWhitelistKeywords(keywords.map((entry) => ({ value: entry, label: entry })))
-  }, [plotConfig])
   useEffect(() => {
     let active = true
     const loadDatasets = async () => {
@@ -311,26 +316,21 @@ function App() {
   useEffect(() => {
     setMoveFrameTargetDataframe(String(activeDataframeIndex))
   }, [activeDataframeIndex])
+  // Jump to the active frame once when the JSON editor opens (not on every keystroke).
   useEffect(() => {
-    if (!showJson) return
     const textarea = jsonTextareaRef.current
-    const overlay = jsonOverlayRef.current
-    if (!textarea) return
-    const needle = buildJsonFrameNeedle(plotConfig, { dataframeIndex: activeDataframeIndex, frameIndex: activeFrameIndex })
-    if (!needle) return
-    const index = jsonDraft.indexOf(needle)
-    if (index < 0) return
+    const offset = jsonJumpOffsetRef.current
+    if (!showJson || !textarea || offset < 0) return
+    jsonJumpOffsetRef.current = -1
     textarea.focus()
-    textarea.setSelectionRange(index, index)
-    const before = jsonDraft.slice(0, index)
-    const line = before.split('\n').length
-    const lineHeight = 18
-    const top = Math.max(0, (line - 6) * lineHeight)
+    textarea.setSelectionRange(offset, offset)
+    const line = textarea.value.slice(0, offset).split('\n').length
+    const top = Math.max(0, (line - 6) * JSON_EDITOR_LINE_HEIGHT)
     textarea.scrollTop = top
-    if (overlay) {
-      overlay.scrollTop = top
+    if (jsonOverlayRef.current) {
+      jsonOverlayRef.current.scrollTop = top
     }
-  }, [showJson, activeDataframeIndex, activeFrameIndex, jsonDraft, plotConfig])
+  }, [showJson])
   const plotConfigActions = usePlotConfigActions({ activeDataframe, activeDataframeIndex, activeFrameIndex, setActiveDataframeIndex, setActiveFrameIndex, setPlotConfig, setShowGenerateColorsConfirm })
   const { addAxis, addDataframe, addFrame, addGuideline, addLayer, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrameToDataframe, patchActiveDataframe, patchActiveFrame, patchDataframe, removeAxis, removeDataframe, removeFrame, reorderDataframes, reorderFrames, toggleDataframeGeneration, toggleFrameGeneration, updateAxis, updateGuideline } = plotConfigActions
   const importDatabase = async (file?: File) => {
@@ -403,7 +403,7 @@ function App() {
           }
         }
       }
-      for (const layer of activeFrame.layers) {
+      for (const layer of activeDataframe.frames.flatMap((frame) => frame.layers)) {
         if (layer.name && !allowedLayerColumns.has(layer.name)) {
           unknownColumns.add(layer.name)
         }
@@ -433,11 +433,6 @@ function App() {
       }))
       setAvailableColumns(columns)
       setAvailableKeywordsByColumn(keywordsByColumn)
-      setAvailableWhitelistKeywords(
-        [...new Set([...activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layer.whitelist ?? []))])]
-          .sort((a, b) => a.localeCompare(b))
-          .map((entry) => ({ value: entry, label: entry })),
-      )
       const unavailableColumnsMessage =
         unknownColumns.size > 0
           ? ` Unavailable config columns were removed for this source: ${[...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ')}.`
@@ -547,7 +542,6 @@ function App() {
       setImportedDatabaseStatus({})
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setAvailableColumns(getConfigAxisColumns(normalizedWithLanguages))
-      setAvailableWhitelistKeywords(getConfigWhitelistKeywords(normalizedWithLanguages).map((entry) => ({ value: entry, label: entry })))
       setAlert({ tone: 'success', message: `Imported ${file.name} successfully.` })
     } catch {
       setAlert({ tone: 'error', message: 'Invalid config file.' })
@@ -603,27 +597,18 @@ function App() {
       })
     }
   }
-  const parseJsonField = <T,>(value: string, fallback: T): T => {
-    try {
-      return value.trim() ? JSON.parse(value) as T : fallback
-    } catch {
-      return fallback
-    }
-  }
   const openTabWithSelection = (dataframeIndex: number, frameIndex: number) => {
     const params = new URLSearchParams(window.location.search)
     params.set('dataframe', String(dataframeIndex))
     params.set('frame', String(frameIndex))
-    window.open(`${window.location.pathname}?${params.toString()}`, '_blank', 'noopener,noreferrer')
+    // No 'noopener': the new tab must inherit this tab's sessionStorage copy of the config.
+    window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
   }
   const applyTabRename = () => {
     if (!tabRename) return
     const trimmed = tabRename.value.trim()
     if (tabRename.type === 'dataframe') {
       patchDataframe(tabRename.index, (df) => ({ ...df, name: trimmed || undefined }))
-      if (tabRename.index === activeDataframeIndex) {
-        setActiveFrameIndex(0)
-      }
     } else {
       patchActiveDataframe((df) => ({
         ...df,
@@ -633,9 +618,8 @@ function App() {
     setTabRename(null)
   }
   const openJsonEditor = () => {
-    const external = toExternalConfig(plotConfig)
-    const nextDraft = JSON.stringify(external, null, 2)
-    setJsonDraft(nextDraft)
+    setJsonDraft(JSON.stringify(toExternalConfig(plotConfig), null, 2))
+    jsonJumpOffsetRef.current = findExternalFrameOffset(plotConfig, activeDataframeIndex, activeFrameIndex)
     setShowJson(true)
   }
   const applyJsonEditor = () => {
@@ -663,9 +647,23 @@ function App() {
     }
   }
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
-  const headerProps = { activePage, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
-  const tabProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: availableSheetsByDataframe[activeDataframeIndex] ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, numberValue, parseJsonField, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
+  const resetConfig = () => {
+    setPlotConfig(createDefaultPlotConfig())
+    setConfigBaseName('ashby-config')
+    setActiveDataframeIndex(0)
+    setActiveFrameIndex(0)
+    setAvailableColumns([])
+    setAvailableKeywordsByColumn({})
+    setAvailableSheetsByDataframe({})
+    setDatasourceFilesByDataframe({})
+    setDatasourcePrompt(null)
+    setDismissedDatasourcePrompts({})
+    setImportedDatabaseStatus({})
+    setShowResetConfirm(false)
+  }
+  const headerProps  = { activePage, configBaseName, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
+  const tabProps     = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: availableSheetsByDataframe[activeDataframeIndex] ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
     <>
       <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
@@ -712,7 +710,7 @@ function App() {
               <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label="Close notification">✕</button>
             </Alert>
           ) : null}
-          <ConfigSections {...sectionProps} />
+          <ConfigSections {...sectionProps}/>
         </main>
       ) : (
         <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets} />
@@ -743,7 +741,7 @@ function App() {
           }
         }}
         onCloseResetConfirm={() => setShowResetConfirm(false)}
-        onConfirmReset={() => { setPlotConfig(createDefaultPlotConfig()); setDatasourceFilesByDataframe({}); setDatasourcePrompt(null); setDismissedDatasourcePrompts({}); setImportedDatabaseStatus({}); setShowResetConfirm(false) }}
+        onConfirmReset={resetConfig}
         onCloseDatasourcePrompt={closeDatasourcePrompt}
         onDatasourcePromptFile={handleDatasourcePromptFile}
         t={t}

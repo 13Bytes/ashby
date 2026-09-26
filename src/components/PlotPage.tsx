@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { toExternalConfig } from '../utils/configIo'
+import { useEffect, useRef, useState } from 'react'
+import { downloadBlob, toExternalConfig } from '../utils/configIo'
 import type { PlotConfig } from '../config/defaultPlotConfig'
 import { Alert } from './ui/alert'
 import { getSourceMode } from '../utils/appState'
@@ -102,6 +102,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const [messages, setMessages] = useState<string[]>([])
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
   const [isBatchMode, setIsBatchMode] = useState(false)
+  const latestPreviewRequestRef = useRef(0)
+  const handledPlotActionNonceRef = useRef<number | null>(null)
+  const createdPlotsRef = useRef<RenderedPlotEntry[]>([])
 
   const getDownloadName = (entry: RenderedPlotEntry) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
@@ -110,6 +113,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   }
 
   const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex, includeInCreated = false): Promise<string> => {
+    const isPreview = dataframeIndex === activeDataframeIndex && frameIndex === activeFrameIndex
+    const requestId = isPreview ? ++latestPreviewRequestRef.current : latestPreviewRequestRef.current
     setLoading(true)
     setError(null)
     setMessages([])
@@ -150,13 +155,11 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       setMessages(nextMessages)
 
       const nextUrl = URL.createObjectURL(imageBlob)
-      if (dataframeIndex === activeDataframeIndex && frameIndex === activeFrameIndex) {
-        setImageUrl((current) => {
-          if (current) {
-            URL.revokeObjectURL(current)
-          }
-          return nextUrl
-        })
+      // Ignore responses for previews that were superseded by a newer request.
+      if (isPreview && requestId === latestPreviewRequestRef.current) {
+        setImageUrl(nextUrl)
+      } else {
+        URL.revokeObjectURL(nextUrl)
       }
       if (includeInCreated) {
         setCreatedPlots((current) => {
@@ -166,17 +169,15 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           }
           const rest = current.filter((entry) => !(entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex))
           const exportFileName = plotConfig.dataframes[dataframeIndex]?.frames[frameIndex]?.exportFileName
-          return [...rest, { dataframeIndex, frameIndex, url: nextUrl, blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
+          // Own URL per entry: the preview URL is revoked when the preview changes.
+          return [...rest, { dataframeIndex, frameIndex, url: URL.createObjectURL(imageBlob), blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
         })
       }
       return nextUrl
     } catch (renderError) {
-      setImageUrl((current) => {
-        if (current) {
-          URL.revokeObjectURL(current)
-        }
-        return null
-      })
+      if (isPreview && requestId === latestPreviewRequestRef.current) {
+        setImageUrl(null)
+      }
       setError(renderError instanceof Error ? renderError.message : 'Failed to render plot.')
       return ""
     } finally {
@@ -222,8 +223,6 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     setIsBatchMode(false)
   }
 
-
-
   const downloadSinglePlot = (entry: RenderedPlotEntry) => {
     const anchor = document.createElement('a')
     anchor.href = entry.url
@@ -255,31 +254,24 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       setError(`Download all failed (${response.status}).`)
       return
     }
-    const zipBlob = await response.blob()
-    const zipUrl = URL.createObjectURL(zipBlob)
-    const anchor = document.createElement('a')
-    anchor.href = zipUrl
     const zipBaseName = configBaseName.trim() || 'ashby-plots'
-    anchor.download = `${zipBaseName}.zip`
-    anchor.click()
-    URL.revokeObjectURL(zipUrl)
+    downloadBlob(await response.blob(), `${zipBaseName}.zip`)
   }
 
+  // One effect for both triggers, so mounting the page renders once: a new plot action runs that
+  // action, a selection change re-renders the preview.
   useEffect(() => {
     if (availableDatasets === null) return
-    void fetchPlot()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDataframeIndex, activeFrameIndex, availableDatasets])
-
-  useEffect(() => {
-    if (availableDatasets === null) return
-    if (plotAction === 'create-all') {
-      void createPlots()
-      return
+    if (handledPlotActionNonceRef.current !== plotActionNonce) {
+      handledPlotActionNonceRef.current = plotActionNonce
+      if (plotAction === 'create-all') {
+        void createPlots()
+        return
+      }
     }
     void fetchPlot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plotActionNonce, availableDatasets])
+  }, [activeDataframeIndex, activeFrameIndex, plotActionNonce, availableDatasets])
 
   useEffect(() => () => {
     if (imageUrl) {
@@ -287,12 +279,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     }
   }, [imageUrl])
 
-  useEffect(
-    () => () => {
-      createdPlots.forEach((entry) => URL.revokeObjectURL(entry.url))
-    },
-    [createdPlots],
-  )
+  useEffect(() => {
+    createdPlotsRef.current = createdPlots
+  }, [createdPlots])
+
+  useEffect(() => () => {
+    createdPlotsRef.current.forEach((entry) => URL.revokeObjectURL(entry.url))
+  }, [])
 
   const createdPlotsSorted = [...createdPlots].sort((a, b) =>
     a.dataframeIndex === b.dataframeIndex ? a.frameIndex - b.frameIndex : a.dataframeIndex - b.dataframeIndex,

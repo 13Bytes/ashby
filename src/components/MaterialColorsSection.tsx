@@ -3,37 +3,9 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
+import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
 
-const hsvToHex = (hue: number, saturation: number, value: number): string => {
-  const c = value * saturation
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1))
-  const m = value - c
-  let rgb: [number, number, number] = [0, 0, 0]
-
-  if (hue < 60) rgb = [c, x, 0]
-  else if (hue < 120) rgb = [x, c, 0]
-  else if (hue < 180) rgb = [0, c, x]
-  else if (hue < 240) rgb = [0, x, c]
-  else if (hue < 300) rgb = [x, 0, c]
-  else rgb = [c, 0, x]
-
-  return `#${rgb.map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, '0')).join('')}`
-}
-
-export const generateMaterialColorsForDataframe = (df: DataframeConfig): DataframeConfig => {
-  const keys = Object.keys(df.materialColors)
-  const numberOfBrightnessLevels = Math.ceil(keys.length / 10)
-  if (keys.length === 0) return df
-
-  const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
-    const hue = (index / keys.length) * 360
-    const brightness = 0.3 + (0.7 / numberOfBrightnessLevels / 2) * ((index % numberOfBrightnessLevels) * 2 + 1)
-    acc[key] = hsvToHex(hue, 0.9, brightness)
-    return acc
-  }, {})
-
-  return { ...df, materialColors: nextColors }
-}
+const HEX_COLOR = /^#[0-9a-f]{6}$/i
 
 type Props = {
   t: (key: string) => string
@@ -41,7 +13,6 @@ type Props = {
   customMaterialNames: Record<string, string>
   setCustomMaterialNames: Dispatch<SetStateAction<Record<string, string>>>
   materialKeywordOptions: string[]
-  CUSTOM_SELECT_VALUE: string
   patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   setShowGenerateColorsConfirm: (value: boolean) => void
 }
@@ -52,7 +23,6 @@ export function MaterialColorsSection({
   customMaterialNames,
   setCustomMaterialNames,
   materialKeywordOptions,
-  CUSTOM_SELECT_VALUE,
   patchActiveDataframe,
   setShowGenerateColorsConfirm,
 }: Props) {
@@ -187,7 +157,7 @@ export function MaterialColorsSection({
 
             <Input
               type="color"
-              value={color}
+              value={HEX_COLOR.test(color) ? color : '#000000'}
               className="h-10 w-16 cursor-pointer rounded-md border border-zinc-300 p-1"
               onChange={(e) =>
                 patchActiveDataframe((df) => ({

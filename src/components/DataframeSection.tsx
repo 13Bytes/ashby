@@ -1,8 +1,9 @@
 import type { ChangeEvent, KeyboardEvent, RefObject } from 'react'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
 import type { UILanguage } from '../uiTranslations'
-import type { FieldComponent } from '../types/componentProps'
-import { getSourceMode, type SourceMode } from '../utils/appState'
+import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '../config/uiOptions'
+import { getSourceMode, numberValue, type SourceMode } from '../utils/appState'
+import { Field } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -12,10 +13,6 @@ type Props = {
   uiLanguage: UILanguage
   activeDataframe: DataframeConfig
   patchActiveDataframe: (patch: (current: DataframeConfig) => DataframeConfig) => void
-  numberValue: (value: number, fallback: number) => number
-  FONT_STYLE_OPTIONS: Array<DataframeConfig['font']['fontStyle']>
-  FONT_FAMILY_OPTIONS: string[]
-  CUSTOM_SELECT_VALUE: string
   importInProgress: boolean
   importDatabase: () => Promise<void>
   uploadInputRef: RefObject<HTMLInputElement | null>
@@ -29,20 +26,13 @@ type Props = {
   handlePlotLanguageKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
   addPlotLanguage: (language: string) => void
   updateLanguages: (next: string[]) => void
-  FieldComponent: FieldComponent
 }
-
-
 
 export function DataframeSection({
   t,
   uiLanguage,
   activeDataframe,
   patchActiveDataframe,
-  numberValue,
-  FONT_STYLE_OPTIONS,
-  FONT_FAMILY_OPTIONS,
-  CUSTOM_SELECT_VALUE,
   importInProgress,
   importDatabase,
   uploadInputRef,
@@ -56,7 +46,6 @@ export function DataframeSection({
   handlePlotLanguageKeyDown,
   addPlotLanguage,
   updateLanguages,
-  FieldComponent: Field,
 }: Props) {
   const importStatus = importedDatabaseStatus[activeDataframeIndex]
   const sourceMode = getSourceMode(activeDataframe, availableDatasets)
@@ -113,8 +102,10 @@ export function DataframeSection({
         <Button type="button" variant="outline" onClick={() => patchActiveDataframe((current) => ({ ...current, fileformat: current.fileformat === 'svg' ? "png" : "svg"}))}>{activeDataframe.fileformat}</Button>
         {activeDataframe.fileformat === 'svg' ? null : (
           <Input
-            value={String(activeDataframe.resolution)}
-            onChange={(event) => patchActiveDataframe((current) => ({ ...current, resolution: Number(event.target.value) }))}    /* & not on change but click somewhere else */
+            type="number"
+            min={1}
+            value={activeDataframe.resolution}
+            onChange={(event) => patchActiveDataframe((current) => ({ ...current, resolution: numberValue(event.target.valueAsNumber, current.resolution) }))}    /* & not on change but click somewhere else */
           />
         )}
       </Field>
@@ -210,11 +201,11 @@ export function DataframeSection({
       </div>
 
       <div className="sm:col-span-2 grid gap-3 md:grid-cols-5">
-        <FontNumberField label="Title size"        path="font.title_size"        value={activeDataframe.font.titleSize}       uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, titleSize:       numberValue(value, current.font.titleSize      ) } }))} />
-        <FontNumberField label="Legend Title size" path="font.legend_title_size" value={activeDataframe.font.legendTitleSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendTitleSize: numberValue(value, current.font.legendTitleSize) } }))} />
-        <FontNumberField label="Legend item size"  path="font.legend_label_size" value={activeDataframe.font.legendLabelSize} uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendLabelSize: numberValue(value, current.font.legendLabelSize) } }))} />
-        <FontNumberField label="Axis label size"   path="font.axis_label_size"   value={activeDataframe.font.axisLabelSize}   uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, axisLabelSize:   numberValue(value, current.font.axisLabelSize  ) } }))} />
-        <FontNumberField label="Tick size"         path="font.tick_size"         value={activeDataframe.font.tickSize}        uiLanguage={uiLanguage} Field={Field} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, tickSize:        numberValue(value, current.font.tickSize       ) } }))} />
+        <FontNumberField label="Title size"        path="font.title_size"        value={activeDataframe.font.titleSize}       uiLanguage={uiLanguage} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, titleSize:       numberValue(value, current.font.titleSize      ) } }))} />
+        <FontNumberField label="Legend Title size" path="font.legend_title_size" value={activeDataframe.font.legendTitleSize} uiLanguage={uiLanguage} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendTitleSize: numberValue(value, current.font.legendTitleSize) } }))} />
+        <FontNumberField label="Legend item size"  path="font.legend_label_size" value={activeDataframe.font.legendLabelSize} uiLanguage={uiLanguage} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, legendLabelSize: numberValue(value, current.font.legendLabelSize) } }))} />
+        <FontNumberField label="Axis label size"   path="font.axis_label_size"   value={activeDataframe.font.axisLabelSize}   uiLanguage={uiLanguage} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, axisLabelSize:   numberValue(value, current.font.axisLabelSize  ) } }))} />
+        <FontNumberField label="Tick size"         path="font.tick_size"         value={activeDataframe.font.tickSize}        uiLanguage={uiLanguage} onChange={(value) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, tickSize:        numberValue(value, current.font.tickSize       ) } }))} />
       </div>
 
       <section className="sm:col-span-2 grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-6">
@@ -344,14 +335,12 @@ function FontNumberField({
   path,
   value,
   uiLanguage,
-  Field,
   onChange,
 }: {
   label: string
   path: string
   value: number
   uiLanguage: UILanguage
-  Field: FieldComponent
   onChange: (value: number) => void
 }) {
   return (

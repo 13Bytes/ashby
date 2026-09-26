@@ -1,9 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
-import { addAxisToDataframe, updateAxisInDataframe } from '../components/AxesSection'
-import { addGuidelineToFrame, updateGuidelineInFrame } from '../components/GuidelinesSection'
-import { addLayerToFrame } from '../components/LayersSection'
-import { generateMaterialColorsForDataframe } from '../components/MaterialColorsSection'
+import { addAxisToDataframe, addGuidelineToFrame, addLayerToFrame, generateMaterialColorsForDataframe, updateAxisInDataframe, updateGuidelineInFrame } from '../utils/configEditing'
 import { getNextTabName, insertSelectionIndex, moveItem, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
@@ -144,9 +141,17 @@ const removeDataframe = (index: number) => {
       return current
     }
     const nextDataframes = current.dataframes.filter((_, i) => i !== index)
-    setActiveDataframeIndex((prev) => Math.max(0, Math.min(prev, nextDataframes.length - 1)))
-    setActiveFrameIndex(0)
-    return { ...current, dataframes: nextDataframes }
+    if (index === activeDataframeIndex) {
+      setActiveDataframeIndex(Math.min(index, nextDataframes.length - 1))
+      setActiveFrameIndex(0)
+    } else if (index < activeDataframeIndex) {
+      setActiveDataframeIndex(activeDataframeIndex - 1)
+    }
+    return {
+      ...current,
+      dataframes: nextDataframes,
+      createAllDataframes: removeSelectionIndex(nextDataframes.length, current.createAllDataframes, index),
+    }
   })
 }
 
@@ -156,7 +161,9 @@ const removeFrame = (index: number) => {
       return df
     }
     const nextFrames = df.frames.filter((_, i) => i !== index)
-    setActiveFrameIndex((prev) => Math.max(0, Math.min(prev, nextFrames.length - 1)))
+    if (index < activeFrameIndex || activeFrameIndex >= nextFrames.length) {
+      setActiveFrameIndex(Math.max(0, activeFrameIndex - 1))
+    }
     return { ...df, frames: nextFrames, createAllFrames: removeSelectionIndex(nextFrames.length, df.createAllFrames, index) }
   })
 }

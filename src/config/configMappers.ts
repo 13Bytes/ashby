@@ -30,8 +30,19 @@ const coerceNumber = (value: unknown, fallback: number): number =>
 const coerceOptionalNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined
 
-const coerceSelection = (value: unknown, options: Array<any>, fallback: any): any =>  
-  options.includes(value) ? value : fallback
+const coerceBoolOrString = (value: unknown, fallback: boolean | string): boolean | string =>
+  typeof value === 'boolean' || typeof value === 'string' ? value : fallback
+
+const coerceStringRecord = (value: Record<string, unknown>): Record<string, string> =>
+  Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
+
+// The backend derives the file format from `resolution`: null or "svg" means SVG, a number means PNG at that DPI.
+const coerceFileFormat = (fileformat: unknown, resolution: unknown, fallback: DataframeConfig['fileformat']): DataframeConfig['fileformat'] => {
+  if (fileformat === 'svg' || fileformat === 'png') return fileformat
+  if (resolution === 'svg' || resolution === null) return 'svg'
+  if (typeof resolution === 'number' && Number.isFinite(resolution)) return 'png'
+  return fallback
+}
 
 const coerceFontStyle = (
   value: unknown,
@@ -109,7 +120,9 @@ const normalizeGuidelines = (value: unknown): FrameConfig['guidelines'] =>
         fontColor: typeof (guideline.fontColor ?? guideline.font_color) === 'string'
           ? String(guideline.fontColor ?? guideline.font_color)
           : '',
-        label: typeof guideline.label === 'string' ? guideline.label : '',
+        label: typeof guideline.label === 'string'
+          ? guideline.label
+          : isRecord(guideline.label) ? coerceStringRecord(guideline.label) : '',
         labelAbove: coerceBool(guideline.labelAbove ?? guideline.label_above, true),
         labelPadding: coerceNumber(guideline.labelPadding ?? guideline.label_padding, 6),
       }
@@ -220,6 +233,7 @@ const normalizeFrame = (
     'filter',
     'guidelines',
     'annotations',
+    'markers',
     'colored_areas',
     'coloredAreas',
     'highlighted_hulls',
@@ -270,10 +284,7 @@ const normalizeFrame = (
         : fallback.yQuantity,
     yRelQuantity: asOptionalString(partial.yRelQuantity ?? partial.y_rel_quantity),
     logYFlag: coerceBool(partial.logYFlag ?? partial.log_y_flag, fallback.logYFlag),
-    yLim:
-      Array.isArray(yLim) && yLim.length === 2 && yLim.every((item) => typeof item === 'number')
-        ? [yLim[0], yLim[1]]
-        : undefined,
+    yLim: coerceOptionalNumberPair(yLim),
     automaticDisplayAreaMargin: isRecord(automaticDisplayAreaMarginSource)
       ? {
         left: coerceNumber(automaticDisplayAreaMarginSource.left, fallback.automaticDisplayAreaMargin?.left ?? 0),
@@ -299,11 +310,6 @@ const normalizeFrame = (
   }
 }
 
-
-
-
-
-
 const normalizeDataframe = (
   partial: unknown,
   fallback: DataframeConfig,
@@ -312,7 +318,7 @@ const normalizeDataframe = (
     return structuredClone(fallback)
   }
 
-  const legacyFrames = isRecord(partial) && Array.isArray(partial.frames) ? partial.frames : null
+  const legacyFrames = Array.isArray(partial.frames) ? partial.frames : null
   const normalizedFrames = legacyFrames
     ? legacyFrames.map((frame, index) =>
       normalizeFrame(frame, fallback.frames[index] ?? fallback.frames[0]),
@@ -336,8 +342,12 @@ const normalizeDataframe = (
     'aspectRatio',
     'image_width',
     'image_height',
+    'fileformat',
     'resolution',
     'image_dpi',
+    'transparent',
+    'watermark',
+    'copyright',
     'legend_title',
     'legendTitle',
     'font',
@@ -382,8 +392,8 @@ const normalizeDataframe = (
       legacyImageWidth > 0 && legacyImageHeight > 0
         ? [legacyImageWidth, legacyImageHeight]
         : coerceNumberPair(partial.aspectRatio ?? partial.image_ratio, fallback.aspectRatio),
-    fileformat: coerceSelection(partial.fileformat ?? partial.fileformat, ["svg","png"], "svg"),
-    resolution: coerceNumber(partial.resolution ?? partial.resolution, fallback.resolution),
+    fileformat: coerceFileFormat(partial.fileformat, partial.resolution, fallback.fileformat),
+    resolution: coerceNumber(partial.resolution, fallback.resolution),
     legendTitle: isRecord(partial.legendTitle ?? partial.legend_title)
       ? Object.fromEntries(
         Object.entries((partial.legendTitle ?? partial.legend_title) as Record<string, unknown>).filter(
@@ -408,6 +418,9 @@ const normalizeDataframe = (
       ? plotLanguagesSource.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
       : fallback.plotLanguages,
     darkMode: coerceBool(partial.darkMode ?? partial.dark_mode, fallback.darkMode),
+    transparent: coerceBool(partial.transparent, fallback.transparent),
+    watermark: coerceBoolOrString(partial.watermark, fallback.watermark),
+    copyright: coerceBoolOrString(partial.copyright, fallback.copyright),
     createAllFrames:
       createAllFramesSource === true
         ? true
@@ -448,10 +461,6 @@ const normalizeDataframe = (
   }
 }
 
-
-
-
-
 export function normalizePlotConfig(input?: unknown): PlotConfig {
   const fallback = createDefaultPlotConfig()
 
@@ -461,7 +470,7 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
 
   const rootSource = Array.isArray(input.dataframes) ? input : { ...input, dataframes: [input] }
 
-  const known = new Set(['version', 'create_all_dataframes', 'createAllDataframes', 'dataframes'])
+  const known = new Set(['_extensions', 'version', 'create_all_dataframes', 'createAllDataframes', 'dataframes'])
   const extensions = Object.fromEntries(
     Object.entries(input).filter(([key]) => !known.has(key)),
   )
