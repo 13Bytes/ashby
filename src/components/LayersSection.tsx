@@ -5,10 +5,12 @@ import { Select } from './ui/select'
 import type { FrameConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { numberValue, type MultiOption } from '../utils/appState'
-import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton } from './AppControls'
+import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton, SectionHeading } from './AppControls'
+import { resolvePreviewColor } from '../utils/colors'
 
 type Props = {
   activeFrame: FrameConfig
+  materialColors: Record<string, string>
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
@@ -20,12 +22,12 @@ type Props = {
   setExpandedLayerKeywords: Dispatch<SetStateAction<Record<number, boolean>>>
 }
 
-export function LayersSection({ activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
+export function LayersSection({ activeFrame, materialColors, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
   const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="flex items-center gap-2">
-        <h3 className="m-0 text-m font-semibold text-violet-500">{t('layers')}</h3>
+        <SectionHeading title={t('layers')} jsonPath="layers" />
         <Button variant="outline" size="sm" onClick={addLayer}>+ {t('layer')}</Button>
       </div>
 
@@ -59,6 +61,8 @@ export function LayersSection({ activeFrame, hoveredRemoveGroup, setHoveredRemov
 
           <MultiSelectInput
             title={t('whitelistKeywords')}
+            jsonPath={`layers[${layerIndex}].whitelist`}
+            colorFor={(keyword) => (keyword in materialColors ? resolvePreviewColor(keyword, materialColors) : undefined)}
             value={layer.whitelist ?? []}
             options={!layer.name ? [] : (availableKeywordsByColumn[layer.name] ?? []).length > 0 ? (availableKeywordsByColumn[layer.name] ?? []).map((entry) => ({ value: entry, label: entry })) : availableWhitelistKeywords}
             expanded={expandedLayerKeywords[layerIndex] === true}

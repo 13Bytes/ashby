@@ -1,7 +1,7 @@
 import type { FrameConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { parseJsonField } from '../utils/configIo'
-import { DraftInput, Field } from './AppControls'
+import { DraftInput, Field, SectionHeading } from './AppControls'
 
 type Props = {
   activeFrame: FrameConfig
@@ -12,7 +12,7 @@ export function AdvancedJsonSection({ activeFrame, patchActiveFrame }: Props) {
   const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">{t('advancedJsonFields')}</h3>
+      <SectionHeading className="sm:col-span-2" title={t('advancedJsonFields')} />
       <Field label={t('filter')} jsonPath="filter">
         <DraftInput
           multiline

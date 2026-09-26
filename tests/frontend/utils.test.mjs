@@ -20,14 +20,15 @@ import {
   reorderSelectionIndices,
   toggleIndexSelection,
 } from '../../src/utils/appState.ts'
-import { addColoredAreaToFrame, parseNumberList, parseStrictNumberList, toCommaList } from '../../src/utils/coloredAreas.ts'
+import { addColoredAreaToFrame } from '../../src/utils/coloredAreas.ts'
+import { resolvePreviewColor } from '../../src/utils/colors.ts'
 import { addAnnotationToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, setLocalizedLabel } from '../../src/utils/configEditing.ts'
 import { findExternalFrameOffset, parseImportedConfig, parseJsonField, toExternalConfig } from '../../src/utils/configIo.ts'
 import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
 import { createConfigSync, getWorkspaceId } from '../../src/utils/tabSync.ts'
 import { parseUIThemePreference, resolveUITheme } from '../../src/utils/uiTheme.ts'
-import { parseUILanguage, translate, UI_LABELS } from '../../src/uiTranslations.ts'
+import { getFieldHelp, parseUILanguage, translate, UI_LABELS } from '../../src/uiTranslations.ts'
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const readJson = async (relativePath) => JSON.parse(await readFile(path.join(projectDir, relativePath), 'utf8'))
@@ -66,17 +67,26 @@ test('plot language helpers trim, dedupe, and preserve at least one language', (
   assert.deepEqual(addPlotLanguageToList(['en'], 'en'), ['en'])
 })
 
-test('colored area helpers parse numbers and append a default area', () => {
-  assert.deepEqual(parseNumberList('1, 2, nope, 3.5'), [1, 2, 3.5])
-  assert.equal(toCommaList([1, 2, 3]), '1, 2, 3')
+test('a new colored area is a polygon with default corners', () => {
   assert.deepEqual(addColoredAreaToFrame({ coloredAreas: [] }).coloredAreas[0], { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 })
 })
 
-test('strict number list parsing rejects incomplete input while typing', () => {
-  assert.deepEqual(parseStrictNumberList(''), [])
-  assert.deepEqual(parseStrictNumberList('1, 2.5, -3'), [1, 2.5, -3])
-  assert.equal(parseStrictNumberList('1,'), undefined)
-  assert.equal(parseStrictNumberList('1, -'), undefined)
+test('colored area axis ranges are normalized to [min, max] with open bounds', () => {
+  const config = normalizePlotConfig({
+    dataframes: [{ frames: [{ colored_areas: [{ axes: { density: [1, null], cost: [[2, 3]], broken: 'x' }, color: 'red' }, { x: [0, 1, 2], y: [0, 1, 0] }] }] }],
+  })
+  const [ranges, polygon] = config.dataframes[0].frames[0].coloredAreas
+  assert.deepEqual(ranges.axes, { density: [1, null], cost: [2, 3] })
+  assert.equal(polygon.axes, undefined)
+  assert.deepEqual(exported(config).dataframes[0].frames[0].colored_areas[0].axes, { density: [1, null], cost: [2, 3] })
+  assert.equal('axes' in exported(config).dataframes[0].frames[0].colored_areas[1], false)
+})
+
+test('color previews resolve material references and CSS color names', () => {
+  const materialColors = { default: '#000000', PA: '#dc2626', PC: 'orange' }
+  assert.equal(resolvePreviewColor('PA', materialColors), '#dc2626')
+  assert.equal(resolvePreviewColor('#123456', materialColors), '#123456')
+  assert.equal(resolvePreviewColor('', materialColors), undefined)
 })
 
 test('JSON editor fields accept objects and reject partial input', () => {
@@ -130,6 +140,23 @@ test('uiTheme validates stored values and resolves system preference', () => {
   assert.equal(resolveUITheme('system', false), 'light')
   assert.equal(resolveUITheme('light', true), 'light')
   assert.equal(resolveUITheme('dark', false), 'dark')
+})
+
+test('field help exists in every language for the documented paths', () => {
+  const paths = ['_extensions.source_mode', 'teable_url', 'import_sheet', 'x_rel_quantity', 'x_lim[0]', 'layers[2].whitelist', 'colored_areas[0].axes.density', 'guidelines[0].line_props.color', 'annotations[3].arrow.headwidth']
+  for (const jsonPath of paths) {
+    for (const language of ['en', 'de']) {
+      assert.ok(getFieldHelp(language, jsonPath), `${language}: ${jsonPath}`)
+    }
+  }
+  assert.equal(getFieldHelp('en', 'no.such.path'), undefined)
+})
+
+test('English labels use sentence case', () => {
+  // Fragments that are embedded into other sentences start lowercase on purpose.
+  const embedded = new Set(['datasourceMissingItem', 'openBound'])
+  const lowercase = Object.entries(UI_LABELS.en).filter(([key, text]) => !embedded.has(key) && /^[a-z]/.test(text))
+  assert.deepEqual(lowercase, [])
 })
 
 test('translations fill placeholders and cover every key in every language', () => {

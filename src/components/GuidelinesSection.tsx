@@ -5,7 +5,7 @@ import type { DataframeConfig, FrameConfig, GuidelineConfig } from '../config/de
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, DuplicateIconButton, Field, RemoveIconButton } from './AppControls'
+import { ColorOrMaterialInput, DuplicateIconButton, Field, RemoveIconButton, SectionHeading } from './AppControls'
 
 type Props = {
   activeDataframe: DataframeConfig
@@ -15,17 +15,17 @@ type Props = {
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   updateGuideline: (guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig) => void
   addGuideline: () => void
-  materialColorOptions: string[]
+  materialColors: Record<string, string>
 }
 
 const LINE_STYLE_OPTIONS = ['-', '--', '-.', ':', 'None']
 
-export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, updateGuideline, addGuideline, materialColorOptions }: Props) {
+export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, updateGuideline, addGuideline, materialColors }: Props) {
   const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
       <div className="flex items-center gap-2">
-        <h3 className="m-0 text-m font-semibold text-violet-500">{t('guidelines')}</h3>
+        <SectionHeading title={t('guidelines')} jsonPath="guidelines" />
         <Button variant="outline" size="sm" onClick={addGuideline}>+ {t('guideline')}</Button>
       </div>
       {activeFrame.guidelines.map((guideline, guidelineIndex) => (
@@ -46,7 +46,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveG
             <Input type="number" value={guideline.m} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} />
           </Field>
           <Field label={t('color')} jsonPath={`guidelines[${guidelineIndex}].line_props.color`}>
-            <ColorOrMaterialInput materialOptions={materialColorOptions} value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => (
+            <ColorOrMaterialInput materialColors={materialColors} value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => (
               { ...g, lineProps: { ...g.lineProps, color: next } }))} />
           </Field>
           <Field label={t('lineStyle')} jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`}>
@@ -61,7 +61,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveG
           </Field>
           <div className="relative grid gap-2 sm:col-span-2 sm:grid-cols-2">
             <Field label={t('fontColor')} jsonPath={`guidelines[${guidelineIndex}].font_color`}>
-              <ColorOrMaterialInput materialOptions={materialColorOptions} value={guideline.fontColor} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
+              <ColorOrMaterialInput materialColors={materialColors} value={guideline.fontColor} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
             </Field>
             <Field label={t('fontSize')} jsonPath={`guidelines[${guidelineIndex}].fontsize`}>
               <Input type="number" value={guideline.fontsize} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontsize: numberValue(e.target.valueAsNumber, g.fontsize) }))} />
@@ -77,8 +77,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveG
             </Field>
           </div>
 
-          <div className="grid gap-2">
-            <label className="font-medium text-zinc-900 dark:text-zinc-100">{t('text')}</label>
+          <Field label={t('text')} jsonPath={`guidelines[${guidelineIndex}].label`}>
             {activeDataframe.plotLanguages.map((lang) => (
               <div key={`label-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2">
                 <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
@@ -88,7 +87,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveG
                 />
               </div>
             ))}
-          </div>
+          </Field>
         </div>
       ))}
     </section>

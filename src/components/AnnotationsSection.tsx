@@ -2,7 +2,7 @@ import type { AnnotationConfig, FrameConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS } from '../utils/configEditing'
-import { ColorOrMaterialInput, DuplicateIconButton, Field, RemoveIconButton } from './AppControls'
+import { ColorOrMaterialInput, DuplicateIconButton, Field, RemoveIconButton, SectionHeading } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -48,10 +48,10 @@ type Props = {
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
-  materialColorOptions: string[]
+  materialColors: Record<string, string>
 }
 
-export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, materialColorOptions }: Props) {
+export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, materialColors }: Props) {
   const { t } = useI18n()
   const patchAnnotation = (annotationIndex: number, patch: (annotation: AnnotationConfig) => AnnotationConfig) =>
     patchActiveFrame((f) => {
@@ -79,7 +79,7 @@ export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHovered
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="sm:col-span-2 flex items-center gap-2">
-        <h3 className="m-0 text-m font-semibold text-violet-500">{t('annotations')}</h3>
+        <SectionHeading title={t('annotations')} jsonPath="annotations" />
         <Button type="button" size="sm" variant="outline" onClick={() => patchActiveFrame(addAnnotationToFrame)}>+ {t('annotation')}</Button>
       </div>
 
@@ -104,7 +104,7 @@ export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHovered
             <Input type="number" value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [annotation.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[1] ?? 0)] })} />
           </Field>
           <Field label={t('textColor')} jsonPath={`annotations[${annotationIndex}].text.color`}>
-            <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.text?.color ?? DEFAULT_TEXT.color} onChange={(color) => patchText(annotationIndex, { color })} />
+            <ColorOrMaterialInput materialColors={materialColors} value={annotation.text?.color ?? DEFAULT_TEXT.color} onChange={(color) => patchText(annotationIndex, { color })} />
           </Field>
           {positionAxes.length > 0 ? positionAxes.map((axisName) => (
             <Field key={axisName} label={t('positionOn', { axis: axisName })} jsonPath={`annotations[${annotationIndex}].axes.${axisName}`}>
@@ -142,10 +142,10 @@ export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHovered
                 <Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchMarker(annotationIndex, { linewidths: numberValue(e.target.valueAsNumber, annotation.marker?.linewidths ?? 0) })} />
               </Field>
               <Field label={t('markerColor')} jsonPath={`annotations[${annotationIndex}].marker.color`}>
-                <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.marker.color} onChange={(next) => patchMarker(annotationIndex, { color: next })} />
+                <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.color} onChange={(next) => patchMarker(annotationIndex, { color: next })} />
               </Field>
               <Field label={t('markerEdgeColor')} jsonPath={`annotations[${annotationIndex}].marker.edgecolors`}>
-                <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.marker.edgecolors} onChange={(next) => patchMarker(annotationIndex, { edgecolors: next })} />
+                <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.edgecolors} onChange={(next) => patchMarker(annotationIndex, { edgecolors: next })} />
               </Field>
             </div>
           ) : null}
@@ -166,7 +166,7 @@ export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHovered
                 <Input type="number" value={annotation.arrow.linewidth} onChange={(e) => patchArrow(annotationIndex, { linewidth: numberValue(e.target.valueAsNumber, annotation.arrow?.linewidth ?? 1) })} />
               </Field>
               <Field label={t('arrowFaceColor')} jsonPath={`annotations[${annotationIndex}].arrow.facecolor`}>
-                <ColorOrMaterialInput materialOptions={materialColorOptions} value={annotation.arrow.facecolor} onChange={(next) => patchArrow(annotationIndex, { facecolor: next })} />
+                <ColorOrMaterialInput materialColors={materialColors} value={annotation.arrow.facecolor} onChange={(next) => patchArrow(annotationIndex, { facecolor: next })} />
               </Field>
             </div>
           ) : null}

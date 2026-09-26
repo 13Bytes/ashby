@@ -1,7 +1,7 @@
 import { PLOT_ALGORITHMS, type DataframeConfig, type FrameConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
-import { Field } from './AppControls'
+import { Field, SectionHeading } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -57,7 +57,7 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, p
 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">{t('frame')}</h3>
+      <SectionHeading className="sm:col-span-2" title={t('frame')} />
       <div className="grid gap-3 dark:border-zinc-800 dark:bg-transparent sm:col-span-2 sm:grid-cols-4">
         <Field selfClassName="sm:col-span-2" label={t('exportFileName')} jsonPath="frames[j].export_file_name">
           <Input value={activeFrame.exportFileName ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, exportFileName: e.target.value || undefined }))} />
@@ -119,24 +119,22 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, p
           </div>
         </div>
       </div>
-      <div className="grid gap-2">
-        <label className="font-medium text-zinc-900 dark:text-zinc-100">{t('title')}</label>
+      <Field label={t('title')} jsonPath="frames[j].title">
         {activeDataframe.plotLanguages.map((lang) => (
           <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
             <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
             <Input value={activeFrame.title[lang] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} />
           </div>
         ))}
-      </div>
-      <div className="grid gap-2">
-        <label className="font-medium text-zinc-900 dark:text-zinc-100">{t('legendTitle')}</label>
+      </Field>
+      <Field label={t('legendTitle')} jsonPath="dataframes[i].legend_title">
         {activeDataframe.plotLanguages.map((lang) => (
           <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
             <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
             <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} />
           </div>
         ))}
-      </div>
+      </Field>
     </section>
   )
 }

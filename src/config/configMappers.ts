@@ -179,10 +179,29 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
     })
     : structuredClone(fallback)
 
+type AreaRange = [number | null, number | null]
+
+// Accepts [min, max] and the documented legacy form [[min, max]]; non-numbers become null (open).
+const coerceAreaRange = (value: unknown): AreaRange | undefined => {
+  const pair = Array.isArray(value) && value.length === 1 && Array.isArray(value[0]) ? value[0] : value
+  if (!Array.isArray(pair) || pair.length !== 2) return undefined
+  const bound = (entry: unknown) => (typeof entry === 'number' && Number.isFinite(entry) ? entry : null)
+  return [bound(pair[0]), bound(pair[1])]
+}
+
+const normalizeAreaAxes = (value: unknown): Record<string, AreaRange> | undefined =>
+  isRecord(value)
+    ? Object.fromEntries(
+      Object.entries(value)
+        .map(([axis, range]) => [axis, coerceAreaRange(range)] as const)
+        .filter((entry): entry is readonly [string, AreaRange] => entry[1] !== undefined),
+    )
+    : undefined
+
 const normalizeColoredAreas = (value: unknown): FrameConfig['coloredAreas'] =>
   Array.isArray(value)
     ? value.filter(isRecord).map((area) => ({
-      axes: isRecord(area.axes) ? area.axes as FrameConfig['coloredAreas'][number]['axes'] : undefined,
+      axes: normalizeAreaAxes(area.axes),
       x: Array.isArray(area.x) ? area.x.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
       y: Array.isArray(area.y) ? area.y.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
       color: typeof area.color === 'string' ? area.color : '#ef4444',

@@ -7,8 +7,6 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { FIELD_DESCRIPTIONS } from '../../src/uiTranslations.ts'
-
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const readSource = (relativePath) => readFile(path.join(projectDir, 'src', relativePath), 'utf8')
 
@@ -93,13 +91,4 @@ test('App exposes a persistent UI theme selector without forcing light mode', as
   assert.match(source, /readStoredUITheme/)
   assert.match(source, /UI_THEME_STORAGE_KEY/)
   assert.doesNotMatch(source, /classList\.remove\('dark'\)/)
-})
-
-test('field hints exist in every UI language', () => {
-  const describedPaths = ['_extensions.source_mode', 'import_sheet', 'x_rel_quantity', 'guidelines[0].m']
-  for (const language of Object.keys(FIELD_DESCRIPTIONS)) {
-    for (const jsonPath of describedPaths) {
-      assert.ok(FIELD_DESCRIPTIONS[language].some((entry) => entry.match.test(jsonPath)), `${language}: ${jsonPath}`)
-    }
-  }
 })

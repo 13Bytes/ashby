@@ -3,7 +3,7 @@ import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '../config/uiOptions'
 import { getSourceMode, numberValue, type SourceMode } from '../utils/appState'
-import { Field } from './AppControls'
+import { Field, SectionHeading } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -69,7 +69,7 @@ export function DataframeSection({
 
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <h3 className="sm:col-span-2 m-0 text-m font-semibold text-violet-500">{t('globalDataframe')}</h3>
+      <SectionHeading className="sm:col-span-2" title={t('globalDataframe')} />
 
       <Field label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" className="grid grid-cols-[1fr_auto] items-center gap-2">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">

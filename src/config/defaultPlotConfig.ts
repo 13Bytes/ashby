@@ -132,7 +132,8 @@ export interface AnnotationConfig {
 }
 
 export interface ColoredAreaConfig {
-  axes?: Record<string, [number, number][]>
+  /** Axis ranges: axis name → [min, max]; null extends the area to the plot edge. Without `axes`, `x`/`y` are polygon corners. */
+  axes?: Record<string, [number | null, number | null]>
   x: number[]
   y: number[]
   color: string
