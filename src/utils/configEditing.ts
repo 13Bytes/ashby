@@ -80,17 +80,19 @@ const hsvToHex = (hue: number, saturation: number, value: number): string => {
   return `#${rgb.map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, '0')).join('')}`
 }
 
+/** Spreads hues evenly across all material keys; the `default` color is kept as it is. */
 export const generateMaterialColorsForDataframe = (df: DataframeConfig): DataframeConfig => {
-  const keys = Object.keys(df.materialColors)
+  const keys = Object.keys(df.materialColors).filter((key) => key !== 'default')
   if (keys.length === 0) return df
   const numberOfBrightnessLevels = Math.ceil(keys.length / 10)
 
-  const nextColors = keys.reduce<Record<string, string>>((acc, key, index) => {
+  const generated = new Map(keys.map((key, index) => {
     const hue = (index / keys.length) * 360
     const brightness = 0.3 + (0.7 / numberOfBrightnessLevels / 2) * ((index % numberOfBrightnessLevels) * 2 + 1)
-    acc[key] = hsvToHex(hue, 0.9, brightness)
-    return acc
-  }, {})
+    return [key, hsvToHex(hue, 0.9, brightness)]
+  }))
+  // Rebuild in the original key order so the list in the UI does not jump.
+  const nextColors = Object.fromEntries(Object.entries(df.materialColors).map(([key, color]) => [key, generated.get(key) ?? color]))
 
   return { ...df, materialColors: nextColors }
 }

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { FIELD_DESCRIPTIONS, type UILanguage } from '../uiTranslations'
+import { FIELD_DESCRIPTIONS, useI18n } from '../uiTranslations'
 import type { MultiOption } from '../utils/appState'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -10,23 +10,22 @@ export function Field({
   jsonPath,
   selfClassName,
   className,
-  language,
   children,
 }: {
   label: string
   jsonPath: string
   selfClassName?: string
   className?: string
-  language: UILanguage
   children: ReactNode
 }) {
+  const { language, t } = useI18n()
   const description = FIELD_DESCRIPTIONS[language].find((entry) => entry.match.test(jsonPath))?.description
   const tooltip = description ? `${jsonPath}\n${description}` : jsonPath
   return (
     <div className={`grid gap-2 ${selfClassName || ''}`}>
       <label title={tooltip} className="flex items-center gap-1 font-medium text-zinc-900 dark:text-zinc-100">
         {label}
-        {description ? <span aria-label={`${label} help`} className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-zinc-400 text-[10px] text-zinc-600 dark:border-zinc-600 dark:text-zinc-300">?</span> : null}
+        {description ? <span aria-label={t('fieldHelp', { label })} className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-zinc-400 text-[10px] text-zinc-600 dark:border-zinc-600 dark:text-zinc-300">?</span> : null}
       </label>
       <div className={`grid gap-2 ${className || ''}`}>
         {children}
@@ -56,6 +55,7 @@ export function MultiSelectInput({
   modeValue?: boolean
   onModeChange?: (next: boolean) => void
 }) {
+  const { t } = useI18n()
   const selected = new Set(value)
   const allSelected = options.length > 0 && value.length === options.length
   const [showSearch, setShowSearch] = useState(false)
@@ -71,19 +71,19 @@ export function MultiSelectInput({
         <span className="font-medium text-zinc-900 dark:text-zinc-100">{title}</span>
         <div className="flex items-center gap-2">
           <Button type="button" size="sm" variant="outline" onClick={() => setShowSearch((current) => !current)}>
-            {showSearch ? 'Hide search' : 'Search'}
+            {showSearch ? t('hideSearch') : t('search')}
           </Button>
           {!hideModeToggle && onModeChange ? (
             <Button type="button" size="sm" variant="outline" onClick={() => onModeChange(!(modeValue ?? false))}>
-              {modeValue ? 'Whitelist' : 'Blacklist'}
+              {modeValue ? t('whitelist') : t('blacklist')}
             </Button>
           ) : null}
           <Button type="button" size="sm" variant="outline" onClick={() => onChange(allSelected ? [] : options.map((entry) => entry.value))} disabled={options.length === 0}>
-            {allSelected ? 'Deselect all' : 'Select all'}
+            {allSelected ? t('deselectAll') : t('selectAll')}
           </Button>
           {onToggleExpanded ? (
             <Button type="button" size="sm" variant="outline" onClick={onToggleExpanded}>
-              {expanded ? 'Collapse' : 'Expand'}
+              {expanded ? t('collapse') : t('expand')}
             </Button>
           ) : null}
         </div>
@@ -92,7 +92,7 @@ export function MultiSelectInput({
         <Input
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search options…"
+          placeholder={t('searchOptions')}
         />
       ) : null}
       <div className={`${expanded ? 'h-full min-h-28' : 'h-47'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
@@ -114,7 +114,7 @@ export function MultiSelectInput({
             </label>
           ))
         ) : (
-          <p className="m-0 py-1 text-sm text-zinc-500">{options.length === 0 ? 'No options available.' : 'No search results.'}</p>
+          <p className="m-0 py-1 text-sm text-zinc-500">{options.length === 0 ? t('noOptions') : t('noSearchResults')}</p>
         )}
       </div>
     </div>
@@ -170,16 +170,18 @@ export function DraftInput<T>({
 }
 
 export function RemoveIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {
+  const { t } = useI18n()
   return (
-    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2 hover:bg-red-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Remove">
+    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-2 h-7 px-2 hover:bg-red-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label={t('remove')} title={t('remove')}>
       ✕
     </Button>
   )
 }
 
 export function DuplicateIconButton({ onClick, onHoverChange }: { onClick: () => void; onHoverChange?: (hovered: boolean) => void }) {
+  const { t } = useI18n()
   return (
-    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-10 h-7 px-2 hover:bg-blue-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label="Duplicate">
+    <Button type="button" size="sm" variant="outline" className="absolute right-2 top-10 h-7 px-2 hover:bg-blue-500" onClick={onClick} onMouseEnter={() => onHoverChange?.(true)} onMouseLeave={() => onHoverChange?.(false)} aria-label={t('duplicate')} title={t('duplicate')}>
       ⧉
     </Button>
   )
@@ -195,12 +197,13 @@ export function ColorOrMaterialInput({
   onChange: (next: string) => void
   materialOptions: string[]
 }) {
+  const { t } = useI18n()
   const isHexColor = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim())
   const mode: 'custom' | 'existing' = isHexColor ? 'custom' : 'existing'
   return (
     <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-2">
       <Button type="button" variant="outline" onClick={() => onChange(mode === 'custom' ? (materialOptions[0] ?? 'default') : '#000000')}>
-        {mode}
+        {mode === 'custom' ? t('colorModeCustom') : t('colorModeMaterial')}
       </Button>
       {mode === 'custom' ? (
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">

@@ -4,6 +4,7 @@ import type { PlotConfig } from '../config/defaultPlotConfig'
 import { Alert } from './ui/alert'
 import { getSourceMode } from '../utils/appState'
 import { Button } from './ui/button'
+import { useI18n, type Translate } from '../uiTranslations'
 
 interface Props {
   plotConfig: PlotConfig
@@ -50,6 +51,7 @@ function buildPlotRequest(
   datasourceFilesByDataframe: Record<number, File>,
   availableDatasets: string[] | null,
   dataframeIndices: number[],
+  t: Translate,
 ): RequestInit {
   const uniqueIndices = [...new Set(dataframeIndices)]
   const missingDataframes = uniqueIndices.filter((dataframeIndex) => {
@@ -57,7 +59,7 @@ function buildPlotRequest(
     return getSourceMode(dataframe ?? plotConfig.dataframes[0], availableDatasets ?? []) === 'file' && Boolean(dataframe?.importFileName) && datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
   })
   if (missingDataframes.length > 0) {
-    throw new Error(`Re-upload the Excel datasource for dataframe ${missingDataframes.map((index) => index + 1).join(', ')} before rendering. The server does not keep uploaded files.`)
+    throw new Error(t('reuploadDatasource', { list: missingDataframes.map((index) => index + 1).join(', ') }))
   }
 
   const datasourceIndices = uniqueIndices.filter((dataframeIndex) => {
@@ -94,7 +96,10 @@ function buildPlotRequest(
   }
 }
 
+type BatchFailure = { dataframeIndex: number; frameIndex: number; message: string }
+
 export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets }: Props) {
+  const { t } = useI18n()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -102,6 +107,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const [messages, setMessages] = useState<string[]>([])
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
   const [isBatchMode, setIsBatchMode] = useState(false)
+  const [batchFailures, setBatchFailures] = useState<BatchFailure[]>([])
   const latestPreviewRequestRef = useRef(0)
   const handledPlotActionNonceRef = useRef<number | null>(null)
   const createdPlotsRef = useRef<RenderedPlotEntry[]>([])
@@ -112,12 +118,24 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     return `${base}.${extension}`
   }
 
-  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex, includeInCreated = false): Promise<string> => {
+  const plotLabel = (dataframeIndex: number, frameIndex: number) => t('plotLabel', { df: dataframeIndex + 1, frame: frameIndex + 1 })
+
+  /**
+   * Renders one plot. A single preview shows its error and messages directly; batch renders
+   * (includeInCreated) append messages and return the error, so the batch can list every failure.
+   */
+  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex, includeInCreated = false): Promise<string | null> => {
     const isPreview = dataframeIndex === activeDataframeIndex && frameIndex === activeFrameIndex
     const requestId = isPreview ? ++latestPreviewRequestRef.current : latestPreviewRequestRef.current
+    const showMessages = (next: string[]) =>
+      includeInCreated
+        ? setMessages((current) => [...current, ...next.map((message) => `${plotLabel(dataframeIndex, frameIndex)}: ${message}`)])
+        : setMessages(next)
     setLoading(true)
-    setError(null)
-    setMessages([])
+    if (!includeInCreated) {
+      setError(null)
+      setMessages([])
+    }
 
     try {
       const response = await fetch(
@@ -132,6 +150,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           datasourceFilesByDataframe,
           availableDatasets,
           [dataframeIndex],
+          t,
         ),
       )
       const nextMessages = parseBackendMessages(response.headers.get('X-Ashby-Messages'))
@@ -144,15 +163,15 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         } catch {
           payload = { message: rawError }
         }
-        setMessages(Array.isArray(payload.messages) ? payload.messages : nextMessages)
-        throw new Error(payload.message || `Plot render failed (${response.status}).`)
+        showMessages(Array.isArray(payload.messages) ? payload.messages : nextMessages)
+        throw new Error(payload.message || t('renderFailed', { status: response.status }))
       }
 
       const imageBlob = await response.blob()
       if (imageBlob.size === 0) {
-        throw new Error('Backend returned an empty image.')
+        throw new Error(t('emptyImage'))
       }
-      setMessages(nextMessages)
+      showMessages(nextMessages)
 
       const nextUrl = URL.createObjectURL(imageBlob)
       // Ignore responses for previews that were superseded by a newer request.
@@ -173,13 +192,14 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           return [...rest, { dataframeIndex, frameIndex, url: URL.createObjectURL(imageBlob), blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
         })
       }
-      return nextUrl
+      return null
     } catch (renderError) {
       if (isPreview && requestId === latestPreviewRequestRef.current) {
         setImageUrl(null)
       }
-      setError(renderError instanceof Error ? renderError.message : 'Failed to render plot.')
-      return ""
+      const message = renderError instanceof Error ? renderError.message : t('renderFailedGeneric')
+      if (!includeInCreated) setError(message)
+      return message
     } finally {
       setLoading(false)
     }
@@ -187,6 +207,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
 
   const createPlots = async () => {
     setIsBatchMode(true)
+    setError(null)
+    setMessages([])
+    setBatchFailures([])
     setCreatedPlots((current) => {
       current.forEach((entry) => URL.revokeObjectURL(entry.url))
       return []
@@ -209,14 +232,12 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       if (!dataframe) continue
       const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
       for (const frameIndex of frameSelection) {
-        try {
-          await fetchPlot(dataframeIndex, frameIndex, true)
-        } catch {
-          // errors are shown via alert state
-        } finally {
-          completed += 1
-          setBatchProgress({ current: completed, total })
+        const failure = await fetchPlot(dataframeIndex, frameIndex, true)
+        if (failure) {
+          setBatchFailures((current) => [...current, { dataframeIndex, frameIndex, message: failure }])
         }
+        completed += 1
+        setBatchProgress({ current: completed, total })
       }
     }
     setBatchProgress(null)
@@ -244,14 +265,15 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           datasourceFilesByDataframe,
           availableDatasets,
           plots.map((plot) => plot.dataframe_index),
+          t,
         ),
       )
     } catch (downloadError) {
-      setError(downloadError instanceof Error ? downloadError.message : 'Download all failed.')
+      setError(downloadError instanceof Error ? downloadError.message : t('downloadAllFailedGeneric'))
       return
     }
     if (!response.ok) {
-      setError(`Download all failed (${response.status}).`)
+      setError(t('downloadAllFailed', { status: response.status }))
       return
     }
     const zipBaseName = configBaseName.trim() || 'ashby-plots'
@@ -295,29 +317,41 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
       <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
         <div>
-          <h3 className="m-0 text-sm font-semibold">Backend plot preview</h3>
+          <h3 className="m-0 text-sm font-semibold">{t('plotPreviewTitle')}</h3>
           <p className="m-0 mt-1 text-xs text-zinc-500">
-            {`Showing dataframe ${activeDataframeIndex + 1}, frame ${activeFrameIndex + 1}. The selected dataframe/frame config is rendered by the Python backend.`}
+            {t('plotPreviewText', { df: activeDataframeIndex + 1, frame: activeFrameIndex + 1 })}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading} title="Refresh preview">
+          <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading} title={t('refreshPreview')} aria-label={t('refreshPreview')}>
             ↻
           </Button>
           <Button type="button" variant="outline" onClick={() => void downloadAllCreatedPlots()} disabled={createdPlots.length === 0}>
-            Download all (.zip)
+            {t('downloadAll')}
           </Button>
         </div>
       </section>
-      {batchProgress ? <p className="m-0 text-xs text-zinc-500">{`${batchProgress.current} of ${batchProgress.total} Plots created`}</p> : null}
+      {batchProgress ? <p className="m-0 text-xs text-zinc-500">{t('batchProgress', { current: batchProgress.current, total: batchProgress.total })}</p> : null}
 
       {error ? <Alert variant="destructive">{error}</Alert> : null}
+      {batchFailures.length > 0 ? (
+        <Alert variant="destructive">
+          <div className="grid gap-1">
+            <strong>{t('batchFailures', { count: batchFailures.length })}</strong>
+            {batchFailures.map((failure) => (
+              <p key={`${failure.dataframeIndex}-${failure.frameIndex}`} className="m-0">
+                {`${plotLabel(failure.dataframeIndex, failure.frameIndex)}: ${failure.message}`}
+              </p>
+            ))}
+          </div>
+        </Alert>
+      ) : null}
       {messages.length > 0 ? (
         <Alert>
           <div className="grid gap-1">
-            <strong>Plot messages</strong>
-            {messages.map((message) => (
-              <p key={message} className="m-0">
+            <strong>{t('plotMessages')}</strong>
+            {messages.map((message, index) => (
+              <p key={index} className="m-0">
                 {message}
               </p>
             ))}
@@ -326,24 +360,24 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       ) : null}
 
       <section className="min-h-[55vh] overflow-auto rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        {loading && !imageUrl ? <p className="text-sm text-zinc-500">Rendering image from backend…</p> : null}
-        {imageUrl && !isBatchMode ? <img src={imageUrl} alt="Rendered Ashby plot" className="block h-auto max-w-full" /> : null}
+        {loading && !imageUrl ? <p className="text-sm text-zinc-500">{t('renderingPlot')}</p> : null}
+        {imageUrl && !isBatchMode ? <img src={imageUrl} alt={t('renderedPlotAlt')} className="block h-auto max-w-full" /> : null}
         {createdPlotsSorted.length > 0 ? (
           <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
             {createdPlotsSorted.map((entry) => (
               <article key={`${entry.dataframeIndex}-${entry.frameIndex}`} className="grid gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="m-0 text-xs font-semibold text-zinc-500">{`Dataframe ${entry.dataframeIndex + 1} · Frame ${entry.frameIndex + 1}`}</h4>
+                  <h4 className="m-0 text-xs font-semibold text-zinc-500">{plotLabel(entry.dataframeIndex, entry.frameIndex)}</h4>
                   <button
                     type="button"
                     className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                     onClick={() => downloadSinglePlot(entry)}
-                    title="Download this plot"
+                    title={t('downloadThisPlot')}
                   >
-                    ⬇️ this
+                    ⬇️ {t('downloadThis')}
                   </button>
                 </div>
-                <img src={entry.url} alt={`Rendered dataframe ${entry.dataframeIndex + 1} frame ${entry.frameIndex + 1}`} className="block h-auto max-w-full" />
+                <img src={entry.url} alt={`${t('renderedPlotAlt')} (${plotLabel(entry.dataframeIndex, entry.frameIndex)})`} className="block h-auto max-w-full" />
               </article>
             ))}
           </div>

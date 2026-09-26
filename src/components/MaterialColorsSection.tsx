@@ -4,11 +4,11 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
+import { useI18n } from '../uiTranslations'
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
 
 type Props = {
-  t: (key: string) => string
   activeDataframe: DataframeConfig
   customMaterialNames: Record<string, string>
   setCustomMaterialNames: Dispatch<SetStateAction<Record<string, string>>>
@@ -18,7 +18,6 @@ type Props = {
 }
 
 export function MaterialColorsSection({
-  t,
   activeDataframe,
   customMaterialNames,
   setCustomMaterialNames,
@@ -26,6 +25,7 @@ export function MaterialColorsSection({
   patchActiveDataframe,
   setShowGenerateColorsConfirm,
 }: Props) {
+  const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="sm:col-span-2 flex items-center justify-between gap-2">
@@ -50,7 +50,7 @@ export function MaterialColorsSection({
         </div>
 
         <Button type="button" variant="outline" size="sm" onClick={() => setShowGenerateColorsConfirm(true)}>
-          Generate colors
+          {t('generateColors')}
         </Button>
       </div>
 
@@ -102,14 +102,14 @@ export function MaterialColorsSection({
                       {keyword}
                     </option>
                   ))}
-                  <option value={CUSTOM_SELECT_VALUE}>Custom…</option>
+                  <option value={CUSTOM_SELECT_VALUE}>{t('custom')}</option>
                 </Select>
               )}
 
               {customMaterialNames[material] !== undefined ? (
                 <Input
                   value={customMaterialNames[material]}
-                  placeholder="Enter custom material name"
+                  placeholder={t('customMaterialName')}
                   onChange={(event) => setCustomMaterialNames((current) => ({ ...current, [material]: event.target.value }))}
                   onBlur={() => {
                     patchActiveDataframe((df) => {
@@ -146,7 +146,7 @@ export function MaterialColorsSection({
                       return { ...df, materialColors: rest }
                     })
                   }
-                  aria-label={`Remove ${material}`}
+                  aria-label={t('removeNamed', { name: material })}
                 >
                   ✕
                 </button>

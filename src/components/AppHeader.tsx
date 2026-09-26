@@ -1,5 +1,6 @@
-import { useState, type ChangeEvent, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react'
 import type { PlotConfig } from '../config/defaultPlotConfig'
+import { useI18n } from '../uiTranslations'
 import { exportConfig } from '../utils/configIo'
 import { Button } from './ui/button'
 
@@ -14,12 +15,13 @@ type Props = {
   setPlotAction: (action: 'preview-current' | 'create-all') => void
   setPlotActionNonce: (patch: (current: number) => number) => void
   setShowAbout: (show: boolean) => void
-  setShowMenu:  (show: boolean | ((current: boolean) => boolean)) => void
   setShowResetConfirm: (show: boolean) => void
   setShowSettings: (show: boolean) => void
-  showMenu: boolean
-  t: (key: string) => string
 }
+
+type OpenMenu = 'plot' | 'config' | 'more' | null
+
+const menuClassName = 'absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900'
 
 export function AppHeader({
   activePage,
@@ -32,20 +34,40 @@ export function AppHeader({
   setPlotAction,
   setPlotActionNonce,
   setShowAbout,
-  setShowMenu,
   setShowResetConfirm,
   setShowSettings,
-  showMenu,
-  t,
 }: Props) {
-  const [showConfigActions, setShowConfigActions] = useState(false)
-  const [showPlotActions,   setShowPlotActions  ] = useState(false)
+  const { t } = useI18n()
+  const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
+  const menusRef = useRef<HTMLDivElement | null>(null)
 
+  // Close the open dropdown on a click outside the menus or on Escape.
+  useEffect(() => {
+    if (!openMenu) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!menusRef.current?.contains(event.target as Node)) setOpenMenu(null)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenu(null)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [openMenu])
+
+  const toggleMenu = (menu: Exclude<OpenMenu, null>) => setOpenMenu((current) => (current === menu ? null : menu))
+  const runMenuAction = (action: () => void) => {
+    action()
+    setOpenMenu(null)
+  }
   const runPlotAction = (action: 'preview-current' | 'create-all') => {
     setPlotAction(action)
     setPlotActionNonce((current) => current + 1)
     setActivePage('plot')
-    setShowPlotActions(false)
+    setOpenMenu(null)
   }
 
   return (
@@ -53,48 +75,52 @@ export function AppHeader({
       <div className="mr-auto">
         <h1 className="m-0 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
       </div>
-      <nav className="flex rounded-md border border-zinc-300 p-1 dark:border-zinc-700" aria-label="Application view">
-        <Button type="button" variant={activePage === 'config' ? 'default' : 'outline'} className={activePage === 'config' ? '' : 'border-transparent'} onClick={() => setActivePage('config')}>Config</Button>
-        <Button type="button" variant={activePage === 'plot'   ? 'default' : 'outline'} className={activePage === 'plot'   ? '' : 'border-transparent'} onClick={() => { setPlotAction('preview-current'); setActivePage('plot') }}>Plot</Button>
+      <nav className="flex rounded-md border border-zinc-300 p-1 dark:border-zinc-700" aria-label={t('applicationView')}>
+        <Button type="button" variant={activePage === 'config' ? 'default' : 'outline'} className={activePage === 'config' ? '' : 'border-transparent'} onClick={() => setActivePage('config')}>{t('config')}</Button>
+        <Button type="button" variant={activePage === 'plot' ? 'default' : 'outline'} className={activePage === 'plot' ? '' : 'border-transparent'} onClick={() => { setPlotAction('preview-current'); setActivePage('plot') }}>{t('plot')}</Button>
       </nav>
-      <div className="relative flex">
-        <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>      {/* & remember dropdown selection */}
-          Generate plot
-        </Button>
-        <Button type="button" className="rounded-l-none border-l border-violet-400 px-3" aria-label="Choose plot action" aria-haspopup="menu" aria-expanded={showPlotActions} onClick={() => { setShowPlotActions((current) => !current); setShowConfigActions(false); setShowMenu(false) }}>
-          <span className="text-xs" aria-hidden="true">▼</span>
-        </Button>
-        {showPlotActions ? (
-          <div className="absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
-            <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('preview-current')}>Generate current plot</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('create-all')}     >Generate all plots</Button>
-          </div>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
-        <div className="relative">
-          <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={showConfigActions} onClick={() => { setShowConfigActions((current) => !current); setShowPlotActions(false); setShowMenu(false) }}>
-            Config actions <span className="ml-2 text-xs" aria-hidden="true">▼</span>
+      <div ref={menusRef} className="flex flex-wrap items-center gap-4">
+        <div className="relative flex">
+          <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>      {/* & remember dropdown selection */}
+            {t('generatePlot')}
           </Button>
-          {showConfigActions ? (
-            <div className="absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
-              <Button type="button" variant="outline" size="sm" onClick={() => { fileInputRef.current?.click(); setShowConfigActions(false) }}>Import config</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { exportConfig(plotConfig, configBaseName); setShowConfigActions(false) }}>Export config</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { openJsonEditor();              setShowConfigActions(false) }}>{t('json')}</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { setShowResetConfirm(true);     setShowConfigActions(false) }}>Reset config</Button>
+          <Button type="button" className="rounded-l-none border-l border-violet-400 px-3" aria-label={t('choosePlotAction')} aria-haspopup="menu" aria-expanded={openMenu === 'plot'} onClick={() => toggleMenu('plot')}>
+            <span className="text-xs" aria-hidden="true">▼</span>
+          </Button>
+          {openMenu === 'plot' ? (
+            <div className={menuClassName} role="menu">
+              <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('preview-current')}>{t('generateCurrentPlot')}</Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('create-all')}>{t('generateAllPlots')}</Button>
             </div>
           ) : null}
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
+          <div className="relative">
+            <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={openMenu === 'config'} onClick={() => toggleMenu('config')}>
+              {t('configActions')} <span className="ml-2 text-xs" aria-hidden="true">▼</span>
+            </Button>
+            {openMenu === 'config' ? (
+              <div className={menuClassName} role="menu">
+                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => fileInputRef.current?.click())}>{t('importConfig')}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => exportConfig(plotConfig, configBaseName))}>{t('exportConfig')}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(openJsonEditor)}>{t('json')}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowResetConfirm(true))}>{t('resetConfig')}</Button>
+              </div>
+            ) : null}
+          </div>
 
-        <div className="relative">
-          <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={showMenu} onClick={() => { setShowMenu((current) => !current); setShowConfigActions(false); setShowPlotActions(false) }}>More <span className="ml-2 text-xs" aria-hidden="true">▼</span></Button>
-          {showMenu ? (
-            <div className="absolute right-0 top-11 z-40 grid min-w-44 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900" role="menu">
-              <Button type="button" variant="outline" size="sm" onClick={() => { setShowSettings(true); setShowMenu(false) }}>Settings</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => { setShowAbout(true);    setShowMenu(false) }}>About</Button>
-            </div>
-          ) : null}
+          <div className="relative">
+            <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={openMenu === 'more'} onClick={() => toggleMenu('more')}>
+              {t('more')} <span className="ml-2 text-xs" aria-hidden="true">▼</span>
+            </Button>
+            {openMenu === 'more' ? (
+              <div className={menuClassName} role="menu">
+                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowSettings(true))}>{t('settings')}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowAbout(true))}>{t('about')}</Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </header>

@@ -1,5 +1,6 @@
 import type { Dispatch, DragEvent, MouseEvent, SetStateAction } from 'react'
 import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
+import { useI18n } from '../uiTranslations'
 import { getSelectedIndices, getUiKey } from '../utils/appState'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -38,7 +39,6 @@ type Props = {
   setMoveFrameTargetDataframe: Dispatch<SetStateAction<string>>
   setTabRename: Dispatch<SetStateAction<TabRename | null>>
   tabRename: TabRename | null
-  t: (key: string) => string
   toggleDataframeGeneration: (index: number, enabled: boolean) => void
   toggleFrameGeneration: (index: number, enabled: boolean) => void
 }
@@ -75,10 +75,10 @@ export function ConfigTabs(props: Props) {
     setMoveFrameTargetDataframe,
     setTabRename,
     tabRename,
-    t,
     toggleDataframeGeneration,
     toggleFrameGeneration,
   } = props
+  const { t } = useI18n()
 
   return (
     <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
@@ -147,7 +147,7 @@ export function ConfigTabs(props: Props) {
                 }}
               >
                 {df.name || `Dataframe ${index + 1}`}
-                <span className="inline-flex items-center gap-1 text-[11px]" title="Include this dataframe when generating all plots.">
+                <span className="inline-flex items-center gap-1 text-[11px]" title={t('includeDataframe')}>
                   <input
                     type="checkbox"
                     checked={getSelectedIndices(plotConfig.dataframes.length, plotConfig.createAllDataframes).includes(index)}
@@ -165,7 +165,7 @@ export function ConfigTabs(props: Props) {
                     event.stopPropagation()
                     duplicateDataframe(index)
                   }}
-                  title="Duplicate dataframe"
+                  title={t('duplicateDataframe')}
                 >
                   ⧉
                 </button>
@@ -176,6 +176,8 @@ export function ConfigTabs(props: Props) {
                     event.stopPropagation()
                     removeDataframe(index)
                   }}
+                  title={t('removeDataframe')}
+                  aria-label={t('removeDataframe')}
                 >
                   ✕
                 </button>
@@ -183,7 +185,7 @@ export function ConfigTabs(props: Props) {
             )}
           </div>
         ))}
-        <Button size="sm" onClick={addDataframe}>+</Button>
+        <Button size="sm" onClick={addDataframe} title={t('addDataframe')} aria-label={t('addDataframe')}>+</Button>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-800">
         <span className="text-sm font-semibold">{t('frame')}</span>
@@ -248,7 +250,7 @@ export function ConfigTabs(props: Props) {
                 }}
               >
                 {frame.name || `Frame ${index + 1}`}
-                <span className="inline-flex items-center gap-1 text-[11px]" title="Include this frame when generating all plots.">
+                <span className="inline-flex items-center gap-1 text-[11px]" title={t('includeFrame')}>
                   <input
                     type="checkbox"
                     checked={getSelectedIndices(activeDataframe.frames.length, activeDataframe.createAllFrames).includes(index)}
@@ -266,7 +268,7 @@ export function ConfigTabs(props: Props) {
                     event.stopPropagation()
                     duplicateFrame(index)
                   }}
-                  title="Duplicate frame"
+                  title={t('duplicateFrame')}
                 >
                   ⧉
                 </button>
@@ -277,6 +279,8 @@ export function ConfigTabs(props: Props) {
                     event.stopPropagation()
                     removeFrame(index)
                   }}
+                  title={t('removeFrame')}
+                  aria-label={t('removeFrame')}
                 >
                   ✕
                 </button>
@@ -284,7 +288,7 @@ export function ConfigTabs(props: Props) {
             )}
           </div>
         ))}
-        <Button size="sm" onClick={addFrame}>+</Button>
+        <Button size="sm" onClick={addFrame} title={t('addFrame')} aria-label={t('addFrame')}>+</Button>
         <div className="ml-2 flex items-center gap-2">
           <Select value={moveFrameTargetDataframe} onChange={(event) => setMoveFrameTargetDataframe(event.target.value)}>
             {plotConfig.dataframes.map((dataframe, index) => (
@@ -299,7 +303,7 @@ export function ConfigTabs(props: Props) {
             onClick={() => moveFrameToDataframe(activeDataframeIndex, activeFrameIndex, Number(moveFrameTargetDataframe))}
             disabled={plotConfig.dataframes.length <= 1}
           >
-            Move frame
+            {t('moveFrame')}
           </Button>
         </div>
       </div>

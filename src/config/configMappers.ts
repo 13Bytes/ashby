@@ -7,6 +7,7 @@ import {
   type PlotConfig,
   createDefaultPlotConfig,
 } from './defaultPlotConfig'
+import { ensureUiKeys } from '../utils/appState'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
@@ -461,11 +462,12 @@ const normalizeDataframe = (
   }
 }
 
+/** Converts any supported config shape into the editor model. Without input it returns the default config. */
 export function normalizePlotConfig(input?: unknown): PlotConfig {
   const fallback = createDefaultPlotConfig()
 
   if (!isRecord(input)) {
-    return fallback
+    return ensureUiKeys(fallback)
   }
 
   const rootSource = Array.isArray(input.dataframes) ? input : { ...input, dataframes: [input] }
@@ -487,7 +489,7 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
   const createAllDataframesSource =
     input.createAllDataframes ?? input.create_all_dataframes
 
-  return {
+  return ensureUiKeys({
     ...fallback,
     version: coerceNumber(input.version, fallback.version),
     createAllDataframes:
@@ -500,5 +502,5 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
           : fallback.createAllDataframes,
     dataframes,
     _extensions: extensions,
-  }
+  })
 }

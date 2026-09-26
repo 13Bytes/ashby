@@ -1,5 +1,6 @@
 import type { ChangeEvent, ReactNode, RefObject } from 'react'
 import { cn } from '../lib/utils'
+import { useI18n } from '../uiTranslations'
 import { Button } from './ui/button'
 
 type AppPopoutsProps = {
@@ -26,7 +27,6 @@ type AppPopoutsProps = {
   onConfirmReset: () => void
   onCloseDatasourcePrompt: () => void
   onDatasourcePromptFile: (event: ChangeEvent<HTMLInputElement>) => void
-  t: (key: string) => string
   jsonOverlayRef: RefObject<HTMLPreElement | null>
   jsonTextareaRef: RefObject<HTMLTextAreaElement | null>
 }
@@ -164,7 +164,8 @@ function renderJsonHighlight(jsonDraft: string, jsonMarker: Set<number>) {
   return tokens
 }
 
-function AboutPopout({ onClose, t }: { onClose: () => void; t: AppPopoutsProps['t'] }) {
+function AboutPopout({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n()
   return (
     <PopoutShell>
       <h3 className="mt-0 text-lg">{t('about')}</h3>
@@ -204,12 +205,11 @@ function AboutPopout({ onClose, t }: { onClose: () => void; t: AppPopoutsProps['
 function SettingsPopout({
   onClose,
   settingsContent,
-  t,
 }: {
   onClose: () => void
   settingsContent: ReactNode
-  t: AppPopoutsProps['t']
 }) {
+  const { t } = useI18n()
   return (
     <PopoutShell>
       <h3 className="mt-0 text-lg">{t('settings')}</h3>
@@ -230,17 +230,18 @@ function GenerateColorsPopout({
   onClose: () => void
   onGenerate: () => void
 }) {
+  const { t } = useI18n()
   return (
     <PopoutShell>
-      <h3 className="mt-0 text-lg">Generate new material colors?</h3>
+      <h3 className="mt-0 text-lg">{t('generateColorsTitle')}</h3>
       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        This overwrites all current material colors and spaces hues evenly across all keys.
+        {t('generateColorsText')}
       </p>
       <DialogActions>
         <Button variant="outline" onClick={onClose}>
-          Cancel
+          {t('cancel')}
         </Button>
-        <Button onClick={onGenerate}>Yes, generate</Button>
+        <Button onClick={onGenerate}>{t('generateColorsConfirm')}</Button>
       </DialogActions>
     </PopoutShell>
   )
@@ -257,7 +258,6 @@ function JsonEditorPopout({
   onJsonDraftChange,
   onJsonScroll,
   onToggleJsonFullscreen,
-  t,
 }: Pick<
   AppPopoutsProps,
   | 'jsonDraft'
@@ -270,8 +270,8 @@ function JsonEditorPopout({
   | 'onJsonDraftChange'
   | 'onJsonScroll'
   | 'onToggleJsonFullscreen'
-  | 't'
 >) {
+  const { t } = useI18n()
   return (
     <PopoutShell
       panelClassName={cn(
@@ -280,10 +280,10 @@ function JsonEditorPopout({
       )}
     >
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold">JSON Editor</h3>
+        <h3 className="text-sm font-semibold">{t('jsonEditor')}</h3>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={onToggleJsonFullscreen}>
-            {jsonFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            {jsonFullscreen ? t('exitFullscreen') : t('fullscreen')}
           </Button>
           <Button variant="outline" size="sm" onClick={onCloseJson}>
             {t('close')}
@@ -309,7 +309,7 @@ function JsonEditorPopout({
       </div>
       <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
         <Button size="sm" onClick={onApplyJsonEditor}>
-          Apply JSON
+          {t('applyJson')}
         </Button>
       </div>
     </PopoutShell>
@@ -317,17 +317,18 @@ function JsonEditorPopout({
 }
 
 function ResetConfirmPopout({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+  const { t } = useI18n()
   return (
     <PopoutShell>
-      <h3 className="mt-0 text-lg">Reset configuration?</h3>
+      <h3 className="mt-0 text-lg">{t('resetTitle')}</h3>
       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        This will replace your current changes with the default config.
+        {t('resetText')}
       </p>
       <DialogActions>
         <Button variant="outline" onClick={onClose}>
-          Cancel
+          {t('cancel')}
         </Button>
-        <Button onClick={onConfirm}>Confirm reset</Button>
+        <Button onClick={onConfirm}>{t('resetConfirm')}</Button>
       </DialogActions>
     </PopoutShell>
   )
@@ -342,17 +343,18 @@ function DatasourcePromptPopout({
   onClose: () => void
   onDatasourcePromptFile: (event: ChangeEvent<HTMLInputElement>) => void
 }) {
+  const { t } = useI18n()
   return (
     <PopoutShell>
-      <h3 className="mt-0 text-lg">Excel datasource required</h3>
+      <h3 className="mt-0 text-lg">{t('datasourceRequiredTitle')}</h3>
       <p className="text-sm text-zinc-600 dark:text-zinc-300">
-        {`Dataframe ${datasourcePrompt.dataframeIndex + 1} references "${datasourcePrompt.filename}", but that workbook is not available in browser storage. Select the file to continue rendering.`}
+        {t('datasourceRequiredText', { n: datasourcePrompt.dataframeIndex + 1, filename: datasourcePrompt.filename })}
       </p>
       <div className="mt-4 grid gap-3">
         <input type="file" accept=".xlsx" onChange={onDatasourcePromptFile} />
         <DialogActions className="mt-0">
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('cancel')}
           </Button>
         </DialogActions>
       </div>
@@ -385,15 +387,14 @@ export function AppPopouts(props: AppPopoutsProps) {
     onConfirmReset,
     onCloseDatasourcePrompt,
     onDatasourcePromptFile,
-    t,
     jsonOverlayRef,
     jsonTextareaRef,
   } = props
 
   return (
     <>
-      {showAbout ? <AboutPopout onClose={onCloseAbout} t={t} /> : null}
-      {showSettings ? <SettingsPopout onClose={onCloseSettings} settingsContent={settingsContent} t={t} /> : null}
+      {showAbout ? <AboutPopout onClose={onCloseAbout} /> : null}
+      {showSettings ? <SettingsPopout onClose={onCloseSettings} settingsContent={settingsContent} /> : null}
       {showGenerateColorsConfirm ? (
         <GenerateColorsPopout onClose={onCloseGenerateColorsConfirm} onGenerate={onGenerateMaterialColors} />
       ) : null}
@@ -409,7 +410,6 @@ export function AppPopouts(props: AppPopoutsProps) {
           onJsonDraftChange={onJsonDraftChange}
           onJsonScroll={onJsonScroll}
           onToggleJsonFullscreen={onToggleJsonFullscreen}
-          t={t}
         />
       ) : null}
       {showResetConfirm ? <ResetConfirmPopout onClose={onCloseResetConfirm} onConfirm={onConfirmReset} /> : null}
