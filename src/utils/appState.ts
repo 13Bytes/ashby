@@ -3,6 +3,18 @@ import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
 export type SourceMode = 'teable' | 'file' | 'dataset'
 export type MultiOption = { value: string; label: string }
 
+/** Name of a dataframe for the UI; unnamed dataframes are numbered ("DF 1"). */
+export const DATAFRAME_NAME_PREFIX = 'DF'
+export const dataframeLabel = (dataframe: { name?: string }, index: number): string => dataframe.name?.trim() || `${DATAFRAME_NAME_PREFIX} ${index + 1}`
+
+/** Default name for a new dataframe: "DF n" with n at least its position, skipping names in use. */
+export const nextDataframeName = (dataframes: Array<{ name?: string }>): string => {
+  const used = new Set(dataframes.map((dataframe, index) => dataframeLabel(dataframe, index)))
+  let number = dataframes.length + 1
+  while (used.has(`${DATAFRAME_NAME_PREFIX} ${number}`)) number += 1
+  return `${DATAFRAME_NAME_PREFIX} ${number}`
+}
+
 export const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
 
 export const parseColumnsFromImportResult = (value: unknown): string[] => {

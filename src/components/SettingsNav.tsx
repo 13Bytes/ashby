@@ -1,0 +1,136 @@
+import { useState, type RefObject } from 'react'
+import { SETTINGS_SECTIONS, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from '../config/settingsSections'
+import { useI18n } from '../uiTranslations'
+import { LevelIcon, ScopeTag } from './AppControls'
+
+/** Sidebar status of a section: missing required settings, done, or only defaults. */
+export type SectionStatus = { missing: number; hasRequired: boolean; items?: number }
+
+type SearchHit = { label: string; section: SettingsSectionId; element: HTMLElement; hidden: boolean }
+
+type Props = {
+  mode: SettingsMode
+  activeSection: SettingsSectionId
+  onSelect: (section: SettingsSectionId) => void
+  /** Jumps to a field found by the search. */
+  onReveal: (section: SettingsSectionId, element: HTMLElement) => void
+  statusFor: (section: SettingsSectionId) => SectionStatus
+  dataframeName: string
+  frameName: string
+  editorRef: RefObject<HTMLElement | null>
+}
+
+/** Settings list: search, the shared dataset sections and the sections of the active plot. */
+export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor, dataframeName, frameName, editorRef }: Props) {
+  const { t } = useI18n()
+  const [query, setQuery] = useState('')
+  const [hits, setHits] = useState<SearchHit[]>([])
+  const normalized = query.trim().toLowerCase()
+
+  // Searches the rendered fields, so hidden defaults and collapsed items are found too.
+  const search = (text: string) => {
+    setQuery(text)
+    const needle = text.trim().toLowerCase()
+    const next: SearchHit[] = []
+    if (needle && editorRef.current) {
+      const seen = new Set<string>()
+      for (const element of editorRef.current.querySelectorAll<HTMLElement>('[data-setting]')) {
+        const label = element.dataset.setting ?? ''
+        const sectionId = element.closest<HTMLElement>('[data-section-id]')?.dataset.sectionId ?? ''
+        if (!label.toLowerCase().includes(needle) || !isSettingsSectionId(sectionId)) continue
+        const key = `${sectionId}|${label}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        next.push({ label, section: sectionId, element, hidden: mode === 'simple' && Boolean(element.closest('[data-level="default"]')) })
+        if (next.length >= 12) break
+      }
+    }
+    setHits(next)
+  }
+
+  const renderStatus = (status: SectionStatus) => {
+    if (status.missing > 0) return <span className="ml-auto rounded-full bg-orange-600 px-1.5 text-[10px] font-bold text-white">{status.missing}</span>
+    if (status.items !== undefined) return status.items > 0 ? <span className="ml-auto text-[11px] tabular-nums text-zinc-400">{status.items}</span> : null
+    if (status.hasRequired) return <span className="ml-auto text-xs font-semibold text-emerald-600 dark:text-emerald-400" aria-label={t('levelRequiredSetTip')}>✓</span>
+    return null
+  }
+
+  const group = (scope: 'dataset' | 'plot') => (
+    <ul className="m-0 grid list-none gap-px p-0">
+      {SETTINGS_SECTIONS.filter((section) => section.scope === scope).map((section) => {
+        const active = section.id === activeSection
+        return (
+          <li key={section.id}>
+            <button
+              type="button"
+              aria-current={active ? 'true' : undefined}
+              onClick={() => onSelect(section.id)}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] ${active
+                ? scope === 'dataset'
+                  ? 'bg-sky-100 font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-200'
+                  : 'bg-violet-100 font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200'
+                : 'text-zinc-700 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}
+            >
+              <span className="min-w-0">{t(section.titleKey)}</span>
+              {renderStatus(statusFor(section.id))}
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
+
+  return (
+    <nav aria-label={t('settings')} className="flex min-h-0 flex-col gap-4 overflow-auto border-r border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => search(event.target.value)}
+        onKeyDown={(event) => { if (event.key === 'Escape') search('') }}
+        placeholder={t('findSetting')}
+        aria-label={t('findSetting')}
+        className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+      />
+      {normalized ? (
+        <ul className="m-0 grid list-none gap-px p-0">
+          {hits.length === 0 ? <li className="px-2 py-1 text-xs text-zinc-500">{t('noSettingMatch', { query: query.trim() })}</li> : null}
+          {hits.map((hit) => (
+            <li key={`${hit.section}|${hit.label}`}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-zinc-200/70 dark:hover:bg-zinc-800"
+                onClick={() => {
+                  search('')
+                  onReveal(hit.section, hit.element)
+                }}
+              >
+                <span className="min-w-0 truncate">{hit.label}</span>
+                <span className="ml-auto shrink-0 text-[10px] text-zinc-400">
+                  {t(SETTINGS_SECTIONS.find((section) => section.id === hit.section)!.titleKey)}{hit.hidden ? ` · ${t('hiddenSuffix')}` : ''}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <>
+          <div className="grid gap-1 border-l-[3px] border-sky-500 pl-2.5">
+            <ScopeTag scope="dataset">{t('datasetShared')}</ScopeTag>
+            <strong className="truncate text-xs" title={dataframeName}>{dataframeName}</strong>
+            {group('dataset')}
+          </div>
+          <div className="grid gap-1 border-l-[3px] border-violet-500 pl-2.5">
+            <ScopeTag scope="plot">{t('plotOnly')}</ScopeTag>
+            <strong className="truncate text-xs" title={frameName}>{frameName}</strong>
+            {group('plot')}
+          </div>
+        </>
+      )}
+      <div className="mt-auto grid gap-1.5 border-t border-zinc-200 pt-3 text-[11px] text-zinc-500 dark:border-zinc-800">
+        <span className="flex items-center gap-2"><LevelIcon level="required" />{t('levelRequired')}</span>
+        <span className="flex items-center gap-2"><LevelIcon level="check" />{t('levelCheck')}</span>
+        <span className="flex items-center gap-2"><LevelIcon level="default" />{t('levelDefault')}{mode === 'simple' ? ` · ${t('levelKeyHidden')}` : ''}</span>
+      </div>
+    </nav>
+  )
+}

@@ -17,9 +17,57 @@ body {
 }
 
 #root {
-  width: min(96vw, 1920px);
-  max-width: 100%;
+  width: 100%;
   margin: 0 auto;
   min-height: 100svh;
   box-sizing: border-box;
+}
+
+/* Single-column grids in the settings never grow wider than their panel (long option or column
+   names would otherwise widen the whole section). In the base layer, so grid-cols-* utilities win. */
+@layer base {
+  [data-section-id] .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Simple mode: settings that can stay at their defaults are hidden, unless the section shows them. */
+.settings-simple [data-section-id]:not(.show-defaults) [data-level='default'] {
+  display: none !important;
+}
+/* Simple mode shows the text fields of the selected plot language only. */
+.settings-simple [data-lang-other] {
+  display: none !important;
+}
+/* Shortcuts that duplicate a field of the full settings, shown only while those are hidden. */
+.settings-all .simple-only,
+.show-defaults .simple-only {
+  display: none !important;
+}
+
+/* A required field that is not set yet. */
+[data-missing='true'] :is(input, select, textarea) {
+  border-color: rgb(234 88 12);
+  box-shadow: 0 0 0 2px rgb(234 88 12 / 0.2);
+}
+
+/* A setting found with "Find a setting" is highlighted briefly. */
+.setting-flash {
+  animation: setting-flash 1.8s ease;
+}
+@keyframes setting-flash {
+  0%,
+  45% {
+    background-color: rgb(139 92 246 / 0.16);
+    box-shadow: 0 0 0 6px rgb(139 92 246 / 0.16);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .setting-flash {
+    animation: none;
+  }
 }

@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { downloadBlob, toExternalConfig } from '../utils/configIo'
 import type { PlotConfig } from '../config/defaultPlotConfig'
 import { Alert } from './ui/alert'
-import { getSourceMode } from '../utils/appState'
+import { dataframeLabel, getSourceMode } from '../utils/appState'
 import { Button } from './ui/button'
 import { useI18n, type Translate } from '../uiTranslations'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails, type BackendErrorDetails } from '../utils/backendErrors'
 import { addLogEntry } from '../utils/debugLog'
 import { ErrorDetails } from './DebugLog'
+import type { SettingsSectionId } from '../config/settingsSections'
+import type { MissingSetting } from '../utils/settingsStatus'
 
 interface Props {
   plotConfig: PlotConfig
@@ -18,6 +20,11 @@ interface Props {
   plotActionNonce: number
   datasourceFilesByDataframe: Record<number, File>
   availableDatasets: string[] | null
+  /** Required settings the active plot is missing; it is not rendered while any are listed. */
+  missing: MissingSetting[]
+  onJump: (section: SettingsSectionId, anchor?: string) => void
+  autoRefresh: boolean
+  onAutoRefreshChange: (next: boolean) => void
 }
 interface RenderedPlotEntry {
   dataframeIndex: number
@@ -242,24 +249,41 @@ function RenderProgressBox({ progress }: { progress: RenderProgressState }) {
   )
 }
 
-export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets }: Props) {
+/** Waits this long after the last config change before the preview renders again. */
+const AUTO_REFRESH_DELAY_MS = 1200
+
+type PreviewStatus = 'idle' | 'loading' | 'ok' | 'error' | 'stale'
+
+/**
+ * Preview next to the settings: renders the active plot (again after changes when auto-refresh is
+ * on), runs "Generate all" and offers the downloads. Plots with missing required settings are not
+ * sent to the backend; the missing settings are listed with links to them instead.
+ */
+export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets, missing, onJump, autoRefresh, onAutoRefreshChange }: Props) {
   const { t } = useI18n()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const imageBlobRef = useRef<Blob | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState<PreviewStatus>('idle')
   const [error, setError] = useState<PageError | null>(null)
   const [messages, setMessages] = useState<string[]>([])
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
   const [isBatchMode, setIsBatchMode] = useState(false)
   const [batchFailures, setBatchFailures] = useState<BatchFailure[]>([])
   const [renderProgress, setRenderProgress] = useState<RenderProgressState | null>(null)
+  const [showExport, setShowExport] = useState(false)
+  const panelRef = useRef<HTMLDivElement | null>(null)
   const latestPreviewRequestRef = useRef(0)
   const handledPlotActionNonceRef = useRef<number | null>(null)
   const createdPlotsRef = useRef<RenderedPlotEntry[]>([])
+  const activeDataframe = plotConfig.dataframes[activeDataframeIndex]
+  const activeFrame = activeDataframe?.frames[activeFrameIndex]
+  const canRender = missing.length === 0
 
-  const getDownloadName = (entry: RenderedPlotEntry) => {
+  const getDownloadName = (entry: Pick<RenderedPlotEntry, 'dataframeIndex' | 'frameIndex' | 'mediaType'>) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
-    const dataframeName = plotConfig.dataframes[entry.dataframeIndex]?.name?.trim() || `Dataframe${entry.dataframeIndex + 1}`
+    const dataframeName = plotConfig.dataframes[entry.dataframeIndex]?.name?.trim() || `DF${entry.dataframeIndex + 1}`
     const frameName = plotConfig.dataframes[entry.dataframeIndex]?.frames[entry.frameIndex]?.name?.trim() || `Frame${entry.frameIndex + 1}`
     return `${dataframeName}_${frameName}.${extension}`
   }
@@ -272,6 +296,19 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     const dataframe = plotConfig.dataframes[dataframeIndex]
     const isDark = dataframe?.frames[frameIndex]?.darkMode ?? dataframe?.darkMode ?? false
     return isDark ? 'bg-zinc-950' : 'bg-white'
+  }
+
+  /** Dataframe/frame pairs checked for "Generate all" and the zip download. */
+  const includedPlots = () => {
+    const dataframeSelection = plotConfig.createAllDataframes === true
+      ? plotConfig.dataframes.map((_, index) => index)
+      : plotConfig.createAllDataframes
+    return dataframeSelection.flatMap((dataframeIndex) => {
+      const dataframe = plotConfig.dataframes[dataframeIndex]
+      if (!dataframe) return []
+      const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
+      return frameSelection.filter((frameIndex) => frameIndex < dataframe.frames.length).map((frameIndex) => ({ dataframeIndex, frameIndex }))
+    })
   }
 
   /**
@@ -293,6 +330,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     if (!includeInCreated) {
       setError(null)
       setMessages([])
+      setStatus('loading')
     }
 
     // Progress: the backend reports where the render is while we wait for it.
@@ -327,7 +365,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           [dataframeIndex],
           t,
         ),
-        { unreachable, timeoutMs: RENDER_TIMEOUT_MS, timedOut: t('renderTimedOut', { seconds: RENDER_TIMEOUT_MS / 1000 }) },
+        { unreachable, foreign: t('backendForeign'), timeoutMs: RENDER_TIMEOUT_MS, timedOut: t('renderTimedOut', { seconds: RENDER_TIMEOUT_MS / 1000 }) },
       )
 
       if (!response.ok) {
@@ -356,7 +394,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       const nextUrl = URL.createObjectURL(imageBlob)
       // Ignore responses for previews that were superseded by a newer request.
       if (isPreview && requestId === latestPreviewRequestRef.current) {
+        imageBlobRef.current = imageBlob
         setImageUrl(nextUrl)
+        setStatus('ok')
       } else {
         URL.revokeObjectURL(nextUrl)
       }
@@ -374,7 +414,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       return null
     } catch (renderError) {
       if (isPreview && requestId === latestPreviewRequestRef.current) {
+        imageBlobRef.current = null
         setImageUrl(null)
+        setStatus('error')
       }
       let details = toErrorDetails(renderError, t('renderFailedGeneric'))
       // Without an error report from the backend (e.g. a timeout), show the last state it reported.
@@ -407,31 +449,16 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       current.forEach((entry) => URL.revokeObjectURL(entry.url))
       return []
     })
-    const dataframeSelection =
-      plotConfig.createAllDataframes === true
-        ? plotConfig.dataframes.map((_, index) => index)
-        : plotConfig.createAllDataframes
-
-    const total = dataframeSelection.reduce((count, dataframeIndex) => {
-      const dataframe = plotConfig.dataframes[dataframeIndex]
-      if (!dataframe) return count
-      const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
-      return count + frameSelection.length
-    }, 0)
-    setBatchProgress({ current: 0, total })
+    const plots = includedPlots()
+    setBatchProgress({ current: 0, total: plots.length })
     let completed = 0
-    for (const dataframeIndex of dataframeSelection) {
-      const dataframe = plotConfig.dataframes[dataframeIndex]
-      if (!dataframe) continue
-      const frameSelection = dataframe.createAllFrames === true ? dataframe.frames.map((_, index) => index) : dataframe.createAllFrames
-      for (const frameIndex of frameSelection) {
-        const failure = await fetchPlot(dataframeIndex, frameIndex, true)
-        if (failure) {
-          setBatchFailures((current) => [...current, { dataframeIndex, frameIndex, details: failure }])
-        }
-        completed += 1
-        setBatchProgress({ current: completed, total })
+    for (const { dataframeIndex, frameIndex } of plots) {
+      const failure = await fetchPlot(dataframeIndex, frameIndex, true)
+      if (failure) {
+        setBatchFailures((current) => [...current, { dataframeIndex, frameIndex, details: failure }])
       }
+      completed += 1
+      setBatchProgress({ current: completed, total: plots.length })
     }
     setBatchProgress(null)
     setIsBatchMode(false)
@@ -443,8 +470,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     anchor.download = getDownloadName(entry)
     anchor.click()
   }
-  const downloadAllCreatedPlots = async () => {
-    const plots = createdPlots.map((entry) => ({ dataframe_index: entry.dataframeIndex, frame_index: entry.frameIndex }))
+  const downloadPreview = () => {
+    const blob = imageBlobRef.current
+    if (!blob) return
+    downloadBlob(blob, getDownloadName({ dataframeIndex: activeDataframeIndex, frameIndex: activeFrameIndex, mediaType: blob.type }))
+  }
+  const downloadPlots = async (entries: Array<{ dataframeIndex: number; frameIndex: number }>) => {
+    const plots = entries.map((entry) => ({ dataframe_index: entry.dataframeIndex, frame_index: entry.frameIndex }))
     const startedAt = performance.now()
     const unreachable = t('backendUnreachable')
     setError(null)
@@ -463,7 +495,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           t,
         ),
         // The zip renders every plot again, one after another.
-        { unreachable, timeoutMs: RENDER_TIMEOUT_MS * Math.max(1, plots.length), timedOut: t('requestTimedOut', { seconds: (RENDER_TIMEOUT_MS * Math.max(1, plots.length)) / 1000 }) },
+        { unreachable, foreign: t('backendForeign'), timeoutMs: RENDER_TIMEOUT_MS * Math.max(1, plots.length), timedOut: t('requestTimedOut', { seconds: (RENDER_TIMEOUT_MS * Math.max(1, plots.length)) / 1000 }) },
       )
       if (!response.ok) {
         throw await readBackendError(response, { fallback: t('downloadAllFailed', { status: response.status }), unreachable })
@@ -478,8 +510,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     }
   }
 
-  // One effect for both triggers, so mounting the page renders once: a new plot action runs that
-  // action, a selection change re-renders the preview.
+  // One effect for these triggers, so mounting renders once: a new plot action runs that action, a
+  // selection change re-renders the preview. Plots with missing required settings are not sent.
   useEffect(() => {
     if (availableDatasets === null) return
     if (handledPlotActionNonceRef.current !== plotActionNonce) {
@@ -489,9 +521,49 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         return
       }
     }
+    if (!canRender) return
     void fetchPlot()
+    // canRender: renders as soon as the last required setting is set, e.g. when an Excel file is
+    // restored from browser storage after the page loaded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDataframeIndex, activeFrameIndex, plotActionNonce, availableDatasets])
+  }, [activeDataframeIndex, activeFrameIndex, plotActionNonce, availableDatasets, canRender])
+
+  // Auto-refresh: re-render after the active dataframe's config stops changing for a moment.
+  // Selection changes are handled by the effect above.
+  const configKey = activeDataframe ? JSON.stringify(activeDataframe) : ''
+  const selectionKey = `${activeDataframeIndex}:${activeFrameIndex}`
+  const lastConfigRef = useRef({ configKey, selectionKey })
+  useEffect(() => {
+    const last = lastConfigRef.current
+    lastConfigRef.current = { configKey, selectionKey }
+    if (last.configKey === configKey || last.selectionKey !== selectionKey) return
+    if (!autoRefresh || !canRender || availableDatasets === null) {
+      setStatus((current) => (current === 'idle' ? current : 'stale'))
+      return
+    }
+    const timer = setTimeout(() => { void fetchPlot() }, AUTO_REFRESH_DELAY_MS)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configKey, selectionKey])
+
+  // A newly selected plot is shown from the top, above the list of generated plots.
+  useEffect(() => {
+    panelRef.current?.scrollTo({ top: 0 })
+  }, [selectionKey])
+
+  // Generated plots are labelled by position: when dataframes or frames are added, removed, moved
+  // or the config is replaced, the list no longer matches and is cleared.
+  const structureKey = plotConfig.dataframes.map((dataframe) => [dataframe._extensions.uiKey, ...dataframe.frames.map((frame) => frame._extensions.uiKey)].join(',')).join('|')
+  const lastStructureKeyRef = useRef(structureKey)
+  useEffect(() => {
+    if (lastStructureKeyRef.current === structureKey) return
+    lastStructureKeyRef.current = structureKey
+    setBatchFailures([])
+    setCreatedPlots((current) => {
+      current.forEach((entry) => URL.revokeObjectURL(entry.url))
+      return []
+    })
+  }, [structureKey])
 
   useEffect(() => () => {
     if (imageUrl) {
@@ -510,36 +582,46 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const createdPlotsSorted = [...createdPlots].sort((a, b) =>
     a.dataframeIndex === b.dataframeIndex ? a.frameIndex - b.frameIndex : a.dataframeIndex - b.dataframeIndex,
   )
+  const pill = !canRender
+    ? { text: t('cannotRender'), className: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' }
+    : loading || status === 'loading'
+      ? { text: t('renderingShort'), className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' }
+      : status === 'stale'
+        ? { text: t('changesNotRendered'), className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' }
+        : status === 'error'
+          ? { text: t('renderError'), className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' }
+          : status === 'ok'
+            ? { text: t('upToDate'), className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' }
+            : null
+  const includedCount = includedPlots().length
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col gap-4 p-5 text-left">
-      <section className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-transparent">
-        <div>
-          <h3 className="m-0 text-sm font-semibold">{t('plotPreviewTitle')}</h3>
-          <p className="m-0 mt-1 text-xs text-zinc-500">
-            {t('plotPreviewText', { df: activeDataframeIndex + 1, frame: activeFrameIndex + 1 })}
-          </p>
+    <div ref={panelRef} className="flex min-h-0 min-w-0 flex-col gap-3 overflow-auto bg-zinc-50 px-4 pb-4 text-left dark:bg-zinc-950 [&>*]:shrink-0">
+      <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+        <div className="mr-auto grid min-w-0">
+          <span className="text-[11px] text-zinc-500">{t('preview')} · <span className="font-mono uppercase">{activeDataframe?.language}</span></span>
+          <strong className="truncate text-sm">{activeFrame?.name || `Frame ${activeFrameIndex + 1}`}</strong>
         </div>
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={() => void fetchPlot()} disabled={loading} title={t('refreshPreview')} aria-label={t('refreshPreview')}>
-            ↻
-          </Button>
-          <Button type="button" variant="outline" onClick={() => void downloadAllCreatedPlots()} disabled={createdPlots.length === 0}>
-            {t('downloadAll')}
-          </Button>
-        </div>
-      </section>
-      {batchProgress ? <p className="m-0 text-xs text-zinc-500">{t('batchProgress', { current: batchProgress.current, total: batchProgress.total })}</p> : null}
+        {pill ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill.className}`}>{pill.text}</span> : null}
+        <Button type="button" variant="outline" size="sm" onClick={() => void fetchPlot()} disabled={loading || !canRender} title={t('refreshPreview')} aria-label={t('refreshPreview')}>
+          ↻
+        </Button>
+        <Button type="button" size="sm" onClick={() => setShowExport(true)}>{t('exportButton')}</Button>
+      </div>
 
-      {error ? <ErrorDetails title={error.title} details={error.details} /> : null}
-      {batchFailures.length > 0 ? (
-        <div className="grid gap-2">
-          <strong className="text-sm text-red-700 dark:text-red-300">{t('batchFailures', { count: batchFailures.length })}</strong>
-          {batchFailures.map((failure) => (
-            <ErrorDetails key={`${failure.dataframeIndex}-${failure.frameIndex}`} title={plotLabel(failure.dataframeIndex, failure.frameIndex)} details={failure.details} />
+      {!canRender ? (
+        <div className="grid gap-1 rounded-lg border border-orange-400 bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
+          <strong>{t('missingCount', { count: missing.length })}</strong>
+          {missing.map((entry) => (
+            <button key={`${entry.section}-${entry.setting}`} type="button" className="w-fit text-left underline underline-offset-2" onClick={() => onJump(entry.section, entry.setting)}>
+              {t(entry.setting)} →
+            </button>
           ))}
         </div>
       ) : null}
+
+      {renderProgress ? <RenderProgressBox progress={renderProgress} /> : null}
+      {error && canRender ? <ErrorDetails title={error.title} details={error.details} /> : null}
       {messages.length > 0 ? (
         <Alert>
           <div className="grid gap-1">
@@ -553,33 +635,83 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         </Alert>
       ) : null}
 
-      {renderProgress ? <RenderProgressBox progress={renderProgress} /> : null}
-
-      <section className={`min-h-[55vh] overflow-auto rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 ${plotBackgroundClassName(activeDataframeIndex, activeFrameIndex)}`}>
-        {imageUrl && !isBatchMode ? <img src={imageUrl} alt={t('renderedPlotAlt')} className="block h-auto max-w-full" /> : null}
-        {createdPlotsSorted.length > 0 ? (
-          <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-            {createdPlotsSorted.map((entry) => (
-              <article key={`${entry.dataframeIndex}-${entry.frameIndex}`} className="grid gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h4 className="m-0 text-xs font-semibold text-zinc-500">{plotLabel(entry.dataframeIndex, entry.frameIndex)}</h4>
-                  <button
-                    type="button"
-                    className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-                    onClick={() => downloadSinglePlot(entry)}
-                    title={t('downloadThisPlot')}
-                  >
-                    ⬇️ {t('downloadThis')}
-                  </button>
-                </div>
-                <div className={`rounded-md p-2 ${plotBackgroundClassName(entry.dataframeIndex, entry.frameIndex)}`}>
-                  <img src={entry.url} alt={`${t('renderedPlotAlt')} (${plotLabel(entry.dataframeIndex, entry.frameIndex)})`} className="block h-auto max-w-full" />
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : null}
+      <section className={`grid min-h-48 place-items-center overflow-hidden rounded-lg border border-zinc-200 p-2 dark:border-zinc-800 ${plotBackgroundClassName(activeDataframeIndex, activeFrameIndex)}`}>
+        {imageUrl && !isBatchMode && canRender ? <img src={imageUrl} alt={t('renderedPlotAlt')} className="block h-auto max-w-full" /> : (
+          <span className="p-6 text-center text-sm text-zinc-500">{canRender ? (loading ? t('renderingShort') : t('nothingRendered')) : t('cannotRender')}</span>
+        )}
       </section>
-    </main>
+
+      <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+        <input type="checkbox" className="accent-violet-600" checked={autoRefresh} onChange={(event) => onAutoRefreshChange(event.target.checked)} />
+        {t('autoRefresh')}
+      </label>
+
+      {batchProgress ? <p className="m-0 text-xs text-zinc-500">{t('batchProgress', { current: batchProgress.current, total: batchProgress.total })}</p> : null}
+      {batchFailures.length > 0 ? (
+        <div className="grid gap-2">
+          <strong className="text-sm text-red-700 dark:text-red-300">{t('batchFailures', { count: batchFailures.length })}</strong>
+          {batchFailures.map((failure) => (
+            <ErrorDetails key={`${failure.dataframeIndex}-${failure.frameIndex}`} title={plotLabel(failure.dataframeIndex, failure.frameIndex)} details={failure.details} />
+          ))}
+        </div>
+      ) : null}
+      {createdPlotsSorted.length > 0 ? (
+        <div className="grid gap-4 border-t border-zinc-200 pt-3 dark:border-zinc-800">
+          <div className="flex items-center justify-between gap-2">
+            <strong className="text-sm">{t('createdPlots')}</strong>
+            <Button type="button" variant="outline" size="sm" onClick={() => void downloadPlots(createdPlotsSorted)}>{t('downloadAll')}</Button>
+          </div>
+          {createdPlotsSorted.map((entry) => (
+            <article key={`${entry.dataframeIndex}-${entry.frameIndex}`} className="grid gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="m-0 text-xs font-semibold text-zinc-500">{plotLabel(entry.dataframeIndex, entry.frameIndex)}</h4>
+                <button
+                  type="button"
+                  className="rounded border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                  onClick={() => downloadSinglePlot(entry)}
+                  title={t('downloadThisPlot')}
+                >
+                  ⬇️ {t('downloadThis')}
+                </button>
+              </div>
+              <div className={`rounded-md p-2 ${plotBackgroundClassName(entry.dataframeIndex, entry.frameIndex)}`}>
+                <img src={entry.url} alt={`${t('renderedPlotAlt')} (${plotLabel(entry.dataframeIndex, entry.frameIndex)})`} className="block h-auto max-w-full" />
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
+      {showExport && activeDataframe ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6" onClick={(event) => { if (event.target === event.currentTarget) setShowExport(false) }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="export-title" className="grid w-full max-w-md gap-4 rounded-xl border border-zinc-300 bg-white p-5 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <h3 id="export-title" className="m-0 text-base font-semibold">{t('exportTitle')}</h3>
+            <p className="m-0 text-xs text-zinc-500">{t('exportSettingsOf', { name: dataframeLabel(activeDataframe, activeDataframeIndex) })}</p>
+            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-sky-50 px-3 py-2.5 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200">
+              <dt className="font-semibold">{t('fileFormat')}</dt>
+              <dd className="m-0">{activeDataframe.fileformat.toUpperCase()}{activeDataframe.fileformat === 'png' ? ` · ${activeDataframe.resolution} dpi` : ''}</dd>
+              <dt className="font-semibold">{t('plotLanguage')}</dt>
+              <dd className="m-0 font-mono uppercase">{activeDataframe.language}</dd>
+              <dt className="font-semibold">{t('background')}</dt>
+              <dd className="m-0">{activeDataframe.transparent ? t('bgTransparent') : activeDataframe.darkMode ? t('bgDark') : t('bgWhite')}</dd>
+              <dt className="font-semibold">{t('watermark')}</dt>
+              <dd className="m-0">{activeDataframe.watermark ? t('on') : t('off')}</dd>
+              <dt className="font-semibold">{t('copyright')}</dt>
+              <dd className="m-0">{activeDataframe.copyright ? t('on') : t('off')}</dd>
+            </dl>
+            <button type="button" className="w-fit text-xs font-semibold text-sky-700 underline-offset-2 hover:underline dark:text-sky-300" onClick={() => { setShowExport(false); onJump('output') }}>
+              {t('changeInOutput')} →
+            </button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowExport(false)}>{t('cancel')}</Button>
+              <Button type="button" variant="outline" disabled={includedCount === 0} onClick={() => { setShowExport(false); void downloadPlots(includedPlots()) }}>
+                {t('downloadIncluded', { count: includedCount })}
+              </Button>
+              <Button type="button" disabled={!imageUrl || !canRender} onClick={() => { setShowExport(false); downloadPreview() }}>{t('downloadThisPlot')}</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }

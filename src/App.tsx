@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { normalizePlotConfig } from './config/configMappers'
 import type { PlotConfig } from './config/defaultPlotConfig'
-import { findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
+import { exportConfig, findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
 import { AppPopouts } from './components/AppPopouts'
@@ -13,16 +13,20 @@ import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
 import { Field } from './components/AppControls'
-import { getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
+import { dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
 import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile } from './utils/datasourceStorage'
 import { createConfigSync, type ConfigSync } from './utils/tabSync'
-import { BackendError, fetchBackend, toErrorDetails } from './utils/backendErrors'
+import { BackendError, fetchBackend, isForeignServerResponse, toErrorDetails } from './utils/backendErrors'
 import { addLogEntry } from './utils/debugLog'
+import { SETTINGS_SECTIONS, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
+import { getDataframeMissing, getFrameMissing } from './utils/settingsStatus'
+import { SettingsContext } from './utils/settingsContext'
+import { SettingsNav, type SectionStatus } from './components/SettingsNav'
+import { cn } from './lib/utils'
 
-type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
 type PlotAction = 'preview-current' | 'create-all'
 
@@ -32,6 +36,28 @@ type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, stri
 const EMPTY_KEYWORDS: Record<string, string[]> = {}
 
 const CONFIG_STORAGE_KEY = 'ashby-plot-config'
+const SETTINGS_MODE_STORAGE_KEY = 'ashby-settings-mode'
+const PREVIEW_WIDTH_STORAGE_KEY = 'ashby-preview-width'
+const AUTO_REFRESH_STORAGE_KEY = 'ashby-auto-refresh'
+const DEFAULT_PREVIEW_WIDTH = 460
+const MIN_PREVIEW_WIDTH = 280
+/** Width kept for the settings list and the editor when the preview is dragged wider. */
+const MIN_EDITOR_AREA_WIDTH = 240 + 440
+
+const readStored = <T,>(key: string, parse: (value: string | null) => T): T => {
+  try {
+    return parse(window.localStorage.getItem(key))
+  } catch {
+    return parse(null)
+  }
+}
+const writeStored = (key: string, value: string) => {
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    // not persisted, still applied for this session
+  }
+}
 /** Datasource imports (Teable tables can take a while) give up after this long. */
 const IMPORT_TIMEOUT_MS = 120_000
 const JSON_EDITOR_LINE_HEIGHT = 18
@@ -50,11 +76,8 @@ function readStoredPlotConfig(): PlotConfig {
 function App() {
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(readStoredPlotConfig)
   const [configBaseName, setConfigBaseName] = useState('ashby-config')
-  const [activePage, setActivePage] = useState<AppPage>('config')
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
-  const [hoveredRemoveGroup, setHoveredRemoveGroup] = useState<string | null>(null)
-  const [hoveredDuplicateGroup, setHoveredDuplicateGroup] = useState<string | null>(null)
   const [showJson, setShowJson] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [jsonDraft, setJsonDraft] = useState('')
@@ -75,11 +98,6 @@ function App() {
   const [showAbout, setShowAbout] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
-  const [draggedDataframeIndex, setDraggedDataframeIndex] = useState<number | null>(null)
-  const [draggedFrameIndex, setDraggedFrameIndex] = useState<number | null>(null)
-  const [dataframeDropIndex, setDataframeDropIndex] = useState<number | null>(null)
-  const [frameDropIndex, setFrameDropIndex] = useState<number | null>(null)
-  const [moveFrameTargetDataframe, setMoveFrameTargetDataframe] = useState<string>('0')
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
   const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
@@ -88,10 +106,19 @@ function App() {
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
   const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null)
+  /** Another program answers at the backend address instead of the Ashby backend. */
+  const [backendForeign, setBackendForeign] = useState(false)
   const [availableDatasets, setAvailableDatasets] = useState<string[] | null>(null)
   const [datasourceFilesByDataframe, setDatasourceFilesByDataframe] = useState<Record<number, File>>({})
   const [datasourcePrompt, setDatasourcePrompt] = useState<{ dataframeIndex: number; filename: string } | null>(null)
   const [dismissedDatasourcePrompts, setDismissedDatasourcePrompts] = useState<Record<string, boolean>>({})
+  const [settingsMode, setSettingsMode] = useState<SettingsMode>(() => readStored(SETTINGS_MODE_STORAGE_KEY, (value) => (value === 'all' ? 'all' : 'simple')))
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>('data')
+  const [shownDefaults, setShownDefaults] = useState<ReadonlySet<SettingsSectionId>>(() => new Set())
+  const [previewWidth, setPreviewWidth] = useState(() => readStored(PREVIEW_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_PREVIEW_WIDTH))
+  const [autoRefresh, setAutoRefresh] = useState(() => readStored(AUTO_REFRESH_STORAGE_KEY, (value) => value !== 'false'))
+  const editorRef = useRef<HTMLElement | null>(null)
+  const workRef = useRef<HTMLDivElement | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const automaticDisplayAreaActive = activeFrame.automaticDisplayAreaMargin !== null
@@ -308,9 +335,14 @@ function App() {
       try {
         // A backend that does not answer within 10 s counts as unavailable.
         const response = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
-        if (active) setBackendAvailable(response.ok)
+        if (!active) return
+        setBackendAvailable(response.ok)
+        setBackendForeign(isForeignServerResponse(response))
       } catch {
-        if (active) setBackendAvailable(false)
+        if (active) {
+          setBackendAvailable(false)
+          setBackendForeign(false)
+        }
       }
     }
     void checkBackendAvailability()
@@ -386,9 +418,6 @@ function App() {
     if (uiTheme !== 'system') return
     return subscribeToSystemTheme((systemPrefersDark) => applyUITheme('system', document.documentElement, systemPrefersDark))
   }, [uiTheme])
-  useEffect(() => {
-    setMoveFrameTargetDataframe(String(activeDataframeIndex))
-  }, [activeDataframeIndex])
   // Jump to the active frame once when the JSON editor opens (not on every keystroke).
   useEffect(() => {
     const textarea = jsonTextareaRef.current
@@ -404,8 +433,8 @@ function App() {
       jsonOverlayRef.current.scrollTop = top
     }
   }, [showJson])
-  const plotConfigActions = usePlotConfigActions({ activeDataframe, activeDataframeIndex, activeFrameIndex, setActiveDataframeIndex, setActiveFrameIndex, setPlotConfig, setShowGenerateColorsConfirm })
-  const { addAxis, addDataframe, addFrame, addGuideline, addLayer, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrameToDataframe, patchActiveDataframe, patchActiveFrame, patchDataframe, removeAxis, removeDataframe, removeFrame, reorderDataframes, reorderFrames, toggleDataframeGeneration, toggleFrameGeneration, updateAxis, updateGuideline } = plotConfigActions
+  const plotConfigActions = usePlotConfigActions({ activeDataframeIndex, activeFrameIndex, setActiveDataframeIndex, setActiveFrameIndex, setPlotConfig, setShowGenerateColorsConfirm })
+  const { addAxis, addDataframe, addFrame, addGuideline, addLayer, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrame, patchActiveDataframe, patchActiveFrame, patchDataframe, removeAxis, removeDataframe, removeFrame, reorderDataframes, toggleDataframeGeneration, toggleFrameGeneration, updateAxis, updateGuideline } = plotConfigActions
   const importDatabase = async (file?: File) => {
     setImportInProgress(true)
     const selectedDataframe = activeDataframe
@@ -443,7 +472,7 @@ function App() {
               form.append('import_sheet', String(selectedDataframe.importSheet))
               return form
             })(),
-      }, { unreachable: t('backendUnreachable'), timeoutMs: IMPORT_TIMEOUT_MS, timedOut: t('requestTimedOut', { seconds: IMPORT_TIMEOUT_MS / 1000 }) })
+      }, { unreachable: t('backendUnreachable'), foreign: t('backendForeign'), timeoutMs: IMPORT_TIMEOUT_MS, timedOut: t('requestTimedOut', { seconds: IMPORT_TIMEOUT_MS / 1000 }) })
       const payload = (await response.json().catch(() => ({}))) as ImportDatabaseResponse
       if (!response.ok || payload.success === false) {
         // The dev proxy answers 502–504 without a body when the backend is down.
@@ -736,9 +765,135 @@ function App() {
     setImportedDatabaseStatus({})
     setShowResetConfirm(false)
   }
-  const headerProps  = { activePage, configBaseName, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowResetConfirm, setShowSettings }
-  const tabProps     = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, toggleDataframeGeneration, toggleFrameGeneration }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredDuplicateGroup, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredDuplicateGroup, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
+  // Settings navigation: modes, sections, jumping to fields, required settings.
+  const changeSettingsMode = (mode: SettingsMode) => {
+    setSettingsMode(mode)
+    writeStored(SETTINGS_MODE_STORAGE_KEY, mode)
+  }
+  const toggleSectionDefaults = (id: SettingsSectionId) =>
+    setShownDefaults((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  /** Opens a section, shows the field (its defaults, a collapsed item) and highlights it. */
+  const revealSetting = useCallback((section: SettingsSectionId, element: HTMLElement) => {
+    setActiveSection(section)
+    if (element.closest('[data-level="default"]')) {
+      setShownDefaults((current) => (current.has(section) ? current : new Set([...current, section])))
+    }
+    element.dispatchEvent(new CustomEvent('settings-reveal', { bubbles: true }))
+    // After React has shown the section and the field.
+    window.setTimeout(() => {
+      element.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      element.classList.remove('setting-flash')
+      void element.offsetWidth
+      element.classList.add('setting-flash')
+      element.addEventListener('animationend', () => element.classList.remove('setting-flash'), { once: true })
+    }, 50)
+  }, [])
+  const goTo = useCallback((section: SettingsSectionId, anchor?: string) => {
+    setActiveSection(section)
+    editorRef.current?.scrollTo({ top: 0 })
+    if (!anchor) return
+    const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`[data-section-id="${section}"] [data-anchor="${anchor}"]`) ?? [])]
+    // Prefer the field that is visible in the current mode (e.g. the Simple-mode shortcut).
+    const target = candidates.find((element) => element.getClientRects().length > 0 || element.closest('[data-section-id]')?.hasAttribute('hidden')) ?? candidates[0]
+    if (target) revealSetting(section, target)
+  }, [revealSetting])
+  const settingsContext = useMemo(() => ({ mode: settingsMode, goTo }), [settingsMode, goTo])
+  const selectPlot = (dataframeIndex: number, frameIndex: number) => {
+    if (dataframeIndex !== activeDataframeIndex) setExpandedAxisColumns({})
+    setActiveDataframeIndex(dataframeIndex)
+    setActiveFrameIndex(frameIndex)
+  }
+  const isSourceFileAvailable = (dataframeIndex: number) => {
+    const dataframe = plotConfig.dataframes[dataframeIndex]
+    return Boolean(dataframe?.importFileName) && datasourceFilesByDataframe[dataframeIndex]?.name === dataframe?.importFileName
+  }
+  const dataframeMissing = (dataframeIndex: number) => {
+    const dataframe = plotConfig.dataframes[dataframeIndex]
+    return dataframe ? getDataframeMissing(dataframe, availableDatasets ?? [], isSourceFileAvailable(dataframeIndex)) : []
+  }
+  const activeDataframeMissing = dataframeMissing(activeDataframeIndex)
+  const activeFrameMissing = getFrameMissing(activeFrame)
+  const activeMissing = [...activeDataframeMissing, ...activeFrameMissing]
+  const sectionStatus = (section: SettingsSectionId): SectionStatus => {
+    const base: SectionStatus = { missing: activeMissing.filter((entry) => entry.section === section).length, hasRequired: false }
+    if (section === 'axisDefs') {
+      const incomplete = activeDataframe.axes.filter((axis) => !axis.name.trim() || axis.columns.length === 0).length
+      return { ...base, missing: activeDataframe.axes.length === 0 ? 1 : incomplete, hasRequired: true }
+    }
+    if (section === 'extras') return { ...base, items: activeFrame.coloredAreas.length + activeFrame.guidelines.length + Math.max(0, activeFrame.annotations.length - 1) }
+    return { ...base, hasRequired: section === 'data' || section === 'titleAxes' || section === 'hulls' }
+  }
+  const activeSectionScope = SETTINGS_SECTIONS.find((section) => section.id === activeSection)?.scope
+
+  // Preview width: dragged with the divider, reset by double-click, kept in localStorage.
+  const clampPreviewWidth = (width: number) => {
+    const available = workRef.current?.clientWidth ?? window.innerWidth
+    return Math.round(Math.min(Math.max(MIN_PREVIEW_WIDTH, available - MIN_EDITOR_AREA_WIDTH), Math.max(MIN_PREVIEW_WIDTH, width)))
+  }
+  const commitPreviewWidth = (width: number) => {
+    const next = clampPreviewWidth(width)
+    setPreviewWidth(next)
+    writeStored(PREVIEW_WIDTH_STORAGE_KEY, String(next))
+  }
+  const startPreviewResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const handle = event.currentTarget
+    handle.setPointerCapture(event.pointerId)
+    const right = workRef.current?.getBoundingClientRect().right ?? window.innerWidth
+    const move = (moveEvent: PointerEvent) => setPreviewWidth(clampPreviewWidth(right - moveEvent.clientX - 4))
+    const stop = (upEvent: PointerEvent) => {
+      handle.removeEventListener('pointermove', move)
+      handle.removeEventListener('pointerup', stop)
+      commitPreviewWidth(right - upEvent.clientX - 4)
+    }
+    handle.addEventListener('pointermove', move)
+    handle.addEventListener('pointerup', stop)
+  }
+
+  const tabProps = {
+    plotConfig,
+    activeDataframeIndex,
+    activeFrameIndex,
+    highlightShared: activeSectionScope === 'dataset',
+    selectPlot,
+    addDataframe,
+    addFrame,
+    applyTabRename,
+    duplicateDataframe,
+    duplicateFrame,
+    moveFrame,
+    openTabWithSelection,
+    removeDataframe,
+    removeFrame,
+    reorderDataframes,
+    setTabRename,
+    tabRename,
+    toggleDataframeGeneration,
+    toggleFrameGeneration,
+    frameMissingCount: (dataframeIndex: number, frameIndex: number) => {
+      const frame = plotConfig.dataframes[dataframeIndex]?.frames[frameIndex]
+      return frame ? getFrameMissing(frame).length : 0
+    },
+    dataframeMissingCount: (dataframeIndex: number) => dataframeMissing(dataframeIndex).length,
+    onGenerateAll: () => {
+      setPlotAction('create-all')
+      setPlotActionNonce((current) => current + 1)
+    },
+  }
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+    sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
+    onImportConfig: () => fileInputRef.current?.click(),
+    onExportConfig: () => exportConfig(plotConfig, configBaseName),
+    onResetConfig: () => setShowResetConfirm(true),
+    activeSection,
+    shownDefaults,
+    onToggleDefaults: toggleSectionDefaults,
+  }
   const settingsContent = (
     <>
       <Field label={t('uiLanguage')} jsonPath="ui.language">
@@ -763,34 +918,80 @@ function App() {
   )
   return (
     <I18nContext.Provider value={i18n}>
-    <div className="flex min-h-screen flex-col">
-      <AppHeader {...headerProps} />
+    <SettingsContext.Provider value={settingsContext}>
+    <div className={cn('flex min-h-svh flex-col text-left lg:h-svh', settingsMode === 'simple' ? 'settings-simple' : 'settings-all')}>
+      <AppHeader mode={settingsMode} setMode={changeSettingsMode} openJsonEditor={openJsonEditor} setShowAbout={setShowAbout} setShowSettings={setShowSettings} />
+      <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
       {backendAvailable === false ? (
-        <div className="mx-auto w-full px-5 pt-5">
-          <Alert variant="warning">{t('backendUnavailable')}</Alert>
+        <div className="px-4 pt-3">
+          <Alert variant="warning">{backendForeign ? t('backendForeign') : t('backendUnavailable')}</Alert>
         </div>
       ) : null}
       {missingDatasourceDataframes.length > 0 ? (
-        <div className="mx-auto w-full px-5 pt-5">
+        <div className="px-4 pt-3">
           <Alert variant="warning">
             {t('datasourceMissing', { list: missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => t('datasourceMissingItem', { n: dataframeIndex + 1, filename: dataframe.importFileName ?? '' })).join(', ') })}
           </Alert>
         </div>
       ) : null}
-      {activePage === 'config' ? (
-        <main className="grid min-h-0 w-full flex-1 grid-cols-1 gap-4 text-left">
-          <ConfigTabs {...tabProps} />
-          {alert ? (
-            <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">
-              <span>{alert.message}</span>
-              <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label={t('closeNotification')}>✕</button>
-            </Alert>
-          ) : null}
-          <ConfigSections {...sectionProps}/>
+      <ConfigTabs {...tabProps} />
+      {alert ? (
+        <div className="px-4 pt-3">
+          <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">
+            <span>{alert.message}</span>
+            <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label={t('closeNotification')}>✕</button>
+          </Alert>
+        </div>
+      ) : null}
+      <div
+        ref={workRef}
+        style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}
+        className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)_9px_var(--preview-width)]"
+      >
+        <SettingsNav
+          mode={settingsMode}
+          activeSection={activeSection}
+          onSelect={(section) => goTo(section)}
+          onReveal={revealSetting}
+          statusFor={sectionStatus}
+          dataframeName={dataframeLabel(activeDataframe, activeDataframeIndex)}
+          frameName={activeFrame.name || `Frame ${activeFrameIndex + 1}`}
+          editorRef={editorRef}
+        />
+        <main ref={editorRef} className="min-h-0 min-w-0 overflow-auto px-6 pb-10 pt-5">
+          <div className="@container mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
+            <ConfigSections {...sectionProps} />
+          </div>
         </main>
-      ) : (
-        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets} />
-      )}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t('resizePreview')}
+          aria-valuenow={previewWidth}
+          tabIndex={0}
+          title={t('resizePreviewHint')}
+          onPointerDown={startPreviewResize}
+          onDoubleClick={() => commitPreviewWidth(DEFAULT_PREVIEW_WIDTH)}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+              event.preventDefault()
+              commitPreviewWidth(previewWidth + (event.key === 'ArrowLeft' ? 24 : -24))
+            }
+          }}
+          className="group hidden cursor-col-resize touch-none place-items-center border-x border-zinc-200 bg-zinc-100 focus-visible:outline-none lg:grid dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-violet-500 group-focus-visible:bg-violet-500 dark:bg-zinc-700" />
+        </div>
+        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets}
+          missing={activeMissing}
+          onJump={goTo}
+          autoRefresh={autoRefresh}
+          onAutoRefreshChange={(next) => {
+            setAutoRefresh(next)
+            writeStored(AUTO_REFRESH_STORAGE_KEY, String(next))
+          }}
+        />
+      </div>
       <AppPopouts
         showAbout={showAbout}
         showSettings={showSettings}
@@ -824,6 +1025,7 @@ function App() {
         jsonTextareaRef={jsonTextareaRef}
       />
     </div>
+    </SettingsContext.Provider>
     </I18nContext.Provider>
   )
 }

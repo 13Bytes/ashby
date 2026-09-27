@@ -1,131 +1,80 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react'
-import type { PlotConfig } from '../config/defaultPlotConfig'
+import { useCallback, useState, type ReactNode } from 'react'
+import type { SettingsMode } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { exportConfig } from '../utils/configIo'
-import { Button } from './ui/button'
+import { Segmented } from './AppControls'
 import { DebugLogDialog } from './DebugLog'
 
 type Props = {
-  activePage: 'config' | 'plot'
-  configBaseName: string
-  fileInputRef: RefObject<HTMLInputElement | null>
-  handleImportFile: (event: ChangeEvent<HTMLInputElement>) => void
+  mode: SettingsMode
+  setMode: (mode: SettingsMode) => void
   openJsonEditor: () => void
-  plotConfig: PlotConfig
-  setActivePage: (page: 'config' | 'plot') => void
-  setPlotAction: (action: 'preview-current' | 'create-all') => void
-  setPlotActionNonce: (patch: (current: number) => number) => void
   setShowAbout: (show: boolean) => void
-  setShowResetConfirm: (show: boolean) => void
   setShowSettings: (show: boolean) => void
 }
 
-type OpenMenu = 'plot' | 'config' | 'more' | null
+const iconProps = { viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', className: 'h-[18px] w-[18px]', 'aria-hidden': true } as const
 
-const menuClassName = 'absolute right-0 top-11 z-40 grid min-w-48 gap-1 rounded-md border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900'
+const CogIcon = () => (
+  <svg {...iconProps}>
+    <path d="M8.6 2.5h2.8l.4 2.1 1.5.9 2-.8 1.4 2.4-1.6 1.4v1.8l1.6 1.4-1.4 2.4-2-.8-1.5.9-.4 2.1H8.6l-.4-2.1-1.5-.9-2 .8-1.4-2.4 1.6-1.4V9.1L3.3 7.7l1.4-2.4 2 .8 1.5-.9z" />
+    <circle cx="10" cy="10" r="2.4" />
+  </svg>
+)
+const JsonIcon = () => (
+  <svg {...iconProps}>
+    <path d="M7 3.5c-1.6 0-2 .8-2 2v2.2c0 1-.6 1.8-1.6 2.3 1 .5 1.6 1.3 1.6 2.3v2.2c0 1.2.4 2 2 2" />
+    <path d="M13 3.5c1.6 0 2 .8 2 2v2.2c0 1 .6 1.8 1.6 2.3-1 .5-1.6 1.3-1.6 2.3v2.2c0 1.2-.4 2-2 2" />
+  </svg>
+)
+const LogIcon = () => (
+  <svg {...iconProps}>
+    <rect x="4" y="2.5" width="12" height="15" rx="1.5" />
+    <path d="M7 6.5h6M7 9.5h6M7 12.5h4" />
+  </svg>
+)
+const InfoIcon = () => (
+  <svg {...iconProps}>
+    <circle cx="10" cy="10" r="7.5" />
+    <path d="M10 9v4.5" />
+    <circle cx="10" cy="6.2" r=".6" fill="currentColor" />
+  </svg>
+)
 
-export function AppHeader({
-  activePage,
-  configBaseName,
-  fileInputRef,
-  handleImportFile,
-  openJsonEditor,
-  plotConfig,
-  setActivePage,
-  setPlotAction,
-  setPlotActionNonce,
-  setShowAbout,
-  setShowResetConfirm,
-  setShowSettings,
-}: Props) {
+function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="grid h-full w-9 place-items-center text-zinc-600 hover:bg-zinc-100 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
+    >
+      {children}
+    </button>
+  )
+}
+
+export function AppHeader({ mode, setMode, openJsonEditor, setShowAbout, setShowSettings }: Props) {
   const { t } = useI18n()
-  const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
   const [showLog, setShowLog] = useState(false)
   const closeLog = useCallback(() => setShowLog(false), [])
-  const menusRef = useRef<HTMLDivElement | null>(null)
-
-  // Close the open dropdown on a click outside the menus or on Escape.
-  useEffect(() => {
-    if (!openMenu) return
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!menusRef.current?.contains(event.target as Node)) setOpenMenu(null)
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenMenu(null)
-    }
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [openMenu])
-
-  const toggleMenu = (menu: Exclude<OpenMenu, null>) => setOpenMenu((current) => (current === menu ? null : menu))
-  const runMenuAction = (action: () => void) => {
-    action()
-    setOpenMenu(null)
-  }
-  const runPlotAction = (action: 'preview-current' | 'create-all') => {
-    setPlotAction(action)
-    setPlotActionNonce((current) => current + 1)
-    setActivePage('plot')
-    setOpenMenu(null)
-  }
 
   return (
-    <header className="flex flex-wrap items-center gap-4 border-b border-zinc-200 py-3 text-left dark:border-zinc-800">
-      <div className="mr-auto">
-        <h1 className="m-0 text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
-      </div>
-      <nav className="flex rounded-md border border-zinc-300 p-1 dark:border-zinc-700" aria-label={t('applicationView')}>
-        <Button type="button" variant={activePage === 'config' ? 'default' : 'outline'} className={activePage === 'config' ? '' : 'border-transparent'} onClick={() => setActivePage('config')}>{t('config')}</Button>
-        <Button type="button" variant={activePage === 'plot' ? 'default' : 'outline'} className={activePage === 'plot' ? '' : 'border-transparent'} onClick={() => { setPlotAction('preview-current'); setActivePage('plot') }}>{t('plot')}</Button>
-      </nav>
-      <div ref={menusRef} className="flex flex-wrap items-center gap-4">
-        <div className="relative flex">
-          <Button type="button" className="rounded-r-none" onClick={() => runPlotAction('preview-current')}>      {/* & remember dropdown selection */}
-            {t('generatePlot')}
-          </Button>
-          <Button type="button" className="rounded-l-none border-l border-violet-400 px-3" aria-label={t('choosePlotAction')} aria-haspopup="menu" aria-expanded={openMenu === 'plot'} onClick={() => toggleMenu('plot')}>
-            <span className="text-xs" aria-hidden="true">▼</span>
-          </Button>
-          {openMenu === 'plot' ? (
-            <div className={menuClassName} role="menu">
-              <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('preview-current')}>{t('generateCurrentPlot')}</Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => runPlotAction('create-all')}>{t('generateAllPlots')}</Button>
-            </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
-          <div className="relative">
-            <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={openMenu === 'config'} onClick={() => toggleMenu('config')}>
-              {t('configActions')} <span className="ml-2 text-xs" aria-hidden="true">▼</span>
-            </Button>
-            {openMenu === 'config' ? (
-              <div className={menuClassName} role="menu">
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => fileInputRef.current?.click())}>{t('importConfig')}</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => exportConfig(plotConfig, configBaseName))}>{t('exportConfig')}</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(openJsonEditor)}>{t('json')}</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowResetConfirm(true))}>{t('resetConfig')}</Button>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="relative">
-            <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={openMenu === 'more'} onClick={() => toggleMenu('more')}>
-              {t('more')} <span className="ml-2 text-xs" aria-hidden="true">▼</span>
-            </Button>
-            {openMenu === 'more' ? (
-              <div className={menuClassName} role="menu">
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowSettings(true))}>{t('settings')}</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowLog(true))} title={t('openLog')}>{t('log')}</Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowAbout(true))}>{t('about')}</Button>
-              </div>
-            ) : null}
-          </div>
-        </div>
+    <header className="flex flex-wrap items-center gap-3 border-b border-zinc-200 px-4 py-2 text-left dark:border-zinc-800">
+      <h1 className="m-0 mr-auto text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
+      <span title={t('modeHint')} className="flex">
+        <Segmented<SettingsMode>
+          ariaLabel={t('modeHint')}
+          value={mode}
+          onChange={setMode}
+          options={[{ value: 'simple', label: t('modeSimple') }, { value: 'all', label: t('modeAll') }]}
+        />
+      </span>
+      <div role="group" aria-label={t('menu')} className="flex h-9 divide-x divide-zinc-300 overflow-hidden rounded-md border border-zinc-300 dark:divide-zinc-700 dark:border-zinc-700">
+        <IconButton label={t('settings')} onClick={() => setShowSettings(true)}><CogIcon /></IconButton>
+        <IconButton label={t('editJson')} onClick={openJsonEditor}><JsonIcon /></IconButton>
+        <IconButton label={t('openLog')} onClick={() => setShowLog(true)}><LogIcon /></IconButton>
+        <IconButton label={t('about')} onClick={() => setShowAbout(true)}><InfoIcon /></IconButton>
       </div>
       {showLog ? <DebugLogDialog onClose={closeLog} /> : null}
     </header>

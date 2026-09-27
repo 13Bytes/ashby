@@ -57,6 +57,8 @@ export async function readBackendError(
 
 export type FetchBackendOptions = {
   unreachable: string
+  /** Message when another program answers at the backend address (see isForeignServerResponse). */
+  foreign?: string
   /** Aborts the request after this many milliseconds and throws a BackendError with `timedOut`. */
   timeoutMs?: number
   timedOut?: string
@@ -75,8 +77,9 @@ export async function fetchBackend(input: string, init: RequestInit, options: Fe
   }, options.timeoutMs)
   const abortFromCaller = () => controller.abort()
   init.signal?.addEventListener('abort', abortFromCaller)
+  let response: Response
   try {
-    return await fetch(input, { ...init, signal: controller.signal })
+    response = await fetch(input, { ...init, signal: controller.signal })
   } catch (error) {
     if (timedOut) throw new BackendError({ message: options.timedOut ?? options.unreachable, messages: [] })
     throw new BackendError({ message: options.unreachable, messages: [], log: error instanceof Error ? `${error.name}: ${error.message}` : String(error) })
@@ -84,6 +87,19 @@ export async function fetchBackend(input: string, init: RequestInit, options: Fe
     clearTimeout(timeout)
     init.signal?.removeEventListener('abort', abortFromCaller)
   }
+  if (options.foreign && isForeignServerResponse(response)) {
+    throw new BackendError({ message: `${options.foreign} (HTTP ${response.status} · ${input})`, messages: [], status: response.status })
+  }
+  return response
+}
+
+/**
+ * True when the answer does not come from the Ashby backend: FastAPI answers unknown routes with
+ * a JSON 404, so a 404 without JSON means another program listens at the backend address (e.g. an
+ * editor forwarding the same port).
+ */
+export function isForeignServerResponse(response: Pick<Response, 'status' | 'headers'>): boolean {
+  return response.status === 404 && !(response.headers.get('Content-Type') ?? '').includes('application/json')
 }
 
 /** Any thrown value as error details (frontend errors keep their stack for the log). */

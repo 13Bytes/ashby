@@ -2,19 +2,18 @@ import type { Dispatch, SetStateAction } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
-import type { FrameConfig } from '../config/defaultPlotConfig'
+import { PLOT_ALGORITHMS, type FrameConfig, type LayerConfig } from '../config/defaultPlotConfig'
+import { DEFAULT_FRAME, DEFAULT_LAYER } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { numberValue, type MultiOption } from '../utils/appState'
-import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton, SectionHeading } from './AppControls'
 import { resolvePreviewColor } from '../utils/colors'
+import { useSettings } from '../utils/settingsContext'
+import { Field, ItemCard, MultiSelectInput, SettingsGroup, SharedHint } from './AppControls'
+import { useOpenItems } from '../hooks/useOpenItems'
 
 type Props = {
   activeFrame: FrameConfig
   materialColors: Record<string, string>
-  hoveredRemoveGroup: string | null
-  setHoveredRemoveGroup: (value: string | null) => void
-  hoveredDuplicateGroup: string | null
-  setHoveredDuplicateGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   addLayer: () => void
   layerNameOptions: MultiOption[]
@@ -24,57 +23,101 @@ type Props = {
   setExpandedLayerKeywords: Dispatch<SetStateAction<Record<number, boolean>>>
 }
 
-export function LayersSection({ activeFrame, materialColors, hoveredRemoveGroup, setHoveredRemoveGroup, hoveredDuplicateGroup, setHoveredDuplicateGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
+/** Hull layers of the active frame; the first layer's column is required. */
+export function LayersSection({ activeFrame, materialColors, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
   const { t } = useI18n()
+  const { goTo } = useSettings()
+  const openItems = useOpenItems(String(activeFrame._extensions.uiKey))
+  const patchLayer = (layerIndex: number, patch: (layer: LayerConfig) => LayerConfig) =>
+    patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => (i === layerIndex ? patch(x) : x)) }))
+  const lastLayer = activeFrame.layers[activeFrame.layers.length - 1]
+  const patchLastLayer = (patch: (layer: LayerConfig) => LayerConfig) => patchLayer(activeFrame.layers.length - 1, patch)
+  const columnSelect = (layerIndex: number, layer: LayerConfig) => (
+    <Select value={layer.name ?? ''} onChange={(e) => patchLayer(layerIndex, (x) => ({ ...x, name: e.target.value }))}>
+      <option value="">{t('selectColumn')}</option>
+      {layerNameOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+    </Select>
+  )
+  const firstLayer = activeFrame.layers[0]
+
   return (
-    <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <div className="flex items-center gap-2">
-        <SectionHeading title={t('layers')} jsonPath="layers" />
-        <Button variant="outline" size="sm" onClick={addLayer}>+ {t('layer')}</Button>
-      </div>
-
-      <div className="relative grid gap-3 sm:col-span-2 sm:grid-cols-2">
-        <Field label={t('alphaPoints')} jsonPath="layers[last].alpha_points">
-          <Input type="number" step={0.05} min={0} max={1} value={activeFrame.layers[activeFrame.layers.length - 1]?.alphaPoints ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === f.layers.length - 1 ? { ...x, alphaPoints: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} />
+    <>
+      {firstLayer ? (
+        <Field label={t('groupMaterialsBy')} jsonPath="layers[0].name" level="required" missing={!firstLayer.name?.trim()} anchor="groupMaterialsBy" hint={t('groupMaterialsHint')} selfClassName="simple-only max-w-md">
+          {columnSelect(0, firstLayer)}
         </Field>
-        <Field label={t('alphaAreas')} jsonPath="layers[last].alpha_areas">
-          <Input type="number" step={0.05} min={0} max={1} value={activeFrame.layers[activeFrame.layers.length - 1]?.alphaAreas ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === f.layers.length - 1 ? { ...x, alphaAreas: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} />
-        </Field>
-      </div>
+      ) : null}
 
-      {activeFrame.layers.map((layer, layerIndex) => (
-        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `layer-${layerIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-          <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
-          <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
-          <div className="grid content-start gap-3 self-start">
-            <Field label={t('layerName', { n: layerIndex + 1 })} jsonPath={`layers[${layerIndex}].name`}>
-              <Select value={layer.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, name: e.target.value } : x) }))}>
-                <option value="">{t('selectColumn')}</option>
-                {layerNameOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </Select>
-            </Field>
-            <Field label={t('lineWidth')} jsonPath={`layers[${layerIndex}].linewidth`}>
-              <Input type="number" step={0.1} min={0} value={layer.linewidth ?? 1.5} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, linewidth: Math.max(0, numberValue(e.target.valueAsNumber, x.linewidth ?? 1.5)) } : x) }))} />
-            </Field>
-            <Field label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`}>
-              <Input type="number" step={0.05} min={0} max={1} value={layer.alpha ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, alpha: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined } : x) }))} />
-            </Field>
-          </div>
-
-          <MultiSelectInput
-            title={t('whitelistKeywords')}
-            jsonPath={`layers[${layerIndex}].whitelist`}
-            colorFor={(keyword) => (keyword in materialColors ? resolvePreviewColor(keyword, materialColors) : undefined)}
-            value={layer.whitelist ?? []}
-            options={!layer.name ? [] : (availableKeywordsByColumn[layer.name] ?? []).length > 0 ? (availableKeywordsByColumn[layer.name] ?? []).map((entry) => ({ value: entry, label: entry })) : availableWhitelistKeywords}
-            expanded={expandedLayerKeywords[layerIndex] === true}
-            onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
-            modeValue={layer.whitelistFlag ?? false}
-            onModeChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => (i === layerIndex ? { ...x, whitelistFlag: next } : x)) }))}
-            onChange={(next) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, whitelist: next } : x) }))}
-          />
+      <SettingsGroup title={t('layers')} level="default" actions={<Button variant="outline" size="sm" onClick={() => {
+        openItems.added(activeFrame.layers.length)
+        addLayer()
+      }}>+ {t('layer')}</Button>}>
+        <div className="grid gap-2">
+          {activeFrame.layers.map((layer, layerIndex) => (
+            <ItemCard
+              key={layerIndex}
+              title={`${t('layer')} ${layerIndex + 1}`}
+              summary={layer.name ? t('layerSummary', { column: layer.name }) : t('noColumn')}
+              open={openItems.isOpen(layerIndex)}
+              onOpenChange={(next) => openItems.setOpen(layerIndex, next)}
+              onDuplicate={() => {
+                openItems.inserted(layerIndex + 1)
+                patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))
+              }}
+              onRemove={() => {
+                openItems.removed(layerIndex)
+                patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))
+              }}
+              removeDisabled={activeFrame.layers.length <= 1}
+            >
+              <div className="grid items-stretch gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+                <div className="grid content-start gap-4">
+                  <Field label={t('layerName', { n: layerIndex + 1 })} jsonPath={`layers[${layerIndex}].name`} level={layerIndex === 0 ? 'required' : 'check'} missing={layerIndex === 0 ? !layer.name?.trim() : undefined} anchor={layerIndex === 0 ? 'groupMaterialsBy' : undefined}>
+                    {columnSelect(layerIndex, layer)}
+                  </Field>
+                  <Field label={t('lineWidth')} jsonPath={`layers[${layerIndex}].linewidth`} level="default" changed={(layer.linewidth ?? 1.5) !== DEFAULT_LAYER.linewidth}>
+                    <Input type="number" step={0.1} min={0} value={layer.linewidth ?? 1.5} onChange={(e) => patchLayer(layerIndex, (x) => ({ ...x, linewidth: Math.max(0, numberValue(e.target.valueAsNumber, x.linewidth ?? 1.5)) }))} />
+                  </Field>
+                  <Field label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`} level="default" changed={layer.alpha !== undefined && layer.alpha !== DEFAULT_LAYER.alpha}>
+                    <Input type="number" step={0.05} min={0} max={1} value={layer.alpha ?? ''} onChange={(e) => patchLayer(layerIndex, (x) => ({ ...x, alpha: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                  </Field>
+                </div>
+                <Field label={t('whitelistKeywords')} jsonPath={`layers[${layerIndex}].whitelist`} level="default" changed={(layer.whitelist ?? []).length > 0 || Boolean(layer.whitelistFlag)} fill>
+                  <MultiSelectInput
+                    title=""
+                    colorFor={(keyword) => (keyword in materialColors ? resolvePreviewColor(keyword, materialColors) : undefined)}
+                    value={layer.whitelist ?? []}
+                    options={!layer.name ? [] : (availableKeywordsByColumn[layer.name] ?? []).length > 0 ? (availableKeywordsByColumn[layer.name] ?? []).map((entry) => ({ value: entry, label: entry })) : availableWhitelistKeywords}
+                    expanded={expandedLayerKeywords[layerIndex] === true}
+                    onToggleExpanded={() => setExpandedLayerKeywords((current) => ({ ...current, [layerIndex]: !current[layerIndex] }))}
+                    modeValue={layer.whitelistFlag ?? false}
+                    onModeChange={(next) => patchLayer(layerIndex, (x) => ({ ...x, whitelistFlag: next }))}
+                    onChange={(next) => patchLayer(layerIndex, (x) => ({ ...x, whitelist: next }))}
+                  />
+                </Field>
+              </div>
+            </ItemCard>
+          ))}
         </div>
-      ))}
-    </section>
+      </SettingsGroup>
+
+      <SettingsGroup title={t('allLayers')} level="default">
+        <div className="grid gap-4 @lg:grid-cols-3">
+          <Field label={t('algorithm')} jsonPath="frames[j].algorithm" level="default" changed={activeFrame.algorithm !== DEFAULT_FRAME.algorithm}>
+            <Select value={activeFrame.algorithm} onChange={(e) => patchActiveFrame((c) => ({ ...c, algorithm: e.target.value as FrameConfig['algorithm'] }))}>
+              {PLOT_ALGORITHMS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </Select>
+          </Field>
+          <Field label={t('alphaPoints')} jsonPath="layers[last].alpha_points" level="default" changed={lastLayer?.alphaPoints !== undefined}>
+            <Input type="number" step={0.05} min={0} max={1} value={lastLayer?.alphaPoints ?? ''} onChange={(e) => patchLastLayer((x) => ({ ...x, alphaPoints: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+          </Field>
+          <Field label={t('alphaAreas')} jsonPath="layers[last].alpha_areas" level="default" changed={lastLayer?.alphaAreas !== undefined}>
+            <Input type="number" step={0.05} min={0} max={1} value={lastLayer?.alphaAreas ?? ''} onChange={(e) => patchLastLayer((x) => ({ ...x, alphaAreas: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+          </Field>
+        </div>
+      </SettingsGroup>
+
+      <SharedHint text={t('legendShared')} linkLabel={t('openMaterials')} onOpen={() => goTo('materials')} />
+    </>
   )
 }
