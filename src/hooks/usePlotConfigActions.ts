@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
 import { addAxisToDataframe, addGuidelineToFrame, addLayerToFrame, generateMaterialColorsForDataframe, updateAxisInDataframe, updateGuidelineInFrame } from '../utils/configEditing'
-import { getNextTabName, getSelectedIndices, nextDataframeName, insertSelectionIndex, moveItem, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
+import { duplicateFrameInDataframe, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
   activeDataframeIndex: number
@@ -99,60 +99,22 @@ const duplicateDataframe = (index: number) => {
 
 const duplicateFrame = (dataframeIndex: number, index: number) => {
   patchDataframe(dataframeIndex, (df) => {
-    const original = df.frames[index]
-    if (!original) return df
-    const clone = structuredClone(original)
-    clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
-    refreshUiKey(clone, 'frame')
-    const nextFrames = [...df.frames]
-    nextFrames.splice(index + 1, 0, clone)
+    const result = duplicateFrameInDataframe(df, index)
+    if (!result) return df
     setActiveDataframeIndex(dataframeIndex)
-    setActiveFrameIndex(index + 1)
-    return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, index + 1) }
+    setActiveFrameIndex(result.frameIndex)
+    return result.dataframe
   })
 }
 
-/**
- * Moves a plot to `targetIndex` (0 … number of plots; the plot is placed before the one currently
- * there) of the same or another dataset. The moved plot becomes the active one and keeps its
- * "include" state. A dataset keeps at least one plot.
- */
+/** Moves a plot within or between dataframes (see `moveFrameInConfig`) and selects it. */
 const moveFrame = (sourceDataframeIndex: number, sourceFrameIndex: number, targetDataframeIndex: number, targetIndex: number) => {
-  if (sourceDataframeIndex === targetDataframeIndex) {
-    const to = targetIndex > sourceFrameIndex ? targetIndex - 1 : targetIndex
-    if (to === sourceFrameIndex) return
-    patchDataframe(sourceDataframeIndex, (df) => {
-      const nextFrames = moveItem(df.frames, sourceFrameIndex, to)
-      return { ...df, frames: nextFrames, createAllFrames: reorderSelectionIndices(nextFrames.length, df.createAllFrames, sourceFrameIndex, to) }
-    })
-    setActiveDataframeIndex(sourceDataframeIndex)
-    setActiveFrameIndex(to)
-    return
-  }
   setPlotConfig((current) => {
-    const sourceDataframe = current.dataframes[sourceDataframeIndex]
-    const targetDataframe = current.dataframes[targetDataframeIndex]
-    const frameToMove = sourceDataframe?.frames[sourceFrameIndex]
-    if (!sourceDataframe || !targetDataframe || !frameToMove || sourceDataframe.frames.length <= 1) {
-      return current
-    }
-    const included = getSelectedIndices(sourceDataframe.frames.length, sourceDataframe.createAllFrames).includes(sourceFrameIndex)
-    const insertAt = Math.min(Math.max(targetIndex, 0), targetDataframe.frames.length)
-    const nextDataframes = current.dataframes.map((df, index) => {
-      if (index === sourceDataframeIndex) {
-        const nextFrames = df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex)
-        return { ...df, frames: nextFrames, createAllFrames: removeSelectionIndex(nextFrames.length, df.createAllFrames, sourceFrameIndex) }
-      }
-      if (index === targetDataframeIndex) {
-        const nextFrames = [...df.frames.slice(0, insertAt), frameToMove, ...df.frames.slice(insertAt)]
-        const shifted = insertSelectionIndex(nextFrames.length, df.createAllFrames, insertAt)
-        return { ...df, frames: nextFrames, createAllFrames: toggleIndexSelection(nextFrames.length, shifted, insertAt, included) }
-      }
-      return df
-    })
-    setActiveDataframeIndex(targetDataframeIndex)
-    setActiveFrameIndex(insertAt)
-    return { ...current, dataframes: nextDataframes }
+    const result = moveFrameInConfig(current, sourceDataframeIndex, sourceFrameIndex, targetDataframeIndex, targetIndex)
+    if (!result) return current
+    setActiveDataframeIndex(result.position.dataframeIndex)
+    setActiveFrameIndex(result.position.frameIndex)
+    return result.config
   })
 }
 

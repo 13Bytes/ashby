@@ -204,3 +204,73 @@ export const ensureUiKeys = (config: PlotConfig): PlotConfig => {
   }
   return config
 }
+
+/** Where a plot is: its dataframe and its position among the dataframe's frames. */
+export type FramePosition = { dataframeIndex: number; frameIndex: number }
+
+/**
+ * Moves a plot to `targetIndex` (0 … number of plots; the plot is placed before the one currently
+ * there) of the same or another dataframe. The plot keeps its "include" state. A dataframe keeps
+ * at least one plot. Returns null when nothing changes.
+ */
+export const moveFrameInConfig = (
+  config: PlotConfig,
+  sourceDataframeIndex: number,
+  sourceFrameIndex: number,
+  targetDataframeIndex: number,
+  targetIndex: number,
+): { config: PlotConfig; position: FramePosition } | null => {
+  const source = config.dataframes[sourceDataframeIndex]
+  const target = config.dataframes[targetDataframeIndex]
+  const frame = source?.frames[sourceFrameIndex]
+  if (!source || !target || !frame) return null
+  if (sourceDataframeIndex === targetDataframeIndex) {
+    const to = Math.min(targetIndex > sourceFrameIndex ? targetIndex - 1 : targetIndex, source.frames.length - 1)
+    if (to === sourceFrameIndex || to < 0) return null
+    const frames = moveItem(source.frames, sourceFrameIndex, to)
+    return {
+      config: {
+        ...config,
+        dataframes: config.dataframes.map((df, index) => (index === sourceDataframeIndex
+          ? { ...df, frames, createAllFrames: reorderSelectionIndices(frames.length, df.createAllFrames, sourceFrameIndex, to) }
+          : df)),
+      },
+      position: { dataframeIndex: sourceDataframeIndex, frameIndex: to },
+    }
+  }
+  if (source.frames.length <= 1) return null
+  const included = getSelectedIndices(source.frames.length, source.createAllFrames).includes(sourceFrameIndex)
+  const insertAt = Math.min(Math.max(targetIndex, 0), target.frames.length)
+  return {
+    config: {
+      ...config,
+      dataframes: config.dataframes.map((df, index) => {
+        if (index === sourceDataframeIndex) {
+          const frames = df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex)
+          return { ...df, frames, createAllFrames: removeSelectionIndex(frames.length, df.createAllFrames, sourceFrameIndex) }
+        }
+        if (index === targetDataframeIndex) {
+          const frames = [...df.frames.slice(0, insertAt), frame, ...df.frames.slice(insertAt)]
+          const shifted = insertSelectionIndex(frames.length, df.createAllFrames, insertAt)
+          return { ...df, frames, createAllFrames: toggleIndexSelection(frames.length, shifted, insertAt, included) }
+        }
+        return df
+      }),
+    },
+    position: { dataframeIndex: targetDataframeIndex, frameIndex: insertAt },
+  }
+}
+
+/** Copies a plot of a dataframe right after the original, with a new name and the original's include state. */
+export const duplicateFrameInDataframe = (df: DataframeConfig, index: number): { dataframe: DataframeConfig; frameIndex: number } | null => {
+  const original = df.frames[index]
+  if (!original) return null
+  const clone = structuredClone(original)
+  clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+  refreshUiKey(clone, 'frame')
+  const included = getSelectedIndices(df.frames.length, df.createAllFrames).includes(index)
+  const frames = [...df.frames]
+  frames.splice(index + 1, 0, clone)
+  const shifted = insertSelectionIndex(frames.length, df.createAllFrames, index + 1)
+  return { dataframe: { ...df, frames, createAllFrames: toggleIndexSelection(frames.length, shifted, index + 1, included) }, frameIndex: index + 1 }
+}

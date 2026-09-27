@@ -4,7 +4,7 @@ import { DEFAULT_DATAFRAME } from '../config/settingsSections'
 import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '../config/uiOptions'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
-import { Field, SettingsGroup, Toggle } from './AppControls'
+import { Field, SettingsGroup } from './AppControls'
 import { ImageOutputSection } from './ImageOutputSection'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -52,11 +52,11 @@ export function TextLookSection({
             {activeDataframe.plotLanguages.map((language) => {
               const selected = activeDataframe.language === language
               return (
-                <span key={language} className={`inline-flex items-center overflow-hidden rounded-full border text-xs ${selected ? 'border-violet-600' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                <span key={language} className={`inline-flex h-7 items-stretch overflow-hidden rounded-full border text-xs leading-none ${selected ? 'border-violet-600' : 'border-zinc-300 dark:border-zinc-600'}`}>
                   <button
                     type="button"
                     aria-pressed={selected}
-                    className={`px-3 py-1 font-mono uppercase ${selected ? 'bg-violet-600 text-white hover:bg-violet-500' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                    className={`px-3 font-mono uppercase ${selected ? 'bg-violet-600 text-white hover:bg-violet-500' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
                     // Frames have their own `language` (no control of its own) that overrides the
                     // dataframe's; the plot language applies to every frame of the dataframe.
                     onClick={() => patchActiveDataframe((current) => ({ ...current, language, frames: current.frames.map((frame) => ({ ...frame, language })) }))}
@@ -65,7 +65,7 @@ export function TextLookSection({
                   </button>
                   <button
                     type="button"
-                    className="px-2 py-1 font-semibold text-zinc-500 hover:bg-red-500 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+                    className="px-2 font-semibold text-zinc-500 hover:bg-red-500 hover:text-white disabled:pointer-events-none disabled:opacity-40"
                     onClick={() => updateLanguages(activeDataframe.plotLanguages.filter((entry) => entry !== language))}
                     disabled={activeDataframe.plotLanguages.length <= 1}
                     aria-label={t('removeLanguage', { language })}
@@ -91,31 +91,8 @@ export function TextLookSection({
         </div>
       </Field>
 
-      <SettingsGroup title={t('plotGroup')} level="default">
-        <div className="grid gap-4 @lg:grid-cols-3">
-          <Field label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" level="default" changed={activeDataframe.aspectRatio.join(':') !== DEFAULT_DATAFRAME.aspectRatio.join(':')}>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <Input
-                type="number"
-                step="0.01"
-                aria-label={`${t('aspectRatio')} 1`}
-                value={activeDataframe.aspectRatio[0]}
-                onChange={(event) => patchActiveDataframe((current) => ({ ...current, aspectRatio: [numberValue(event.target.valueAsNumber, current.aspectRatio[0]), current.aspectRatio[1]] }))}
-              />
-              <span>/</span>
-              <Input
-                type="number"
-                step="0.01"
-                aria-label={`${t('aspectRatio')} 2`}
-                value={activeDataframe.aspectRatio[1]}
-                onChange={(event) => patchActiveDataframe((current) => ({ ...current, aspectRatio: [current.aspectRatio[0], numberValue(event.target.valueAsNumber, current.aspectRatio[1])] }))}
-              />
-            </div>
-          </Field>
-          <Field label={t('DarkMode')} jsonPath="dataframes[i].dark_mode" level="default" changed={activeDataframe.darkMode !== DEFAULT_DATAFRAME.darkMode}>
-            <Toggle checked={activeDataframe.darkMode} label={t('DarkMode')} onChange={(darkMode) => patchActiveDataframe((current) => ({ ...current, darkMode }))} />
-          </Field>
-        </div>
+      <SettingsGroup title={t('secOutput')} level="default" anchor="output">
+        <ImageOutputSection activeDataframe={activeDataframe} patchActiveDataframe={patchActiveDataframe} />
       </SettingsGroup>
 
       <SettingsGroup title={t('fontGroup')} level="default">
@@ -157,10 +134,6 @@ export function TextLookSection({
           {fontNumber('axisLabelSize', t('axisLabelSize'), 'font.axis_label_size')}
           {fontNumber('tickSize', t('tickSize'), 'font.tick_size')}
         </div>
-      </SettingsGroup>
-
-      <SettingsGroup title={t('secOutput')} level="default" anchor="output">
-        <ImageOutputSection activeDataframe={activeDataframe} patchActiveDataframe={patchActiveDataframe} />
       </SettingsGroup>
     </>
   )

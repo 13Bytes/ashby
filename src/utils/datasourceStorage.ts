@@ -50,10 +50,47 @@ function runStoreOperation<T>(
   )
 }
 
+/**
+ * Reads a file into memory within `timeoutMs`. A file picked from disk stays linked to the disk
+ * file: once the workbook is saved again or locked (e.g. open in Excel) it can no longer be read.
+ * An in-memory copy keeps working.
+ */
+export async function toMemoryFile(file: File, filename = file.name, timeoutMs = 15_000): Promise<File> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const buffer = await Promise.race([
+      file.arrayBuffer(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Reading the file did not finish within ${timeoutMs / 1000} s.`)), timeoutMs)
+      }),
+    ])
+    return new File([buffer], filename, { type: file.type, lastModified: file.lastModified })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Reads a datasource file into memory; if that fails, reads the copy from `fallback` (browser
+ * storage) instead. Throws the first error when neither can be read.
+ */
+export async function readDatasourceWithFallback(file: File, fallback: () => Promise<File | undefined>, timeoutMs?: number): Promise<File> {
+  try {
+    return await toMemoryFile(file, file.name, timeoutMs)
+  } catch (error) {
+    const stored = await fallback().catch(() => undefined)
+    if (!stored) throw error
+    try {
+      return await toMemoryFile(stored, file.name, timeoutMs)
+    } catch {
+      throw error
+    }
+  }
+}
+
+/** Stores the file (read into memory first) and returns the in-memory copy. */
 export async function cacheDatasourceFile(file: File, filename = file.name): Promise<File> {
-  const cachedFile = file.name === filename
-    ? file
-    : new File([file], filename, { type: file.type, lastModified: file.lastModified })
+  const cachedFile = await toMemoryFile(file, filename)
 
   const entry: StoredDatasource = {
     filename,

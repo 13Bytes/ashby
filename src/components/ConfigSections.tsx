@@ -27,20 +27,24 @@ type Props =
   & ComponentProps<typeof AnnotationsSection>
   & ComponentProps<typeof AdvancedJsonSection>
   & {
+    activeSection: SettingsSectionId
+    /** All sections below each other instead of only the active one. */
+    scrollSections: boolean
     shownDefaults: ReadonlySet<SettingsSectionId>
     onToggleDefaults: (id: SettingsSectionId) => void
   }
 
 /**
- * Renders all settings sections below each other, the shared dataset sections first, then the
- * sections of the active plot. Each section picks the props it needs from the shared bag.
+ * Renders the settings sections: either all below each other (the shared dataset sections first,
+ * then the sections of the active plot) or only the active one. Hidden sections stay rendered so
+ * "Find a setting" reaches all fields. Each section picks the props it needs from the shared bag.
  */
 export function ConfigSections(props: Props) {
-  const { shownDefaults, onToggleDefaults, activeDataframe, activeDataframeIndex, activeFrame } = props
+  const { activeSection, scrollSections, shownDefaults, onToggleDefaults, activeDataframe, activeDataframeIndex, activeFrame } = props
   const { t } = useI18n()
-  const section = (id: SettingsSectionId) => ({ id, showDefaults: shownDefaults.has(id), onToggleDefaults })
-  const divider = <hr className="my-3 border-zinc-200 dark:border-zinc-800" />
-  const scopeBanner = (scope: 'dataset' | 'plot', name: string) => (
+  const section = (id: SettingsSectionId) => ({ id, hidden: !scrollSections && activeSection !== id, showDefaults: shownDefaults.has(id), onToggleDefaults })
+  const divider = scrollSections ? <hr className="my-3 border-zinc-200 dark:border-zinc-800" /> : null
+  const scopeBanner = (scope: 'dataset' | 'plot', name: string) => scrollSections && (
     <div className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 ${scope === 'dataset' ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'mt-8 border-violet-500 bg-violet-50 dark:bg-violet-950/40'}`}>
       <ScopeTag scope={scope}>{t(scope === 'dataset' ? 'datasetShared' : 'plotOnly')}</ScopeTag>
       <strong className="min-w-0 truncate text-sm">{name}</strong>

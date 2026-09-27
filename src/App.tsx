@@ -12,12 +12,12 @@ import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLangu
 import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
-import { Field } from './components/AppControls'
+import { Field, Toggle } from './components/AppControls'
 import { dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
-import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile } from './utils/datasourceStorage'
+import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile, toMemoryFile } from './utils/datasourceStorage'
 import { createConfigSync, type ConfigSync } from './utils/tabSync'
 import { BackendError, fetchBackend, isForeignServerResponse, toErrorDetails } from './utils/backendErrors'
 import { addLogEntry } from './utils/debugLog'
@@ -39,6 +39,7 @@ const CONFIG_STORAGE_KEY = 'ashby-plot-config'
 const SETTINGS_MODE_STORAGE_KEY = 'ashby-settings-mode'
 const PREVIEW_WIDTH_STORAGE_KEY = 'ashby-preview-width'
 const AUTO_REFRESH_STORAGE_KEY = 'ashby-auto-refresh'
+const SCROLL_SECTIONS_STORAGE_KEY = 'ashby-scroll-sections'
 const DEFAULT_PREVIEW_WIDTH = 460
 const MIN_PREVIEW_WIDTH = 280
 /** Width kept for the settings list and the editor when the preview is dragged wider. */
@@ -117,6 +118,8 @@ function App() {
   const [shownDefaults, setShownDefaults] = useState<ReadonlySet<SettingsSectionId>>(() => new Set())
   const [previewWidth, setPreviewWidth] = useState(() => readStored(PREVIEW_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_PREVIEW_WIDTH))
   const [autoRefresh, setAutoRefresh] = useState(() => readStored(AUTO_REFRESH_STORAGE_KEY, (value) => value !== 'false'))
+  /** All settings sections in one scrollable column instead of one section at a time. */
+  const [scrollSections, setScrollSections] = useState(() => readStored(SCROLL_SECTIONS_STORAGE_KEY, (value) => value === 'true'))
   const editorRef = useRef<HTMLElement | null>(null)
   const pinnedSectionRef = useRef<SettingsSectionId | null>(null)
   const workRef = useRef<HTMLDivElement | null>(null)
@@ -485,9 +488,11 @@ function App() {
       const sheetNames = payload.sheet_names ?? []
       let cachingFailed = false
       if (file) {
+        const filename = payload.import_file_name ?? file.name
         let cachedFile = file
         try {
-          cachedFile = await cacheDatasourceFile(file, payload.import_file_name ?? file.name)
+          cachedFile = await toMemoryFile(file, filename)
+          await cacheDatasourceFile(cachedFile, filename)
           setDismissedDatasourcePrompts((current) => {
             const next = { ...current }
             delete next[`${activeDataframeIndex}:${cachedFile.name}`]
@@ -800,19 +805,21 @@ function App() {
     // Keep the clicked section highlighted even if the column cannot scroll it to the top (the last ones).
     pinnedSectionRef.current = section
     if (!anchor) {
-      editorRef.current?.querySelector(`[data-section-id="${section}"]`)?.scrollIntoView({ block: 'start' })
+      if (scrollSections) editorRef.current?.querySelector(`[data-section-id="${section}"]`)?.scrollIntoView({ block: 'start' })
+      else editorRef.current?.scrollTo({ top: 0 })
       return
     }
     const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`[data-section-id="${section}"] [data-anchor="${anchor}"]`) ?? [])]
     // Prefer the field that is visible in the current mode (e.g. the Simple-mode shortcut).
-    const target = candidates.find((element) => element.getClientRects().length > 0) ?? candidates[0]
+    // (A field of a section that is still hidden has no layout yet.)
+    const target = candidates.find((element) => element.getClientRects().length > 0 || element.closest('[data-section-id]')?.hasAttribute('hidden')) ?? candidates[0]
     if (target) revealSetting(section, target)
-  }, [revealSetting])
-  // The sidebar follows the scroll position: the active section is the last one whose top has
+  }, [revealSetting, scrollSections])
+  // In the scrolling column the sidebar follows the scroll position: the active section is the last one whose top has
   // passed the upper quarter of the editor column.
   useEffect(() => {
     const editor = editorRef.current
-    if (!editor) return
+    if (!editor || !scrollSections) return
     let frame = 0
     const update = () => {
       frame = 0
@@ -841,7 +848,7 @@ function App() {
       editor.removeEventListener('scroll', onScroll)
       for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) editor.removeEventListener(type, release)
     }
-  }, [])
+  }, [scrollSections])
   const settingsContext = useMemo(() => ({ mode: settingsMode, goTo }), [settingsMode, goTo])
   const selectPlot = (dataframeIndex: number, frameIndex: number) => {
     if (dataframeIndex !== activeDataframeIndex) setExpandedAxisColumns({})
@@ -930,6 +937,8 @@ function App() {
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
     onResetConfig: () => setShowResetConfirm(true),
+    activeSection,
+    scrollSections,
     shownDefaults,
     onToggleDefaults: toggleSectionDefaults,
   }
@@ -947,6 +956,16 @@ function App() {
           <option value="light">{t('themeLight')}</option>
           <option value="dark">{t('themeDark')}</option>
         </Select>
+      </Field>
+      <Field label={t('scrollSections')} jsonPath="ui.scroll_sections" hint={t('scrollSectionsHint')}>
+        <Toggle
+          checked={scrollSections}
+          label={t('scrollSections')}
+          onChange={(next) => {
+            setScrollSections(next)
+            writeStored(SCROLL_SECTIONS_STORAGE_KEY, String(next))
+          }}
+        />
       </Field>
       <Field label={t('localDataFiles')} jsonPath="ui.local_data_files">
         <Button type="button" variant="outline" onClick={() => { void clearStoredDatasourceFiles() }}>

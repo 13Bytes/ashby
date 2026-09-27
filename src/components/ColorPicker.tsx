@@ -1,32 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useI18n } from '../uiTranslations'
-
-type Hsv = { h: number; s: number; v: number }
+import { hexToHsv, hsvToHex, parseHexInput, type Hsv } from '../utils/colors'
 
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value))
-
-const hexToHsv = (hex: string): Hsv => {
-  const [r, g, b] = [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16) / 255)
-  const max = Math.max(r, g, b)
-  const delta = max - Math.min(r, g, b)
-  let h = 0
-  if (delta > 0) {
-    if (max === r) h = ((g - b) / delta) % 6
-    else if (max === g) h = (b - r) / delta + 2
-    else h = (r - g) / delta + 4
-  }
-  return { h: (h * 60 + 360) % 360, s: max === 0 ? 0 : delta / max, v: max }
-}
-
-const hsvToHex = ({ h, s, v }: Hsv): string => {
-  const channel = (n: number) => {
-    const k = (n + h / 60) % 6
-    return Math.round((v - v * s * Math.max(0, Math.min(k, 4 - k, 1))) * 255)
-  }
-  return `#${[5, 3, 1].map((n) => channel(n).toString(16).padStart(2, '0')).join('')}`
-}
 
 /** Standard palette offered below the picker (Tableau 10 and greys). */
 const PALETTE = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac', '#000000', '#555555', '#999999', '#dddddd', '#ffffff']
@@ -191,8 +169,8 @@ function ColorPopover({ initial, label, presets, left, top, triggerRef, onChange
 
   const applyHexDraft = () => {
     if (hexDraft === null) return
-    const normalized = hexDraft.trim().startsWith('#') ? hexDraft.trim() : `#${hexDraft.trim()}`
-    if (HEX_PATTERN.test(normalized)) pick(normalized.toLowerCase())
+    const parsed = parseHexInput(hexDraft)
+    if (parsed) pick(parsed)
     else setHexDraft(null)
   }
 

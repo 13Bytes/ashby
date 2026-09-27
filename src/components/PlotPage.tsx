@@ -7,6 +7,7 @@ import { Button } from './ui/button'
 import { useI18n, type Translate } from '../uiTranslations'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails, type BackendErrorDetails } from '../utils/backendErrors'
 import { addLogEntry } from '../utils/debugLog'
+import { getCachedDatasourceFile, readDatasourceWithFallback } from '../utils/datasourceStorage'
 import { ErrorDetails } from './DebugLog'
 import type { SettingsSectionId } from '../config/settingsSections'
 import type { MissingSetting } from '../utils/settingsStatus'
@@ -71,28 +72,20 @@ function base64ToBlob(base64: string, mediaType: string): Blob {
 const FILE_READ_TIMEOUT_MS = 15_000
 
 /**
- * Reads a datasource file into memory before it is sent. Files restored from browser storage
- * (IndexedDB) can become unreadable; uploading such a file directly can leave the request hanging
- * in the browser without ever reaching the backend. Reading it first turns that into a clear error.
+ * Reads a datasource file into memory before it is sent. Uploading an unreadable file directly
+ * can leave the request hanging in the browser without ever reaching the backend. If the file
+ * cannot be read, the copy in browser storage is used; if that fails too, the render stops with a
+ * clear message.
  */
 async function readDatasourceFile(file: File, t: Translate): Promise<File> {
-  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const buffer = await Promise.race([
-      file.arrayBuffer(),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`Reading the file did not finish within ${FILE_READ_TIMEOUT_MS / 1000} s.`)), FILE_READ_TIMEOUT_MS)
-      }),
-    ])
-    return new File([buffer], file.name, { type: file.type, lastModified: file.lastModified })
+    return await readDatasourceWithFallback(file, () => getCachedDatasourceFile(file.name), FILE_READ_TIMEOUT_MS)
   } catch (error) {
     throw new BackendError({
       message: t('datasourceUnreadable', { name: file.name }),
       messages: [],
       log: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
     })
-  } finally {
-    clearTimeout(timer)
   }
 }
 

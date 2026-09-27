@@ -118,7 +118,7 @@ export function DataSection({
         {/* Every source mode uses the same panel: badge, what to import, import button, status. */}
         <div className="grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex flex-wrap items-start gap-3">
-            <span className={`mt-[2.1rem] w-16 shrink-0 rounded py-1 text-center font-mono text-[10px] font-medium text-white ${sourceMode === 'file' ? 'bg-emerald-700' : 'bg-zinc-600'}`}>
+            <span className="mt-[2.1rem] w-16 shrink-0 rounded bg-zinc-600 py-1 text-center font-mono text-[10px] font-medium text-white">
               {sourceMode === 'file' ? 'XLSX' : sourceMode === 'dataset' ? 'DATASET' : 'TEABLE'}
             </span>
             <div className="grid min-w-48 flex-1 gap-3">

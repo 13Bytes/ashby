@@ -96,3 +96,33 @@ test('App exposes a persistent UI theme selector without forcing light mode', as
   assert.match(source, /UI_THEME_STORAGE_KEY/)
   assert.doesNotMatch(source, /classList\.remove\('dark'\)/)
 })
+
+test('scrolling through all settings sections is a setting that is off by default', async () => {
+  const app = await readSource('App.tsx')
+  const sections = await readSource('components/ConfigSections.tsx')
+
+  assert.match(app, /readStored\(SCROLL_SECTIONS_STORAGE_KEY, \(value\) => value === 'true'\)/)
+  assert.match(app, /label=\{t\('scrollSections'\)\}/)
+  assert.match(app, /if \(!editor \|\| !scrollSections\) return/)
+  assert.match(sections, /hidden: !scrollSections && activeSection !== id/)
+})
+
+test('image output (with aspect ratio and dark mode) is a group of Text & look that the export dialog links to', async () => {
+  const textLook = await readSource('components/TextLookSection.tsx')
+  const output = await readSource('components/ImageOutputSection.tsx')
+  const plotPage = await readSource('components/PlotPage.tsx')
+
+  assert.match(textLook, /<SettingsGroup title=\{t\('secOutput'\)\} level="default" anchor="output">/)
+  for (const path of ['image_ratio', 'dark_mode', 'fileformat', 'resolution', 'transparent', 'watermark', 'copyright']) {
+    assert.ok(output.includes(`jsonPath="dataframes[i].${path}"`), path)
+  }
+  assert.match(plotPage, /onJump\('textLook', 'output'\)/)
+})
+
+test('datasource files are kept as in-memory copies and read with the stored copy as fallback', async () => {
+  const app = await readSource('App.tsx')
+  const plotPage = await readSource('components/PlotPage.tsx')
+
+  assert.match(app, /cachedFile = await toMemoryFile\(file, filename\)/)
+  assert.match(plotPage, /readDatasourceWithFallback\(file, \(\) => getCachedDatasourceFile\(file\.name\)/)
+})
