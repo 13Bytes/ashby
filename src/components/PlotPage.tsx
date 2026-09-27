@@ -60,14 +60,43 @@ function base64ToBlob(base64: string, mediaType: string): Blob {
   return new Blob([bytes], { type: mediaType })
 }
 
-function buildPlotRequest(
+/** A datasource file must be readable within this time, otherwise the render stops with a message. */
+const FILE_READ_TIMEOUT_MS = 15_000
+
+/**
+ * Reads a datasource file into memory before it is sent. Files restored from browser storage
+ * (IndexedDB) can become unreadable; uploading such a file directly can leave the request hanging
+ * in the browser without ever reaching the backend. Reading it first turns that into a clear error.
+ */
+async function readDatasourceFile(file: File, t: Translate): Promise<File> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const buffer = await Promise.race([
+      file.arrayBuffer(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Reading the file did not finish within ${FILE_READ_TIMEOUT_MS / 1000} s.`)), FILE_READ_TIMEOUT_MS)
+      }),
+    ])
+    return new File([buffer], file.name, { type: file.type, lastModified: file.lastModified })
+  } catch (error) {
+    throw new BackendError({
+      message: t('datasourceUnreadable', { name: file.name }),
+      messages: [],
+      log: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function buildPlotRequest(
   payload: PlotRequestPayload,
   plotConfig: PlotConfig,
   datasourceFilesByDataframe: Record<number, File>,
   availableDatasets: string[] | null,
   dataframeIndices: number[],
   t: Translate,
-): RequestInit {
+): Promise<RequestInit> {
   const uniqueIndices = [...new Set(dataframeIndices)]
   const missingDataframes = uniqueIndices.filter((dataframeIndex) => {
     const dataframe = plotConfig.dataframes[dataframeIndex]
@@ -91,17 +120,18 @@ function buildPlotRequest(
   }
 
   const form = new FormData()
-  const descriptors = datasourceIndices.map((dataframeIndex) => {
+  const descriptors = []
+  for (const dataframeIndex of datasourceIndices) {
     const fileField = `datasource_${dataframeIndex}`
-    const file = datasourceFilesByDataframe[dataframeIndex]
+    const file = await readDatasourceFile(datasourceFilesByDataframe[dataframeIndex], t)
     form.append(fileField, file)
-    return {
+    descriptors.push({
       dataframe_index: dataframeIndex,
       kind: 'xlsx',
       file_field: fileField,
       filename: file.name,
-    }
-  })
+    })
+  }
   form.append('payload', JSON.stringify(payload))
   form.append('data_sources', JSON.stringify(descriptors))
 
@@ -136,7 +166,12 @@ type RenderProgressState = {
   status: RenderStatus | null
   /** The backend did not answer the last status request. */
   statusUnavailable: boolean
+  /** The backend answers status requests but has never seen this render: the request is stuck in the browser. */
+  notReceived: boolean
 }
+
+/** Status answers of "unknown" before the render is considered not received by the backend. */
+const NOT_RECEIVED_AFTER_POLLS = 3
 
 const parseRenderStatus = (payload: Record<string, unknown>): RenderStatus | null =>
   payload.state === 'queued' || payload.state === 'running'
@@ -152,15 +187,16 @@ const parseRenderStatus = (payload: Record<string, unknown>): RenderStatus | nul
 
 /**
  * Polls the backend for the progress of render `id` until the returned stop function is called.
- * `onStatus(null)` means the backend did not answer the status request.
+ * `'unknown'`: the backend has no render with this id (not received yet, or already finished);
+ * `null`: the backend did not answer the status request.
  */
-function pollRenderStatus(id: string, onStatus: (status: RenderStatus | null) => void): () => void {
+function pollRenderStatus(id: string, onStatus: (status: RenderStatus | 'unknown' | null) => void): () => void {
   let stopped = false
   let timer: ReturnType<typeof setTimeout>
   const poll = async () => {
     try {
       const response = await fetch(`/api/render-status/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
-      // 404: the render has not reached the backend yet or just finished; keep the last state.
+      if (!stopped && response.status === 404) onStatus('unknown')
       if (!stopped && response.ok) {
         const status = parseRenderStatus(await response.json() as Record<string, unknown>)
         if (status) onStatus(status)
@@ -200,6 +236,7 @@ function RenderProgressBox({ progress }: { progress: RenderProgressState }) {
       {status?.waitingIn ? <p className="m-0 text-xs"><span className="font-semibold">{t('backendWaitingIn')}:</span> <code className="break-all">{status.waitingIn}</code></p> : null}
       {lastOutput ? <p className="m-0 text-xs"><span className="font-semibold">{t('lastOutput')}:</span> <code className="break-all">{lastOutput}</code></p> : null}
       {progress.statusUnavailable ? <p className="m-0 text-xs text-amber-700 dark:text-amber-400">{t('statusUnavailable')}</p> : null}
+      {progress.notReceived ? <p className="m-0 text-xs text-amber-700 dark:text-amber-400">{t('renderNotReceived')}</p> : null}
       {elapsedSeconds >= SLOW_RENDER_SECONDS ? <p className="m-0 text-xs text-amber-700 dark:text-amber-400">{t('renderSlow', { seconds: RENDER_TIMEOUT_MS / 1000 })}</p> : null}
     </div>
   )
@@ -261,18 +298,22 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     // Progress: the backend reports where the render is while we wait for it.
     const statusId = crypto.randomUUID()
     const lastStatus: { current: RenderStatus | null } = { current: null }
-    setRenderProgress({ id: statusId, label, startedAt: Date.now(), status: null, statusUnavailable: false })
+    // Counts "unknown" answers while the backend has never reported this render.
+    const unknownAnswers = { count: 0 }
+    const isNotReceived = () => lastStatus.current === null && unknownAnswers.count >= NOT_RECEIVED_AFTER_POLLS
+    setRenderProgress({ id: statusId, label, startedAt: Date.now(), status: null, statusUnavailable: false, notReceived: false })
     const stopPolling = pollRenderStatus(statusId, (status) => {
-      if (status) lastStatus.current = status
+      if (status === 'unknown') unknownAnswers.count += 1
+      else if (status) lastStatus.current = status
       setRenderProgress((current) => current?.id === statusId
-        ? { ...current, status: status ?? current.status, statusUnavailable: status === null }
+        ? { ...current, status: lastStatus.current, statusUnavailable: status === null, notReceived: isNotReceived() }
         : current)
     })
 
     try {
       const response = await fetchBackend(
         '/api/render-plot',
-        buildPlotRequest(
+        await buildPlotRequest(
           {
             config: toExternalConfig(plotConfig),
             dataframe_index: dataframeIndex,
@@ -344,6 +385,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           location: known.location,
           log: [details.log, `${t('lastBackendState', { seconds: known.elapsedSeconds })}:`, known.waitingIn && `${t('backendWaitingIn')}: ${known.waitingIn}`, ...known.outputTail].filter(Boolean).join('\n'),
         }
+      } else if (isNotReceived()) {
+        details = { ...details, message: `${details.message} ${t('renderNotReceived')}` }
       }
       addLogEntry({ level: 'error', source: 'render', title: label, ...details, durationMs: elapsed() })
       if (!includeInCreated) setError({ title: t('renderErrorTitle', { plot: label }), details })
@@ -408,7 +451,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     try {
       const response = await fetchBackend(
         '/api/download-plots',
-        buildPlotRequest(
+        await buildPlotRequest(
           {
             config: toExternalConfig(plotConfig),
             plots,
