@@ -55,12 +55,34 @@ export async function readBackendError(
   })
 }
 
-/** fetch() that reports an unreachable server as a BackendError instead of a bare TypeError. */
-export async function fetchBackend(input: string, init: RequestInit, unreachableMessage: string): Promise<Response> {
+export type FetchBackendOptions = {
+  unreachable: string
+  /** Aborts the request after this many milliseconds and throws a BackendError with `timedOut`. */
+  timeoutMs?: number
+  timedOut?: string
+}
+
+/**
+ * fetch() that reports an unreachable server as a BackendError instead of a bare TypeError and
+ * gives up after `timeoutMs`, so a request can never wait forever without a message.
+ */
+export async function fetchBackend(input: string, init: RequestInit, options: FetchBackendOptions): Promise<Response> {
+  const controller = new AbortController()
+  let timedOut = false
+  const timeout = options.timeoutMs === undefined ? undefined : setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, options.timeoutMs)
+  const abortFromCaller = () => controller.abort()
+  init.signal?.addEventListener('abort', abortFromCaller)
   try {
-    return await fetch(input, init)
+    return await fetch(input, { ...init, signal: controller.signal })
   } catch (error) {
-    throw new BackendError({ message: unreachableMessage, messages: [], log: error instanceof Error ? `${error.name}: ${error.message}` : String(error) })
+    if (timedOut) throw new BackendError({ message: options.timedOut ?? options.unreachable, messages: [] })
+    throw new BackendError({ message: options.unreachable, messages: [], log: error instanceof Error ? `${error.name}: ${error.message}` : String(error) })
+  } finally {
+    clearTimeout(timeout)
+    init.signal?.removeEventListener('abort', abortFromCaller)
   }
 }
 

@@ -364,7 +364,26 @@ test('proxy errors without a body mean the backend is unreachable', async () => 
 })
 
 test('a failed fetch becomes an unreachable-backend error', async () => {
-  await assert.rejects(fetchBackend('http://127.0.0.1:1/api/health', {}, 'Backend unreachable.'), (error) => error instanceof BackendError && error.details.message === 'Backend unreachable.')
+  await assert.rejects(fetchBackend('http://127.0.0.1:1/api/health', {}, { unreachable: 'Backend unreachable.' }), (error) => error instanceof BackendError && error.details.message === 'Backend unreachable.')
+})
+
+test('a request that takes too long is aborted with the timeout message', async () => {
+  // A local server that accepts the connection but never answers, like a hanging backend.
+  const { createServer } = await import('node:http')
+  const server = createServer(() => {})
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const url = `http://127.0.0.1:${server.address().port}/api/render-plot`
+  try {
+    const started = Date.now()
+    await assert.rejects(
+      fetchBackend(url, {}, { unreachable: 'Backend unreachable.', timeoutMs: 200, timedOut: 'Timed out.' }),
+      (error) => error instanceof BackendError && error.details.message === 'Timed out.',
+    )
+    assert.ok(Date.now() - started < 2000)
+  } finally {
+    server.closeAllConnections()
+    server.close()
+  }
 })
 
 test('frontend errors keep their stack as traceback', () => {

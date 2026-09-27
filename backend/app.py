@@ -16,6 +16,7 @@ from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 import uvicorn
 
@@ -30,11 +31,11 @@ if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
     from backend import import_data as import_data_module
     from backend.import_data import teable as teable_api
-    from backend.plot_renderer import PlotRenderError, RequestDataSource, describe_exception, render_plot_image
+    from backend.plot_renderer import PlotRenderError, RequestDataSource, describe_exception, get_render_status, render_plot_image
 else:
     from . import import_data as import_data_module
     from .import_data import teable as teable_api
-    from .plot_renderer import PlotRenderError, RequestDataSource, describe_exception, render_plot_image
+    from .plot_renderer import PlotRenderError, RequestDataSource, describe_exception, get_render_status, render_plot_image
 
 app = FastAPI(title='Ashby Backend API')
 
@@ -45,6 +46,8 @@ class RenderPlotRequest(BaseModel):
     frame_index: int = 0
     # When true, a successful render is returned as JSON with the base64 image and the plot log.
     include_log: bool = False
+    # Optional id chosen by the client to poll /api/render-status/{request_id} while it renders.
+    request_id: str | None = None
 
 
 class DownloadPlotItem(BaseModel):
@@ -177,16 +180,27 @@ def health() -> JSONResponse:
     return JSONResponse({'status': 'ok'})
 
 
+@app.get('/api/render-status/{request_id}')
+def render_status(request_id: str) -> JSONResponse:
+    status = get_render_status(request_id)
+    if status is None:
+        return JSONResponse({'state': 'unknown'}, status_code=404)
+    return JSONResponse(status)
+
+
 @app.post('/api/render-plot')
 async def render_plot(request: Request) -> Response:
     try:
         payload_data, data_sources = await _parse_plot_request(request)
         payload = RenderPlotRequest(**payload_data)
-        rendered_plot = render_plot_image(
+        # In a worker thread, so the server keeps answering (status, health) while a plot renders.
+        rendered_plot = await run_in_threadpool(
+            render_plot_image,
             payload.config,
             dataframe_index=payload.dataframe_index,
             frame_index=payload.frame_index,
             data_sources=data_sources,
+            request_id=payload.request_id,
         )
     except PlotRenderError as exc:
         return JSONResponse({**exc.details, 'message': str(exc), 'messages': exc.messages}, status_code=400)
@@ -219,7 +233,8 @@ async def download_plots(request: Request) -> Response:
     with zipfile.ZipFile(output, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
         for plot in payload.plots:
             try:
-                rendered_plot = render_plot_image(
+                rendered_plot = await run_in_threadpool(
+                    render_plot_image,
                     payload.config,
                     dataframe_index=plot.dataframe_index,
                     frame_index=plot.frame_index,
@@ -269,7 +284,7 @@ async def import_database(
                 'import_file_name': import_file_name_json,
                 'sheet_names': sheet_names,
             })
-        return _teable_import_response(teable_url_json, api_key_json, verify_tls=verify_tls_json is not False)
+        return await run_in_threadpool(_teable_import_response, teable_url_json, api_key_json, verify_tls=verify_tls_json is not False)
 
     if file is None:
         if import_file_name:
@@ -286,7 +301,7 @@ async def import_database(
             })
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
-        return _teable_import_response(teable_url, API_Key)
+        return await run_in_threadpool(_teable_import_response, teable_url, API_Key)
 
     file_bytes = await file.read()
     try:

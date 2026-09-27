@@ -15,6 +15,9 @@ test('PlotPage requests the render endpoint with the dataframe and frame indices
 
   assert.match(source, /fetchBackend\(\s*'\/api\/render-plot'/)
   assert.match(source, /include_log: true/)
+  assert.match(source, /request_id: statusId/)
+  assert.match(source, /\/api\/render-status\//)
+  assert.match(source, /timeoutMs: RENDER_TIMEOUT_MS/)
   assert.match(source, /dataframe_index:\s*dataframeIndex/)
   assert.match(source, /frame_index:\s*frameIndex/)
   assert.match(source, /URL\.createObjectURL\(imageBlob\)/)
@@ -49,7 +52,7 @@ test('App loads the dataset catalog and probes backend health', async () => {
   const source = await readSource('App.tsx')
 
   assert.match(source, /fetch\('\/api\/import-database\/datasets'/)
-  assert.match(source, /fetch\('\/api\/health', \{ cache: 'no-store' \}\)/)
+  assert.match(source, /fetch\('\/api\/health', \{ cache: 'no-store', signal: AbortSignal\.timeout\(/)
   assert.match(source, /backendAvailable === false/)
   assert.match(source, /t\('backendUnavailable'\)/)
 })

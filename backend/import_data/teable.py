@@ -16,6 +16,7 @@ import requests
 
 PAGE_SIZE = 1000  # Teable's maximum `take`
 TIMEOUT_SECONDS = 30
+MAX_PAGES = 200  # safety stop: 200,000 records, far more than a material table holds
 
 _TABLE_ID = re.compile(r'(?<![A-Za-z0-9])(tbl[A-Za-z0-9]+)')
 _VIEW_ID = re.compile(r'(?<![A-Za-z0-9])(viw[A-Za-z0-9]+)')
@@ -114,5 +115,7 @@ def fetch_records(
         records.extend(record.get('fields', {}) for record in page if isinstance(record, dict))
         if len(page) < params['take'] or (max_records is not None and len(records) >= max_records):
             break
+        if params['skip'] // PAGE_SIZE + 1 >= MAX_PAGES:
+            raise TeableError(f'Teable returned more than {MAX_PAGES * PAGE_SIZE} records; stopped to avoid an endless import. Please check the URL/view.')
         params['skip'] += params['take']
     return records[:max_records] if max_records is not None else records

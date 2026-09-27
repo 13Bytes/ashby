@@ -32,6 +32,8 @@ type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, stri
 const EMPTY_KEYWORDS: Record<string, string[]> = {}
 
 const CONFIG_STORAGE_KEY = 'ashby-plot-config'
+/** Datasource imports (Teable tables can take a while) give up after this long. */
+const IMPORT_TIMEOUT_MS = 120_000
 const JSON_EDITOR_LINE_HEIGHT = 18
 
 /** Restores the config of this browser tab (sessionStorage survives reloads and is copied into tabs opened from here). */
@@ -304,7 +306,8 @@ function App() {
     let active = true
     const checkBackendAvailability = async () => {
       try {
-        const response = await fetch('/api/health', { cache: 'no-store' })
+        // A backend that does not answer within 10 s counts as unavailable.
+        const response = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
         if (active) setBackendAvailable(response.ok)
       } catch {
         if (active) setBackendAvailable(false)
@@ -440,7 +443,7 @@ function App() {
               form.append('import_sheet', String(selectedDataframe.importSheet))
               return form
             })(),
-      }, t('backendUnreachable'))
+      }, { unreachable: t('backendUnreachable'), timeoutMs: IMPORT_TIMEOUT_MS, timedOut: t('requestTimedOut', { seconds: IMPORT_TIMEOUT_MS / 1000 }) })
       const payload = (await response.json().catch(() => ({}))) as ImportDatabaseResponse
       if (!response.ok || payload.success === false) {
         // The dev proxy answers 502–504 without a body when the backend is down.
