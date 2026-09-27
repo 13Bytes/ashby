@@ -99,3 +99,17 @@ export const generateMaterialColorsForDataframe = (df: DataframeConfig): Datafra
 
   return { ...df, materialColors: nextColors }
 }
+
+/** Adds a `#000000` entry for every keyword that isn't already a material color; existing entries are untouched. */
+export const populateMaterialColorsForDataframe = (df: DataframeConfig, keywords: string[]): DataframeConfig => {
+  const missing = keywords.filter((keyword) => df.materialColors[keyword] === undefined)
+  if (missing.length === 0) return df
+
+  return {
+    ...df,
+    materialColors: {
+      ...df.materialColors,
+      ...Object.fromEntries(missing.map((keyword) => [keyword, '#000000'])),
+    },
+  }
+}
