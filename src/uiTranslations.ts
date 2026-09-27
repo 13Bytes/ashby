@@ -97,6 +97,7 @@ const en = {
   search: 'Search',
   hideSearch: 'Hide search',
   searchOptions: 'Search options…',
+  clearSearch: 'Clear search',
   whitelist: 'Whitelist',
   blacklist: 'Blacklist',
   selectAll: 'Select all',
@@ -170,7 +171,6 @@ const en = {
   axisColumns: 'Axis {n} columns',
 
   // frame
-  exportFileName: 'Export file name',
   algorithm: 'Algorithm',
   automaticDisplayArea: 'Automatic display area',
   xAxis: 'X axis',
@@ -369,6 +369,7 @@ const de: Record<LabelKey, string> = {
   search: 'Suchen',
   hideSearch: 'Suche ausblenden',
   searchOptions: 'Optionen durchsuchen…',
+  clearSearch: 'Suche leeren',
   whitelist: 'Whitelist',
   blacklist: 'Blacklist',
   selectAll: 'Alle auswählen',
@@ -438,7 +439,6 @@ const de: Record<LabelKey, string> = {
   axisLabel: 'Achse {n} Beschriftung',
   axisColumns: 'Achse {n} Spalten',
 
-  exportFileName: 'Exportdateiname',
   algorithm: 'Algorithmus',
   automaticDisplayArea: 'Automatischer Anzeigebereich',
   xAxis: 'X-Achse',
@@ -681,9 +681,6 @@ const FIELD_HELP: Array<{ match: RegExp } & Record<UILanguage, string>> = [
     de: 'Datenspalten, die diese Achse liest. Angeboten werden nur Spalten mit "low"-, "high"- und "unit"-Variante in der Quelle.' },
 
   // frame
-  { match: /^frames\[j\]\.export_file_name$/,
-    en: 'File name without extension for exports and the zip download. Slashes create folders.',
-    de: 'Dateiname ohne Endung für Exporte und den Zip-Download. Schrägstriche erzeugen Ordner.' },
   { match: /^frames\[j\]\.algorithm$/,
     en: 'How the hull around each group is smoothed. Both start from the convex hull: cubic = periodic cubic spline through its corners, alpha = smoothed alpha shape of its corners.',
     de: 'Wie die Hülle um jede Gruppe geglättet wird. Beide starten von der konvexen Hülle: cubic = periodischer kubischer Spline durch ihre Ecken, alpha = geglättete Alpha-Shape ihrer Ecken.' },

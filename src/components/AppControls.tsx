@@ -137,6 +137,7 @@ export function MultiSelectInput({
   const allSelected = options.length > 0 && value.length === options.length
   const [showSearch, setShowSearch] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const normalizedSearch = searchTerm.trim().toLowerCase()
   const visibleOptions = normalizedSearch.length === 0
     ? options
@@ -147,9 +148,52 @@ export function MultiSelectInput({
       <div className="flex flex-wrap items-center justify-between gap-2">
         {jsonPath ? <FieldLabel label={title} jsonPath={jsonPath} as="span" /> : <span className="font-medium text-zinc-900 dark:text-zinc-100">{title}</span>}
         <div className="flex items-center gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => setShowSearch((current) => !current)}>
-            {showSearch ? t('hideSearch') : t('search')}
-          </Button>
+          <div className={`relative flex h-8 items-center overflow-hidden rounded-md border transition-[width] duration-200 ease-in-out ${showSearch ? 'w-72 border-zinc-300 dark:border-zinc-700' : 'w-8 border-transparent'}`}>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={t('searchOptions')}
+              tabIndex={showSearch ? undefined : -1}
+              className={`h-8 w-full bg-transparent pl-7 pr-6 text-xs text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none dark:text-zinc-100 ${showSearch ? '' : 'pointer-events-none'}`}
+            />
+            <button
+              type="button"
+              aria-label={showSearch ? t('hideSearch') : t('search')}
+              title={showSearch ? t('hideSearch') : t('search')}
+              onClick={() => {
+                if (!showSearch) {
+                  setShowSearch(true)
+                  searchInputRef.current?.focus()
+                } else if (searchTerm.length === 0) {
+                  setShowSearch(false)
+                } else {
+                  searchInputRef.current?.focus()
+                }
+              }}
+              className="absolute left-0 top-0 flex h-8 w-8 shrink-0 items-center justify-center text-zinc-500 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-violet-300"
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" className="h-4 w-4">
+                <circle cx="8.5" cy="8.5" r="5.5" />
+                <line x1="16.5" y1="16.5" x2="12.6" y2="12.6" />
+              </svg>
+            </button>
+            {showSearch ? (
+              <button
+                type="button"
+                aria-label={t('clearSearch')}
+                title={t('clearSearch')}
+                onClick={() => {
+                  setSearchTerm('')
+                  setShowSearch(false)
+                }}
+                className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
           {!hideModeToggle && onModeChange ? (
             <Button type="button" size="sm" variant="outline" onClick={() => onModeChange(!(modeValue ?? false))}>
               {modeValue ? t('whitelist') : t('blacklist')}
@@ -165,13 +209,6 @@ export function MultiSelectInput({
           ) : null}
         </div>
       </div>
-      {showSearch ? (
-        <Input
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder={t('searchOptions')}
-        />
-      ) : null}
       <div className={`${expanded ? 'h-full min-h-28' : 'h-47'} overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900`}>
         {visibleOptions.length > 0 ? (
           visibleOptions.map((option) => {
