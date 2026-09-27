@@ -214,9 +214,10 @@ async def download_plots(request: Request) -> Response:
             )
             dataframe = payload.config.get('dataframes', [])[plot.dataframe_index]
             frame = dataframe.get('frames', [])[plot.frame_index] if isinstance(dataframe, dict) else {}
-            export_name = frame.get('export_file_name') if isinstance(frame, dict) else None
+            dataframe_name = (dataframe.get('name') if isinstance(dataframe, dict) else None) or f'Dataframe{plot.dataframe_index + 1}'
+            frame_name = (frame.get('name') if isinstance(frame, dict) else None) or f'Frame{plot.frame_index + 1}'
             extension = '.png' if rendered_plot.media_type == 'image/png' else '.svg'
-            filename_root = export_name or f'ashby-df{plot.dataframe_index + 1}-frame{plot.frame_index + 1}'
+            filename_root = f'{dataframe_name}_{frame_name}'
             archive.writestr(f'{filename_root}{extension}', rendered_plot.content)
 
     return Response(content=output.getvalue(), media_type='application/zip')

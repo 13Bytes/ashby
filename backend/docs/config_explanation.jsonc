@@ -54,9 +54,7 @@
             "legend_above":false,           // determine where legend should be printed [true]:above, [false]:right, [null]:no legend  {false}
             "language":"",                  // [str] {dataframe:language }
             "dark_mode":false,              // font color, black or white: {dataframe:dark_mode}
-    
-            "export_file_name": null,       // filename without ending ["folder/subfolder/filename"] , [null] wont export but open popup {null}
-            
+
             "x_quantity":"",                // axis name (see bottom) for value on x_axis       [str]
             "x_rel_quantity":null,          //   "                    to divide x_quantity by (per point)   [str / none] {none}
             "log_x_flag":false,             // [true]/[false] should the x-axis be displayed logarhithmic                  {false}

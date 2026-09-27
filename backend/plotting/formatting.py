@@ -182,14 +182,10 @@ def copyright(ax:plt.subplot, text:str|bool, font_color:str) -> None:
 
 
 def figurename(frame:dict, dateframe_index:int, frame_index:int) -> str:
-    frame_name  = frame.get('name', None)
-    export_name = frame.get('export_file_name', None)
+    frame_name = frame.get('name', None)
     if frame_name != None:
         return frame_name
-    if export_name != None:
-        return export_name
-    else:
-        return f"Figure {dateframe_index+1}.{frame_index+1}"
+    return f"Figure {dateframe_index+1}.{frame_index+1}"
 
 
 class plot_size():
