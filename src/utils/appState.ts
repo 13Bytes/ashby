@@ -16,6 +16,8 @@ export const nextDataframeName = (dataframes: Array<{ name?: string }>): string 
 }
 
 export const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
+/** A typed number that must be greater than 0 (sizes); anything else keeps `fallback`. */
+export const positiveValue = (value: number, fallback: number): number => (Number.isFinite(value) && value > 0 ? value : fallback)
 
 export const parseColumnsFromImportResult = (value: unknown): string[] => {
   if (Array.isArray(value)) {

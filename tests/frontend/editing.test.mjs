@@ -12,6 +12,7 @@ import {
   getUiKey,
   moveFrameInConfig,
   nextDataframeName,
+  positiveValue,
 } from '../../src/utils/appState.ts'
 import { hexToHsv, hsvToHex, parseHexInput } from '../../src/utils/colors.ts'
 import { readDatasourceWithFallback, toMemoryFile } from '../../src/utils/datasourceStorage.ts'
@@ -180,4 +181,23 @@ test('an unreadable datasource file without a stored copy reports the original e
 test('reading a datasource file that never finishes times out', async () => {
   const hanging = unreadableFile('data.xlsx', () => new Promise(() => {}))
   await assert.rejects(readDatasourceWithFallback(hanging, async () => undefined, 20), /did not finish/)
+})
+
+test('the default marker and font size of annotations are filled in and positive', () => {
+  const defaultsOf = (annotations) => normalizePlotConfig({ dataframes: [{ frames: [{ annotations }] }] }).dataframes[0].frames[0].annotations[0]
+  assert.deepEqual(defaultsOf([]), { markerSize: 330, fontSize: 18 })
+  assert.equal(defaultsOf([{}]).markerSize, 330)
+  assert.equal(defaultsOf([{ marker_size: -5, font_size: 0 }]).fontSize, 18)
+  assert.equal(defaultsOf([{ marker_size: -5 }]).markerSize, 330)
+  assert.deepEqual([defaultsOf([{ marker_size: 200, font_size: 12 }]).markerSize, defaultsOf([{ font_size: 12 }]).fontSize], [200, 12])
+  const withAnnotation = normalizePlotConfig({ dataframes: [{ frames: [{ annotations: [{ font_size: 9 }, { text: { name: 'PEEK' } }] }] }] }).dataframes[0].frames[0].annotations
+  assert.equal(withAnnotation.length, 2)
+  assert.equal(withAnnotation[1].text.name, 'PEEK')
+})
+
+test('size fields only take numbers greater than 0', () => {
+  assert.equal(positiveValue(12, 18), 12)
+  assert.equal(positiveValue(-3, 18), 18)
+  assert.equal(positiveValue(0, 18), 18)
+  assert.equal(positiveValue(Number.NaN, 18), 18)
 })

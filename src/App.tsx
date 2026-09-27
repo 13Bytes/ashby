@@ -899,13 +899,13 @@ function App() {
   const activeFrameMissing = getFrameMissing(activeFrame)
   const activeMissing = [...activeDataframeMissing, ...activeFrameMissing]
   const sectionStatus = (section: SettingsSectionId): SectionStatus => {
-    const base: SectionStatus = { missing: activeMissing.filter((entry) => entry.section === section).length, hasRequired: false }
+    const base: SectionStatus = { missing: activeMissing.filter((entry) => entry.section === section).length }
     if (section === 'axisDefs') {
       const incomplete = activeDataframe.axes.filter((axis) => !axis.name.trim() || axis.columns.length === 0).length
-      return { ...base, missing: activeDataframe.axes.length === 0 ? 1 : incomplete, hasRequired: true }
+      return { ...base, missing: activeDataframe.axes.length === 0 ? 1 : incomplete }
     }
     if (section === 'extras') return { ...base, items: activeFrame.coloredAreas.length + activeFrame.guidelines.length + Math.max(0, activeFrame.annotations.length - 1) }
-    return { ...base, hasRequired: section === 'data' || section === 'titleAxes' || section === 'hulls' }
+    return base
   }
   const activeSectionScope = SETTINGS_SECTIONS.find((section) => section.id === activeSection)?.scope
 

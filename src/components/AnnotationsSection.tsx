@@ -1,7 +1,7 @@
 import type { AnnotationConfig, DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
 import { DEFAULT_ANNOTATION_ARROW, DEFAULT_ANNOTATION_MARKER, DEFAULT_ANNOTATION_TEXT } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { numberValue } from '../utils/appState'
+import { numberValue, positiveValue } from '../utils/appState'
 import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS, getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
 import { ColorOrMaterialInput, EmptyItems, Field, ItemCard, LanguageFields, SettingsGroup, Toggle } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
@@ -197,10 +197,10 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
 
       <div className="grid gap-4 @lg:grid-cols-2">
         <Field label={t('defaultMarkerSize')} jsonPath="annotations[0].marker_size" level="default" changed={defaults?.markerSize !== DEFAULT_ANNOTATION_SETTINGS.markerSize}>
-          <Input type="number" value={defaults?.markerSize ?? ''} onChange={(e) => patchAnnotation(0, (entry) => ({ ...entry, markerSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+          <Input type="number" min={1} value={defaults?.markerSize ?? DEFAULT_ANNOTATION_SETTINGS.markerSize} onChange={(e) => patchAnnotation(0, (entry) => ({ ...entry, markerSize: positiveValue(e.target.valueAsNumber, entry.markerSize ?? DEFAULT_ANNOTATION_SETTINGS.markerSize!) }))} />
         </Field>
         <Field label={t('defaultFontSize')} jsonPath="annotations[0].font_size" level="default" changed={defaults?.fontSize !== DEFAULT_ANNOTATION_SETTINGS.fontSize}>
-          <Input type="number" value={defaults?.fontSize ?? ''} onChange={(e) => patchAnnotation(0, (entry) => ({ ...entry, fontSize: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+          <Input type="number" min={1} value={defaults?.fontSize ?? DEFAULT_ANNOTATION_SETTINGS.fontSize} onChange={(e) => patchAnnotation(0, (entry) => ({ ...entry, fontSize: positiveValue(e.target.valueAsNumber, entry.fontSize ?? DEFAULT_ANNOTATION_SETTINGS.fontSize!) }))} />
         </Field>
       </div>
     </SettingsGroup>

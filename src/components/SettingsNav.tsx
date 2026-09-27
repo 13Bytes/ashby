@@ -3,8 +3,8 @@ import { SETTINGS_SECTIONS, isSettingsSectionId, type SettingsMode, type Setting
 import { useI18n } from '../uiTranslations'
 import { LevelIcon, ScopeTag } from './AppControls'
 
-/** Sidebar status of a section: missing required settings, done, or only defaults. */
-export type SectionStatus = { missing: number; hasRequired: boolean; items?: number }
+/** Sidebar status of a section: missing required settings, or the number of items it holds. */
+export type SectionStatus = { missing: number; items?: number }
 
 type SearchHit = { label: string; section: SettingsSectionId; element: HTMLElement; hidden: boolean }
 
@@ -50,8 +50,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
 
   const renderStatus = (status: SectionStatus) => {
     if (status.missing > 0) return <span className="ml-auto rounded-full bg-orange-600 px-1.5 text-[10px] font-bold text-white">{status.missing}</span>
-    if (status.items !== undefined) return status.items > 0 ? <span className="ml-auto text-[11px] tabular-nums text-zinc-400">{status.items}</span> : null
-    if (status.hasRequired) return <span className="ml-auto text-xs font-semibold text-emerald-600 dark:text-emerald-400" aria-label={t('levelRequiredSetTip')}>✓</span>
+    if (status.items !== undefined && status.items > 0) return <span className="ml-auto text-[11px] tabular-nums text-zinc-400">{status.items}</span>
     return null
   }
 

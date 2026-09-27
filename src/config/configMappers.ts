@@ -8,6 +8,7 @@ import {
   createDefaultPlotConfig,
 } from './defaultPlotConfig'
 import { ensureUiKeys } from '../utils/appState'
+import { DEFAULT_ANNOTATION_SETTINGS } from '../utils/configEditing'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
@@ -129,6 +130,24 @@ const normalizeGuidelines = (value: unknown): FrameConfig['guidelines'] =>
       }
     })
     : []
+
+const positiveOr = (value: number | undefined, fallback: number): number => (value !== undefined && value > 0 ? value : fallback)
+
+/**
+ * annotations[0] holds the default marker and font size of the frame's annotations. Older configs
+ * leave them out (the backend then uses 330 and 18); fill them in so the fields show real values.
+ */
+const withAnnotationDefaults = (annotations: FrameConfig['annotations']): FrameConfig['annotations'] => {
+  const [first = {}, ...rest] = annotations
+  return [
+    {
+      ...first,
+      markerSize: positiveOr(first.markerSize, DEFAULT_ANNOTATION_SETTINGS.markerSize!),
+      fontSize: positiveOr(first.fontSize, DEFAULT_ANNOTATION_SETTINGS.fontSize!),
+    },
+    ...rest,
+  ]
+}
 
 const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations']): FrameConfig['annotations'] =>
   Array.isArray(value)
@@ -318,11 +337,11 @@ const normalizeFrame = (
     layers: normalizeLayers(partial.layers, fallback.layers),
     filter: isRecord(partial.filter) ? partial.filter : fallback.filter,
     guidelines: normalizeGuidelines(partial.guidelines),
-    annotations: Array.isArray(partial.annotations)
+    annotations: withAnnotationDefaults(Array.isArray(partial.annotations)
       ? normalizeAnnotations(partial.annotations, fallback.annotations)
       : Array.isArray(partial.markers)
         ? normalizeAnnotations(partial.markers, fallback.annotations)
-        : fallback.annotations,
+        : fallback.annotations),
     coloredAreas: normalizeColoredAreas(partial.coloredAreas ?? partial.colored_areas),
     highlightedHulls: Array.isArray(partial.highlightedHulls ?? partial.highlighted_hulls)
       ? ((partial.highlightedHulls ?? partial.highlighted_hulls) as FrameConfig['highlightedHulls'])
