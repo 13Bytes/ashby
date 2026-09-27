@@ -50,6 +50,7 @@ function App() {
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [hoveredRemoveGroup, setHoveredRemoveGroup] = useState<string | null>(null)
+  const [hoveredDuplicateGroup, setHoveredDuplicateGroup] = useState<string | null>(null)
   const [showJson, setShowJson] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [jsonDraft, setJsonDraft] = useState('')
@@ -146,6 +147,26 @@ function App() {
     }
     return [...keywords].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn])
+  // Keywords a layer's whitelist/blacklist selection actually includes, across every frame of this
+  // dataframe — used to populate a material-color entry for each of them.
+  const includedLayerKeywords = useMemo(() => {
+    const included = new Set<string>()
+    for (const frame of activeDataframe.frames) {
+      for (const layer of frame.layers) {
+        const column = layer.name?.trim()
+        if (!column) continue
+        const sourceKeywords = (availableKeywordsByColumn[column] ?? []).length > 0
+          ? availableKeywordsByColumn[column]
+          : availableWhitelistKeywords.map((option) => option.value)
+        const selected = new Set(layer.whitelist ?? [])
+        for (const keyword of sourceKeywords) {
+          const isIncluded = layer.whitelistFlag ? selected.has(keyword) : !selected.has(keyword)
+          if (isIncluded) included.add(keyword)
+        }
+      }
+    }
+    return [...included].sort((a, b) => a.localeCompare(b))
+  }, [activeDataframe.frames, availableKeywordsByColumn, availableWhitelistKeywords])
   const missingDatasourceDataframes = useMemo(
     () =>
       availableDatasets === null
@@ -703,7 +724,7 @@ function App() {
   }
   const headerProps  = { activePage, configBaseName, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowResetConfirm, setShowSettings }
   const tabProps     = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, toggleDataframeGeneration, toggleFrameGeneration }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredDuplicateGroup, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredDuplicateGroup, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
     <>
       <Field label={t('uiLanguage')} jsonPath="ui.language">

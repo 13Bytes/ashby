@@ -13,6 +13,8 @@ type Props = {
   materialColors: Record<string, string>
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
+  hoveredDuplicateGroup: string | null
+  setHoveredDuplicateGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   addLayer: () => void
   layerNameOptions: MultiOption[]
@@ -22,7 +24,7 @@ type Props = {
   setExpandedLayerKeywords: Dispatch<SetStateAction<Record<number, boolean>>>
 }
 
-export function LayersSection({ activeFrame, materialColors, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
+export function LayersSection({ activeFrame, materialColors, hoveredRemoveGroup, setHoveredRemoveGroup, hoveredDuplicateGroup, setHoveredDuplicateGroup, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
   const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
@@ -41,8 +43,8 @@ export function LayersSection({ activeFrame, materialColors, hoveredRemoveGroup,
       </div>
 
       {activeFrame.layers.map((layer, layerIndex) => (
-        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-          <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
+        <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `layer-${layerIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+          <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
           <div className="grid gap-3">
             <Field label={t('layerName', { n: layerIndex + 1 })} jsonPath={`layers[${layerIndex}].name`}>

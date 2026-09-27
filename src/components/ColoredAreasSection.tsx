@@ -10,6 +10,8 @@ type Props = {
   activeFrame: FrameConfig
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
+  hoveredDuplicateGroup: string | null
+  setHoveredDuplicateGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   materialColors: Record<string, string>
 }
@@ -22,7 +24,7 @@ const toBound = (value: number): number | null => (Number.isFinite(value) ? valu
 const segmentClassName = (active: boolean) =>
   `rounded-md px-3 py-1 text-sm transition-colors ${active ? 'bg-violet-600 text-white' : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800'}`
 
-export function ColoredAreasSection({ activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, materialColors }: Props) {
+export function ColoredAreasSection({ activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, hoveredDuplicateGroup, setHoveredDuplicateGroup, patchActiveFrame, materialColors }: Props) {
   const { t } = useI18n()
   // The backend only reads the ranges of the frame's x and y quantity.
   const rangeAxes = [activeFrame.xQuantity, activeFrame.yQuantity].filter((axis, index, all): axis is string => Boolean(axis) && all.indexOf(axis) === index)
@@ -62,8 +64,8 @@ export function ColoredAreasSection({ activeFrame, hoveredRemoveGroup, setHovere
         const usesAxes = area.axes !== undefined
         const pointCount = Math.max(area.x.length, area.y.length)
         return (
-          <div key={areaIndex} className={`relative grid gap-3 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-            <DuplicateIconButton onClick={() => patchActiveFrame((f) => (
+          <div key={areaIndex} className={`relative grid gap-3 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `area-${areaIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `area-${areaIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+            <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `area-${areaIndex}` : null)} onClick={() => patchActiveFrame((f) => (
               { ...f, coloredAreas: [...f.coloredAreas.slice(0, areaIndex + 1), structuredClone(f.coloredAreas[areaIndex]), ...f.coloredAreas.slice(areaIndex + 1)] }))} />
             <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `area-${areaIndex}` : null)} onClick={() => patchActiveFrame((f) => (
               { ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))} />

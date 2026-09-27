@@ -12,6 +12,8 @@ type Props = {
   patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
+  hoveredDuplicateGroup: string | null
+  setHoveredDuplicateGroup: (value: string | null) => void
   addAxis: () => void
   removeAxis: (index: number) => void
   updateAxis: (index: number, updater: (axis: AxisConfig) => AxisConfig) => void
@@ -25,6 +27,8 @@ export function AxesSection({
   patchActiveDataframe,
   hoveredRemoveGroup,
   setHoveredRemoveGroup,
+  hoveredDuplicateGroup,
+  setHoveredDuplicateGroup,
   addAxis,
   removeAxis,
   updateAxis,
@@ -48,10 +52,13 @@ export function AxesSection({
           className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-2 pr-15 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${
             hoveredRemoveGroup === `axis-${axisIndex}`
               ? 'border-red-500'
-              : 'border-zinc-300 dark:border-zinc-700'
+              : hoveredDuplicateGroup === `axis-${axisIndex}`
+                ? 'border-blue-500'
+                : 'border-zinc-300 dark:border-zinc-700'
           }`}
         >
           <DuplicateIconButton
+            onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `axis-${axisIndex}` : null)}
             onClick={() => patchActiveDataframe((df) => ({
               ...df,
               axes: [

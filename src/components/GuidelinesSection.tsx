@@ -12,6 +12,8 @@ type Props = {
   activeFrame: FrameConfig
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
+  hoveredDuplicateGroup: string | null
+  setHoveredDuplicateGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   updateGuideline: (guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig) => void
   addGuideline: () => void
@@ -20,7 +22,7 @@ type Props = {
 
 const LINE_STYLE_OPTIONS = ['-', '--', '-.', ':', 'None']
 
-export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, updateGuideline, addGuideline, materialColors }: Props) {
+export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, hoveredDuplicateGroup, setHoveredDuplicateGroup, patchActiveFrame, updateGuideline, addGuideline, materialColors }: Props) {
   const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
@@ -29,8 +31,8 @@ export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveG
         <Button variant="outline" size="sm" onClick={addGuideline}>+ {t('guideline')}</Button>
       </div>
       {activeFrame.guidelines.map((guideline, guidelineIndex) => (
-        <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-3 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-          <DuplicateIconButton onClick={() => patchActiveFrame((f) => (
+        <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-3 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `guideline-${guidelineIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+          <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (
             { ...f, guidelines: [...f.guidelines.slice(0, guidelineIndex + 1), structuredClone(f.guidelines[guidelineIndex]), ...f.guidelines.slice(guidelineIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (
             { ...f, guidelines: f.guidelines.filter((_, i) => i !== guidelineIndex) }))} />

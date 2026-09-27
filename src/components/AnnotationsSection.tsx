@@ -48,11 +48,13 @@ type Props = {
   activeFrame: FrameConfig
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
+  hoveredDuplicateGroup: string | null
+  setHoveredDuplicateGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   materialColors: Record<string, string>
 }
 
-export function AnnotationsSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, materialColors }: Props) {
+export function AnnotationsSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, hoveredDuplicateGroup, setHoveredDuplicateGroup, patchActiveFrame, materialColors }: Props) {
   const { t } = useI18n()
   const patchAnnotation = (annotationIndex: number, patch: (annotation: AnnotationConfig) => AnnotationConfig) =>
     patchActiveFrame((f) => {
@@ -92,8 +94,8 @@ export function AnnotationsSection({ activeDataframe, activeFrame, hoveredRemove
       </Field>
 
       {activeFrame.annotations.map((annotation, annotationIndex) => annotationIndex === 0 ? null : (
-        <div key={annotationIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-4  ${hoveredRemoveGroup === `annotation-${annotationIndex}` ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-          <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations.slice(0, annotationIndex + 1), structuredClone(f.annotations[annotationIndex]), ...f.annotations.slice(annotationIndex + 1)] }))} />
+        <div key={annotationIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-4  ${hoveredRemoveGroup === `annotation-${annotationIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `annotation-${annotationIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
+          <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `annotation-${annotationIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations.slice(0, annotationIndex + 1), structuredClone(f.annotations[annotationIndex]), ...f.annotations.slice(annotationIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `annotation-${annotationIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.filter((_, i) => i !== annotationIndex) }))} />
           <Field label={t('textLabel')} jsonPath={`annotations[${annotationIndex}].text.name`}>
             {activeDataframe.plotLanguages.map((lang) => (
