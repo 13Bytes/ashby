@@ -1,7 +1,7 @@
-import type { AnnotationConfig, FrameConfig } from '../config/defaultPlotConfig'
+import type { AnnotationConfig, DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
-import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS } from '../utils/configEditing'
+import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS, getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
 import { ColorOrMaterialInput, DuplicateIconButton, Field, RemoveIconButton, SectionHeading } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -44,6 +44,7 @@ const DEFAULT_MARKER: AnnotationMarker = { color: 'default', markerSymbol: 'o', 
 const DEFAULT_ARROW: AnnotationArrow = { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }
 
 type Props = {
+  activeDataframe: DataframeConfig
   activeFrame: FrameConfig
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
@@ -51,7 +52,7 @@ type Props = {
   materialColors: Record<string, string>
 }
 
-export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, materialColors }: Props) {
+export function AnnotationsSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, patchActiveFrame, materialColors }: Props) {
   const { t } = useI18n()
   const patchAnnotation = (annotationIndex: number, patch: (annotation: AnnotationConfig) => AnnotationConfig) =>
     patchActiveFrame((f) => {
@@ -95,7 +96,15 @@ export function AnnotationsSection({ activeFrame, hoveredRemoveGroup, setHovered
           <DuplicateIconButton onClick={() => patchActiveFrame((f) => ({ ...f, annotations: [...f.annotations.slice(0, annotationIndex + 1), structuredClone(f.annotations[annotationIndex]), ...f.annotations.slice(annotationIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `annotation-${annotationIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, annotations: f.annotations.filter((_, i) => i !== annotationIndex) }))} />
           <Field label={t('textLabel')} jsonPath={`annotations[${annotationIndex}].text.name`}>
-            <Input value={annotation.text?.name ?? ''} onChange={(e) => patchText(annotationIndex, { name: e.target.value })} />
+            {activeDataframe.plotLanguages.map((lang) => (
+              <div key={`annotation-${annotationIndex}-label-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2">
+                <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
+                <Input
+                  value={getLocalizedLabel(annotation.text?.name ?? '', lang)}
+                  onChange={(e) => patchText(annotationIndex, { name: setLocalizedLabel(annotation.text?.name ?? '', lang, e.target.value, activeDataframe.plotLanguages) })}
+                />
+              </div>
+            ))}
           </Field>
           <Field label={t('textOffsetX')} jsonPath={`annotations[${annotationIndex}].text.rel_pos[0]`}>
             <Input type="number" value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[0] ?? 0), annotation.text?.relPos?.[1] ?? 0] })} />

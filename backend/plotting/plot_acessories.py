@@ -185,21 +185,22 @@ class marker:
             font_size = text.get('font_size', self.font_size)
             color = Format_Storage.get_color(text.get('color','default'))
             arrow = annotation.get('arrow', None)
+            label = Format_Storage.language_text(text.get('name',""))
             # print("label pos:", plot_size.x.offset(text['rel_pos'][0], values[0]) , plot_size.y.offset(text['rel_pos'][1], values[1]))
             x = Plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
             y = Plot_size.x.offset(values[1], text.get('rel_pos', [0,0])[1])
-            if arrow == None:           # ~ Label 
+            if arrow == None:           # ~ Label
                 self.ax.text(
                     x        = x,
                     y        = y,
-                    s        = text.get('name',""),
+                    s        = label,
                     color    = color,
                     fontsize = self.font_size,
                     ha       = "center"
                 )
-            else:                        # ~ Arrow 
+            else:                        # ~ Arrow
                 self.ax.annotate(
-                    text       = text.get('name',""),
+                    text       = label,
                     xy         = values,
                     xytext     = [x, y],
                     color      = color,
@@ -207,7 +208,7 @@ class marker:
                     arrowprops = annotation['arrow'],
                     # kwargs   = {'ha': 'center'}
                 )
-            print(f"marker: {text['name']} @ [{x}|{y}]")
+            print(f"marker: {label} @ [{x}|{y}]")
 
 
     
