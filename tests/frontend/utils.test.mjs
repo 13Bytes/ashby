@@ -26,7 +26,7 @@ import { addAnnotationToFrame, generateMaterialColorsForDataframe, getLocalizedL
 import { findExternalFrameOffset, parseImportedConfig, parseJsonField, toExternalConfig } from '../../src/utils/configIo.ts'
 import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
-import { createConfigSync, getWorkspaceId } from '../../src/utils/tabSync.ts'
+import { createConfigSync, getUrlWorkspaceId, getWorkspaceId } from '../../src/utils/tabSync.ts'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails } from '../../src/utils/backendErrors.ts'
 import { addLogEntry, clearLog, formatLogEntry, getLogState } from '../../src/utils/debugLog.ts'
 import { parseUIThemePreference, resolveUITheme } from '../../src/utils/uiTheme.ts'
@@ -326,9 +326,9 @@ test('config sync only delivers messages from other tabs of the same workspace',
     return channel
   }
   const received = { a: [], b: [], other: [] }
-  const a = createConfigSync((config) => received.a.push(config), 'workspace-1', createChannel)
-  createConfigSync((config) => received.b.push(config), 'workspace-1', createChannel)
-  createConfigSync((config) => received.other.push(config), 'workspace-2', createChannel)
+  const a = createConfigSync((config) => received.a.push(config), () => null, 'workspace-1', createChannel)
+  createConfigSync((config) => received.b.push(config), () => null, 'workspace-1', createChannel)
+  createConfigSync((config) => received.other.push(config), () => null, 'workspace-2', createChannel)
 
   a.publish('{"version":1}')
   assert.deepEqual(received, { a: [], b: ['{"version":1}'], other: [] })
@@ -337,9 +337,44 @@ test('config sync only delivers messages from other tabs of the same workspace',
   assert.equal(channels.length, 2)
 })
 
+test('a tab that starts empty gets the current config from the other tabs of its workspace', () => {
+  const channels = []
+  const createChannel = () => {
+    const channel = {
+      onmessage: null,
+      postMessage: (data) => channels.filter((other) => other !== channel).forEach((other) => other.onmessage?.({ data })),
+      close: () => {},
+    }
+    channels.push(channel)
+    return channel
+  }
+  const received = { duplicate: [], original: [], other: [] }
+  createConfigSync((config) => received.original.push(config), () => '{"from":"original"}', 'workspace-1', createChannel)
+  createConfigSync((config) => received.other.push(config), () => '{"from":"other"}', 'workspace-2', createChannel)
+  const duplicate = createConfigSync((config) => received.duplicate.push(config), () => null, 'workspace-1', createChannel)
+
+  duplicate.requestConfig()
+  // Only the tab of the same workspace answers; its answer also reaches nobody else in another workspace.
+  assert.deepEqual(received, { duplicate: ['{"from":"original"}'], original: [], other: [] })
+})
+
+test('the workspace id comes from sessionStorage, else from the URL, else it is new', () => {
+  const storage = () => {
+    const store = new Map()
+    return { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) }
+  }
+  const fromUrl = storage()
+  assert.equal(getWorkspaceId(fromUrl, '?dataframe=0&workspace=abcdef12-3456'), 'abcdef12-3456')
+  assert.equal(getWorkspaceId(fromUrl, '?workspace=another-workspace-id'), 'abcdef12-3456')
+  assert.notEqual(getWorkspaceId(storage(), '?workspace=bad id!'), 'bad id!')
+  assert.equal(getUrlWorkspaceId('?workspace=short'), null)
+  assert.equal(getUrlWorkspaceId(''), null)
+})
+
 test('config sync is a no-op without BroadcastChannel support', () => {
-  const sync = createConfigSync(() => assert.fail('no messages expected'), 'workspace-1', () => null)
+  const sync = createConfigSync(() => assert.fail('no messages expected'), () => '{}', 'workspace-1', () => null)
   sync.publish('{}')
+  sync.requestConfig()
   sync.close()
 })
 

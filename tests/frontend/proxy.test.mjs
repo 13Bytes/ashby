@@ -2,7 +2,7 @@
 // identifiers, endpoints and translation keys rather than UI text, so wording changes and
 // translations do not break them. Behavior of the pure modules is covered in utils.test.mjs.
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -136,4 +136,30 @@ test('middle click on a dataset or plot opens a synced tab on auxclick, which Fi
   assert.equal(tabs.match(/\.\.\.middleClickOpens\(\(\) => openTabWithSelection\(/g)?.length, 2)
   // No 'noopener': the new tab must inherit the sessionStorage (config and workspace id).
   assert.match(app, /window\.open\(`\$\{window\.location\.pathname\}\?\$\{params\.toString\(\)\}`, '_blank'\)/)
+})
+
+test('the app loads nothing from other servers: no web fonts, CDNs or trackers', async () => {
+  const files = (await readdir(path.join(projectDir, 'src'), { recursive: true }))
+    .filter((file) => /\.(tsx?|css|html)$/.test(file))
+    .map((file) => path.join('src', file))
+  files.push('index.html')
+  // Plain links the user can click (About dialog) are fine; they load nothing by themselves.
+  const allowedLinks = ['https://aerospace-lab.de/repolysat/', 'https://github.com/walgren/Ashby-plots', 'https://github.com/afffe18', 'https://github.com/13Bytes']
+  for (const file of files) {
+    const source = await readFile(path.join(projectDir, file), 'utf8')
+    assert.doesNotMatch(source, /@font-face|@import\s+url|fonts\.googleapis|fonts\.gstatic|<link[^>]+href=["']https?:|<script[^>]+src=["']https?:/, file)
+    for (const url of source.match(/https?:\/\/[^\s'"`)<>]+/g) ?? []) {
+      if (url.startsWith('http://www.w3.org/')) continue
+      assert.ok(allowedLinks.includes(url), `${file}: unexpected external URL ${url}`)
+    }
+  }
+})
+
+test('a duplicated tab without sessionStorage joins its workspace from the URL and asks the other tabs for the config', async () => {
+  const app = await readSource('App.tsx')
+
+  assert.match(app, /params\.set\(WORKSPACE_URL_PARAM, workspaceId\)/)
+  assert.match(app, /if \(startedEmpty && getUrlWorkspaceId\(initialSearch\) === workspaceId\) \{/)
+  assert.match(app, /sync\.requestConfig\(\)/)
+  assert.match(app, /\(\) => lastSyncedConfigRef\.current, workspaceId\)/)
 })

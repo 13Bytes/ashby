@@ -18,7 +18,7 @@ import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
 import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile, toMemoryFile } from './utils/datasourceStorage'
-import { createConfigSync, type ConfigSync } from './utils/tabSync'
+import { createConfigSync, getUrlWorkspaceId, getWorkspaceId, WORKSPACE_URL_PARAM, type ConfigSync } from './utils/tabSync'
 import { BackendError, fetchBackend, isForeignServerResponse, toErrorDetails } from './utils/backendErrors'
 import { addLogEntry } from './utils/debugLog'
 import { SETTINGS_SECTIONS, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
@@ -74,8 +74,22 @@ function readStoredPlotConfig(): PlotConfig {
   return normalizePlotConfig()
 }
 
+/** True when this tab starts without its own config (a new tab, or a duplicate that got no sessionStorage). */
+function startsWithoutStoredConfig(): boolean {
+  try {
+    return !window.sessionStorage.getItem(CONFIG_STORAGE_KEY)
+  } catch {
+    return true
+  }
+}
+
 function App() {
+  // Read before the first save, which stores the config of this tab.
+  const [startedEmpty] = useState(startsWithoutStoredConfig)
   const [plotConfig, setPlotConfig] = useState<PlotConfig>(readStoredPlotConfig)
+  const [workspaceId] = useState(() => getWorkspaceId())
+  // The URL as the tab was opened with; effects rewrite it with the current selection.
+  const [initialSearch] = useState(() => window.location.search)
   const [configBaseName, setConfigBaseName] = useState('ashby-config')
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
@@ -130,6 +144,8 @@ function App() {
   const { t } = i18n
   const configSyncRef = useRef<ConfigSync | null>(null)
   const lastSyncedConfigRef = useRef<string | null>(null)
+  /** Plot selection from the URL of a duplicated tab, applied once the config of the other tabs arrives. */
+  const pendingSelectionRef = useRef<{ dataframe: number; frame: number } | null>(null)
   const activeDataframeKey = getUiKey(activeDataframe, 'dataframe')
   const activeImportedSource = importedSources[activeDataframeKey]
   const availableColumns = useMemo(() => activeImportedSource?.columns ?? [], [activeImportedSource])
@@ -261,7 +277,8 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeDataframeIndex])
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
+    // The URL the tab was opened with: in development effects run twice and the URL is rewritten in between.
+    const params = new URLSearchParams(initialSearch)
     const df = Number(params.get('dataframe'))
     const frame = Number(params.get('frame'))
     if (Number.isInteger(df) && df >= 0) {
@@ -270,7 +287,7 @@ function App() {
     if (Number.isInteger(frame) && frame >= 0) {
       setActiveFrameIndex(frame)
     }
-  }, [])
+  }, [initialSearch])
   // Live sync with tabs of the same workspace (see utils/tabSync.ts).
   useEffect(() => {
     const sync = createConfigSync((serialized) => {
@@ -279,16 +296,30 @@ function App() {
         // Remember what we received so the save effect below does not echo it back.
         lastSyncedConfigRef.current = JSON.stringify(toExternalConfig(next))
         setPlotConfig(next)
+        // The first config of a duplicated tab: select the plot its URL names.
+        const selection = pendingSelectionRef.current
+        if (selection) {
+          pendingSelectionRef.current = null
+          const dataframeIndex = Math.min(selection.dataframe, next.dataframes.length - 1)
+          setActiveDataframeIndex(dataframeIndex)
+          setActiveFrameIndex(Math.min(selection.frame, next.dataframes[dataframeIndex].frames.length - 1))
+        }
       } catch {
         // ignore malformed messages
       }
-    })
+    }, () => lastSyncedConfigRef.current, workspaceId)
     configSyncRef.current = sync
+    // A duplicated tab without sessionStorage knows its workspace only from the URL: fetch the config.
+    if (startedEmpty && getUrlWorkspaceId(initialSearch) === workspaceId) {
+      const params = new URLSearchParams(initialSearch)
+      pendingSelectionRef.current = { dataframe: Math.max(0, Number(params.get('dataframe')) || 0), frame: Math.max(0, Number(params.get('frame')) || 0) }
+      sync.requestConfig()
+    }
     return () => {
       sync.close()
       configSyncRef.current = null
     }
-  }, [])
+  }, [initialSearch, startedEmpty, workspaceId])
   useEffect(() => {
     const serialized = JSON.stringify(toExternalConfig(plotConfig))
     try {
@@ -326,8 +357,9 @@ function App() {
     const params = new URLSearchParams(window.location.search)
     params.set('dataframe', String(activeDataframeIndex))
     params.set('frame', String(activeFrameIndex))
+    params.set(WORKSPACE_URL_PARAM, workspaceId)
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
-  }, [activeDataframeIndex, activeFrameIndex])
+  }, [activeDataframeIndex, activeFrameIndex, workspaceId])
   useEffect(() => {
     if (!alert) return
     const timeout = window.setTimeout(() => setAlert(null), 15000)
