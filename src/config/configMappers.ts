@@ -142,7 +142,9 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
         fontSize: coerceOptionalNumber(annotation.fontSize ?? annotation.font_size),
         text: text
           ? {
-            name: typeof text.name === 'string' ? text.name : '',
+            name: typeof text.name === 'string'
+              ? text.name
+              : isRecord(text.name) ? coerceStringRecord(text.name) : '',
             relPos: coerceNumberPair(text.relPos ?? text.rel_pos, [0, 0]),
             color: typeof text.color === 'string' ? text.color : '#111827',
             fontSize: coerceOptionalNumber(text.fontSize ?? text.font_size),
@@ -290,7 +292,6 @@ const normalizeFrame = (
     darkMode: coerceOptionalBool(partial.darkMode ?? partial.dark_mode),
     legendAbove: coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
-    exportFileName: asOptionalString(partial.exportFileName ?? partial.export_file_name),
     xQuantity:
       typeof (partial.xQuantity ?? partial.x_quantity) === 'string'
         ? String(partial.xQuantity ?? partial.x_quantity)

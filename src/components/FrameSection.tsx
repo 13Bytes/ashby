@@ -59,9 +59,6 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, p
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <SectionHeading className="sm:col-span-2" title={t('frame')} />
       <div className="grid gap-3 dark:border-zinc-800 dark:bg-transparent sm:col-span-2 sm:grid-cols-4">
-        <Field selfClassName="sm:col-span-2" label={t('exportFileName')} jsonPath="frames[j].export_file_name">
-          <Input value={activeFrame.exportFileName ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, exportFileName: e.target.value || undefined }))} />
-        </Field>
         <Field label={t('algorithm')} jsonPath="frames[j].algorithm">
           <Select value={activeFrame.algorithm} onChange={(e) => patchActiveFrame((c) => ({ ...c, algorithm: e.target.value as FrameConfig['algorithm'] }))}>
             {PLOT_ALGORITHMS.map((a) => <option key={a} value={a}>{a}</option>)}

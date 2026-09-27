@@ -56,7 +56,6 @@ export interface FrameConfig {
   darkMode?: boolean
   legendAbove: boolean | null
   language: string
-  exportFileName?: string
   xQuantity?: string
   xRelQuantity?: string
   logXFlag: boolean
@@ -107,7 +106,8 @@ export interface AnnotationConfig {
   markerSize?: number
   fontSize?: number
   text?: {
-    name: string
+    /** Plain string or per-language labels (see PLACEHOLDER_LABEL in the backend docs). */
+    name: string | Record<string, string>
     relPos: [number, number]
     color: string
     fontSize?: number

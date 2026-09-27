@@ -22,7 +22,6 @@ interface RenderedPlotEntry {
   url: string
   blob: Blob
   mediaType: string
-  exportFileName?: string
 }
 
 function parseBackendMessages(headerValue: string | null): string[] {
@@ -114,8 +113,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
 
   const getDownloadName = (entry: RenderedPlotEntry) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
-    const base = entry.exportFileName?.trim() || `ashby-df${entry.dataframeIndex + 1}-frame${entry.frameIndex + 1}`
-    return `${base}.${extension}`
+    const dataframeName = plotConfig.dataframes[entry.dataframeIndex]?.name?.trim() || `Dataframe${entry.dataframeIndex + 1}`
+    const frameName = plotConfig.dataframes[entry.dataframeIndex]?.frames[entry.frameIndex]?.name?.trim() || `Frame${entry.frameIndex + 1}`
+    return `${dataframeName}_${frameName}.${extension}`
   }
 
   const plotLabel = (dataframeIndex: number, frameIndex: number) => t('plotLabel', { df: dataframeIndex + 1, frame: frameIndex + 1 })
@@ -187,9 +187,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
             URL.revokeObjectURL(existing.url)
           }
           const rest = current.filter((entry) => !(entry.dataframeIndex === dataframeIndex && entry.frameIndex === frameIndex))
-          const exportFileName = plotConfig.dataframes[dataframeIndex]?.frames[frameIndex]?.exportFileName
           // Own URL per entry: the preview URL is revoked when the preview changes.
-          return [...rest, { dataframeIndex, frameIndex, url: URL.createObjectURL(imageBlob), blob: imageBlob, mediaType: imageBlob.type, exportFileName }]
+          return [...rest, { dataframeIndex, frameIndex, url: URL.createObjectURL(imageBlob), blob: imageBlob, mediaType: imageBlob.type }]
         })
       }
       return null

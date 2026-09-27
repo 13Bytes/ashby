@@ -36,15 +36,18 @@ export const updateGuidelineInFrame = (frame: FrameConfig, guidelineIndex: numbe
   guidelines: frame.guidelines.map((guideline, index) => (index === guidelineIndex ? patch(guideline) : guideline)),
 })
 
+/** A label that is either a plain string (applies to every language) or a per-language dict. */
+type LocalizableLabel = string | Record<string, string>
+
 /** Returns the label for one language; a plain-string label applies to every language. */
-export const getLocalizedLabel = (label: GuidelineConfig['label'], language: string): string =>
+export const getLocalizedLabel = (label: LocalizableLabel, language: string): string =>
   typeof label === 'string' ? label : label[language] ?? ''
 
 /**
  * Sets the label for one language. The result always contains every plot language, because the
  * backend fails when a label dict lacks the active plot language.
  */
-export const setLocalizedLabel = (label: GuidelineConfig['label'], language: string, value: string, languages: string[]): Record<string, string> => {
+export const setLocalizedLabel = (label: LocalizableLabel, language: string, value: string, languages: string[]): Record<string, string> => {
   const next: Record<string, string> = typeof label === 'string' ? {} : { ...label }
   for (const lang of languages) {
     next[lang] ??= getLocalizedLabel(label, lang)
