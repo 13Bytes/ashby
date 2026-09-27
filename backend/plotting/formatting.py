@@ -30,6 +30,7 @@ class format_storage():
 
     def language_text(self, label:dict|str,) -> str:
         '''retrieves the label in the correct language'''
+        label_ = label
         if isinstance(label, dict):
             label_ = label.get(self.language, False)
             if label_ == False:

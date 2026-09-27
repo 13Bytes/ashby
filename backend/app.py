@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import base64
 import io
 import sys
 import zipfile
@@ -29,11 +30,11 @@ if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
     from backend import import_data as import_data_module
     from backend.import_data import teable as teable_api
-    from backend.plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
+    from backend.plot_renderer import PlotRenderError, RequestDataSource, describe_exception, render_plot_image
 else:
     from . import import_data as import_data_module
     from .import_data import teable as teable_api
-    from .plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
+    from .plot_renderer import PlotRenderError, RequestDataSource, describe_exception, render_plot_image
 
 app = FastAPI(title='Ashby Backend API')
 
@@ -42,6 +43,8 @@ class RenderPlotRequest(BaseModel):
     config: dict[str, Any]
     dataframe_index: int = 0
     frame_index: int = 0
+    # When true, a successful render is returned as JSON with the base64 image and the plot log.
+    include_log: bool = False
 
 
 class DownloadPlotItem(BaseModel):
@@ -185,9 +188,17 @@ async def render_plot(request: Request) -> Response:
             data_sources=data_sources,
         )
     except PlotRenderError as exc:
-        return JSONResponse({'message': str(exc), 'messages': exc.messages}, status_code=400)
+        return JSONResponse({**exc.details, 'message': str(exc), 'messages': exc.messages}, status_code=400)
     except Exception as exc:
-        return JSONResponse({'message': str(exc), 'messages': []}, status_code=400)
+        return JSONResponse({**describe_exception(exc), 'messages': []}, status_code=400)
+
+    if payload.include_log:
+        return JSONResponse({
+            'image': base64.b64encode(rendered_plot.content).decode('ascii'),
+            'media_type': rendered_plot.media_type,
+            'messages': rendered_plot.messages,
+            'log': rendered_plot.log,
+        })
 
     response = Response(content=rendered_plot.content, media_type=rendered_plot.media_type)
     if rendered_plot.messages:
@@ -201,17 +212,21 @@ async def download_plots(request: Request) -> Response:
         payload_data, data_sources = await _parse_plot_request(request)
         payload = DownloadPlotsRequest(**payload_data)
     except Exception as exc:
-        return JSONResponse({'message': str(exc), 'messages': []}, status_code=400)
+        return JSONResponse({**describe_exception(exc), 'messages': []}, status_code=400)
 
     output = io.BytesIO()
     with zipfile.ZipFile(output, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
         for plot in payload.plots:
-            rendered_plot = render_plot_image(
-                payload.config,
-                dataframe_index=plot.dataframe_index,
-                frame_index=plot.frame_index,
-                data_sources=data_sources,
-            )
+            try:
+                rendered_plot = render_plot_image(
+                    payload.config,
+                    dataframe_index=plot.dataframe_index,
+                    frame_index=plot.frame_index,
+                    data_sources=data_sources,
+                )
+            except PlotRenderError as exc:
+                label = f'dataframe {plot.dataframe_index + 1}, frame {plot.frame_index + 1}'
+                return JSONResponse({**exc.details, 'message': f'{label}: {exc}', 'messages': exc.messages}, status_code=400)
             dataframe = payload.config.get('dataframes', [])[plot.dataframe_index]
             frame = dataframe.get('frames', [])[plot.frame_index] if isinstance(dataframe, dict) else {}
             dataframe_name = (dataframe.get('name') if isinstance(dataframe, dict) else None) or f'Dataframe{plot.dataframe_index + 1}'
@@ -245,7 +260,7 @@ async def import_database(
             try:
                 columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name_json, int(import_sheet_json))
             except Exception as error:
-                return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+                return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
             return JSONResponse({
                 'success': True,
                 'columns': columns,
@@ -260,7 +275,7 @@ async def import_database(
             try:
                 columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name, import_sheet)
             except Exception as error:
-                return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+                return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
             return JSONResponse({
                 'success': True,
                 'columns': columns,
@@ -276,7 +291,7 @@ async def import_database(
     try:
         columns, keywords_by_column, sheet_names = _extract_metadata_from_xlsx(file_bytes, import_sheet)
     except Exception as error:
-        return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+        return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
 
     return JSONResponse({
         'success': True,

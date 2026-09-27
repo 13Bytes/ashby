@@ -19,6 +19,8 @@ import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
 import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile } from './utils/datasourceStorage'
 import { createConfigSync, type ConfigSync } from './utils/tabSync'
+import { BackendError, fetchBackend, toErrorDetails } from './utils/backendErrors'
+import { addLogEntry } from './utils/debugLog'
 
 type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
@@ -406,11 +408,14 @@ function App() {
     const selectedDataframe = activeDataframe
     const selectedDataframeKey = activeDataframeKey
     const selectedSourceMode = getSourceMode(selectedDataframe, availableDatasets ?? [])
+    const sourceLabel = selectedSourceMode === 'teable' ? 'Teable' : selectedSourceMode === 'dataset' ? t('datasetName') : 'Excel'
+    const logTitle = `${sourceLabel}: ${file?.name ?? (selectedSourceMode === 'teable' ? selectedDataframe.teableUrl : selectedDataframe.importFileName) ?? '–'}`
+    const startedAt = performance.now()
     try {
       if (selectedSourceMode === 'dataset' && !selectedDataframe.importFileName) {
         throw new Error(t('selectDatasetFirst'))
       }
-      const response = await fetch('/api/import-database', {
+      const response = await fetchBackend('/api/import-database', {
         method: 'POST',
         headers: selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
         body:
@@ -435,10 +440,12 @@ function App() {
               form.append('import_sheet', String(selectedDataframe.importSheet))
               return form
             })(),
-      })
+      }, t('backendUnreachable'))
       const payload = (await response.json().catch(() => ({}))) as ImportDatabaseResponse
       if (!response.ok || payload.success === false) {
-        throw new Error(payload.message || t('importFailed', { status: response.status }))
+        // The dev proxy answers 502–504 without a body when the backend is down.
+        const unreachable = !payload.message && [502, 503, 504].includes(response.status)
+        throw new BackendError({ message: payload.message || (unreachable ? t('backendUnreachable') : t('importFailed', { status: response.status })), messages: [], status: response.status })
       }
       const columns = parseColumnsFromImportResult(payload.columns)
       const keywordsByColumn = payload.keywords_by_column ?? {}
@@ -500,19 +507,19 @@ function App() {
         ...current,
         [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames },
       }))
-      const sourceLabel = selectedSourceMode === 'teable' ? 'Teable' : selectedSourceMode === 'dataset' ? t('datasetName') : 'Excel'
       const messageParts = [
         columns.length > 0 ? t('importSuccessColumns', { source: sourceLabel, count: columns.length }) : t('importSuccess', { source: sourceLabel }),
         payload.message ?? '',
         unknownColumns.size > 0 ? t('unavailableColumnsRemoved', { columns: [...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ') }) : '',
         cachingFailed ? t('datasourceNotCached') : '',
       ]
-      setAlert({ tone: 'success', message: messageParts.filter(Boolean).join(' ') })
+      const successMessage = messageParts.filter(Boolean).join(' ')
+      setAlert({ tone: 'success', message: successMessage })
+      addLogEntry({ level: unknownColumns.size > 0 || cachingFailed ? 'warning' : 'info', source: 'import', title: logTitle, message: successMessage, status: response.status, durationMs: Math.round(performance.now() - startedAt) })
     } catch (error) {
-      setAlert({
-        tone: 'error',
-        message: error instanceof Error ? error.message : t('importFailedGeneric'),
-      })
+      const details = toErrorDetails(error, t('importFailedGeneric'))
+      addLogEntry({ level: 'error', source: 'import', title: logTitle, ...details, durationMs: Math.round(performance.now() - startedAt) })
+      setAlert({ tone: 'error', message: details.message })
     } finally {
       setImportInProgress(false)
     }
@@ -606,8 +613,10 @@ function App() {
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setImportedSources({})
       setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
-    } catch {
-      setAlert({ tone: 'error', message: t('invalidConfigFile') })
+    } catch (error) {
+      const details = toErrorDetails(error, t('invalidConfigFile'))
+      addLogEntry({ level: 'error', source: 'config', title: file.name, ...details })
+      setAlert({ tone: 'error', message: t('invalidConfigFileDetails', { error: details.message }) })
     } finally {
       event.target.value = ''
     }
@@ -690,8 +699,10 @@ function App() {
       setPlotConfig(normalizePlotConfig(parseImportedConfig(jsonDraft, true)))
       setAlert({ tone: 'success', message: t('jsonApplied') })
       setShowJson(false)
-    } catch {
-      setAlert({ tone: 'error', message: t('jsonInvalid') })
+    } catch (error) {
+      const details = toErrorDetails(error, t('jsonInvalid'))
+      addLogEntry({ level: 'error', source: 'config', title: t('jsonEditor'), ...details })
+      setAlert({ tone: 'error', message: t('jsonInvalidDetails', { error: details.message }) })
     }
   }
   const clearStoredDatasourceFiles = async () => {

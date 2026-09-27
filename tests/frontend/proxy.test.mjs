@@ -13,7 +13,8 @@ const readSource = (relativePath) => readFile(path.join(projectDir, 'src', relat
 test('PlotPage requests the render endpoint with the dataframe and frame indices', async () => {
   const source = await readSource('components/PlotPage.tsx')
 
-  assert.match(source, /fetch\(\s*'\/api\/render-plot'/)
+  assert.match(source, /fetchBackend\(\s*'\/api\/render-plot'/)
+  assert.match(source, /include_log: true/)
   assert.match(source, /dataframe_index:\s*dataframeIndex/)
   assert.match(source, /frame_index:\s*frameIndex/)
   assert.match(source, /URL\.createObjectURL\(imageBlob\)/)

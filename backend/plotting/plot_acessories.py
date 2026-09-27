@@ -177,7 +177,7 @@ class marker:
                             c = Format_Storage.get_color(marker['color']),
                             marker = marker.get('marker_symbol','o'),
                             s = self.marker_size * marker.get('size_factor', 1),
-                            edgecolors = self.get_color(marker.get('edgecolors',"black")),
+                            edgecolors = Format_Storage.get_color(marker.get('edgecolors',"black")),
                             linewidths = marker.get('linewidths', 0)
                         )
 

@@ -140,7 +140,10 @@ export function MultiSelectInput({
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const expandedRef = useRef(expanded)
-  expandedRef.current = expanded
+  // Read by the ResizeObserver callback below; refs must not be written during render.
+  useEffect(() => {
+    expandedRef.current = expanded
+  }, [expanded])
   const [overflowsWhenCollapsed, setOverflowsWhenCollapsed] = useState(false)
   const [fitHeight, setFitHeight] = useState<number | undefined>(undefined)
   const normalizedSearch = searchTerm.trim().toLowerCase()

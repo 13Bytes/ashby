@@ -3,6 +3,7 @@ import type { PlotConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { exportConfig } from '../utils/configIo'
 import { Button } from './ui/button'
+import { DebugLogButton } from './DebugLog'
 
 type Props = {
   activePage: 'config' | 'plot'
@@ -110,6 +111,7 @@ export function AppHeader({
             ) : null}
           </div>
 
+          <DebugLogButton />
           <div className="relative">
             <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={openMenu === 'more'} onClick={() => toggleMenu('more')}>
               {t('more')} <span className="ml-2 text-xs" aria-hidden="true">▼</span>

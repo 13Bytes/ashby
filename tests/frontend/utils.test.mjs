@@ -27,6 +27,8 @@ import { findExternalFrameOffset, parseImportedConfig, parseJsonField, toExterna
 import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
 import { createConfigSync, getWorkspaceId } from '../../src/utils/tabSync.ts'
+import { BackendError, fetchBackend, readBackendError, toErrorDetails } from '../../src/utils/backendErrors.ts'
+import { addLogEntry, clearLog, countUnseenErrors, formatLogEntry, getLogState, markLogSeen } from '../../src/utils/debugLog.ts'
 import { parseUIThemePreference, resolveUITheme } from '../../src/utils/uiTheme.ts'
 import { getFieldHelp, parseUILanguage, translate, UI_LABELS } from '../../src/uiTranslations.ts'
 
@@ -339,4 +341,50 @@ test('config sync is a no-op without BroadcastChannel support', () => {
   const sync = createConfigSync(() => assert.fail('no messages expected'), 'workspace-1', () => null)
   sync.publish('{}')
   sync.close()
+})
+
+const MESSAGES = { fallback: 'Render failed.', unreachable: 'Backend unreachable.' }
+
+test('backend errors keep type, location, traceback and log', async () => {
+  const body = { message: "KeyError: 'Material'", error_type: 'KeyError', location: 'plot.py:12 in main', traceback: 'Traceback …', log: 'creating frame', messages: ['WARNING: x'] }
+  const error = await readBackendError(new Response(JSON.stringify(body), { status: 400 }), MESSAGES)
+
+  assert.ok(error instanceof BackendError)
+  assert.deepEqual(error.details, {
+    message: "KeyError: 'Material'", errorType: 'KeyError', location: 'plot.py:12 in main', traceback: 'Traceback …', log: 'creating frame', messages: ['WARNING: x'], status: 400,
+  })
+})
+
+test('proxy errors without a body mean the backend is unreachable', async () => {
+  const error = await readBackendError(new Response('', { status: 502 }), MESSAGES)
+  assert.equal(error.details.message, 'Backend unreachable.')
+
+  const plain = await readBackendError(new Response('Internal Server Error', { status: 500 }), MESSAGES)
+  assert.equal(plain.details.message, 'Internal Server Error')
+})
+
+test('a failed fetch becomes an unreachable-backend error', async () => {
+  await assert.rejects(fetchBackend('http://127.0.0.1:1/api/health', {}, 'Backend unreachable.'), (error) => error instanceof BackendError && error.details.message === 'Backend unreachable.')
+})
+
+test('frontend errors keep their stack as traceback', () => {
+  const details = toErrorDetails(new SyntaxError('Unexpected token'), 'fallback')
+  assert.equal(details.errorType, 'SyntaxError')
+  assert.match(details.traceback, /SyntaxError: Unexpected token/)
+  assert.equal(toErrorDetails('odd', 'fallback').message, 'fallback')
+})
+
+test('the debug log counts unseen errors and formats entries as text', () => {
+  clearLog()
+  addLogEntry({ level: 'info', source: 'render', title: 'Plot 1' })
+  addLogEntry({ level: 'error', source: 'render', title: 'Plot 2', message: 'KeyError', location: 'plot.py:1', log: 'output' })
+  assert.equal(getLogState().entries[0].title, 'Plot 2')
+  assert.equal(countUnseenErrors(getLogState()), 1)
+  markLogSeen()
+  assert.equal(countUnseenErrors(getLogState()), 0)
+
+  const text = formatLogEntry(getLogState().entries[0])
+  assert.match(text, /ERROR render: Plot 2/)
+  assert.match(text, /Location: plot\.py:1/)
+  assert.match(text, /Backend output:\noutput/)
 })

@@ -4,10 +4,12 @@ import os
 import re
 import tempfile
 import logging
+import traceback
 from copy import deepcopy
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import dataclass
 from io import StringIO
+from pathlib import Path
 from typing import Any
 
 import matplotlib
@@ -24,6 +26,7 @@ class RenderedPlot:
     media_type: str
     file_format: str
     messages: list[str]
+    log: str = ''
 
 
 @dataclass
@@ -34,12 +37,50 @@ class RequestDataSource:
 
 
 class PlotRenderError(Exception):
-    def __init__(self, message: str, messages: list[str] | None = None):
+    def __init__(self, message: str, messages: list[str] | None = None, details: dict[str, str] | None = None):
         super().__init__(message)
         self.messages = messages or []
+        # error_type, location, traceback and log, for the frontend's error details and log view
+        self.details = details or {}
 
 
 ANSI_ESCAPE_PATTERN = re.compile(r'\x1b\[[0-9;]*m')
+BACKEND_DIR = Path(__file__).resolve().parent
+MAX_LOG_CHARS = 100_000
+
+
+def clean_log(raw_output: str) -> str:
+    """Captured plot output without color codes; very long logs keep their end."""
+    text = ANSI_ESCAPE_PATTERN.sub('', raw_output)
+    if len(text) > MAX_LOG_CHARS:
+        text = f'… (log truncated, showing the last {MAX_LOG_CHARS} characters)\n' + text[-MAX_LOG_CHARS:]
+    return text
+
+
+def describe_exception(exc: BaseException) -> dict[str, str]:
+    """Type, message, location in the backend code and traceback of an exception.
+
+    The location is the innermost frame in the backend's own files, so an error raised inside a
+    library (e.g. a pandas KeyError) points at the line of our code that triggered it.
+    """
+    frames = traceback.extract_tb(exc.__traceback__)
+    own_frames = [frame for frame in frames if Path(frame.filename).resolve().is_relative_to(BACKEND_DIR)]
+    frame = (own_frames or frames or [None])[-1]
+    location = ''
+    if frame is not None:
+        try:
+            path = Path(frame.filename).resolve().relative_to(BACKEND_DIR).as_posix()
+        except ValueError:
+            path = Path(frame.filename).name
+        location = f'{path}:{frame.lineno} in {frame.name}'
+        if frame.line:
+            location += f': {frame.line.strip()}'
+    return {
+        'error_type': type(exc).__name__,
+        'message': f'{type(exc).__name__}: {exc}',
+        'location': location,
+        'traceback': ''.join(traceback.format_exception(exc)),
+    }
 
 
 def _extract_plot_messages(raw_output: str) -> list[str]:
@@ -118,10 +159,12 @@ def render_plot_image(
                     xlsx_file_bytes=source.content if source and source.kind == 'xlsx' else None,
                 )
         except Exception as exc:
-            raise PlotRenderError(str(exc), _extract_plot_messages(plot_output.getvalue())) from exc
+            details = describe_exception(exc)
+            details['log'] = clean_log(plot_output.getvalue())
+            raise PlotRenderError(details['message'], _extract_plot_messages(plot_output.getvalue()), details) from exc
 
         if not os.path.exists(output_path):
-            raise PlotRenderError('Plot output was not generated.', [])
+            raise PlotRenderError('Plot output was not generated.', _extract_plot_messages(plot_output.getvalue()), {'log': clean_log(plot_output.getvalue())})
 
         with open(output_path, 'rb') as f:
             content = f.read()
@@ -131,4 +174,5 @@ def render_plot_image(
             media_type=media_type,
             file_format=file_format,
             messages=_extract_plot_messages(plot_output.getvalue()),
+            log=clean_log(plot_output.getvalue()),
         )

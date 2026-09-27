@@ -5,6 +5,9 @@ import { Alert } from './ui/alert'
 import { getSourceMode } from '../utils/appState'
 import { Button } from './ui/button'
 import { useI18n, type Translate } from '../uiTranslations'
+import { BackendError, fetchBackend, readBackendError, toErrorDetails, type BackendErrorDetails } from '../utils/backendErrors'
+import { addLogEntry } from '../utils/debugLog'
+import { ErrorDetails } from './DebugLog'
 
 interface Props {
   plotConfig: PlotConfig
@@ -41,7 +44,18 @@ type PlotRequestPayload = {
   config: unknown
   dataframe_index?: number
   frame_index?: number
+  include_log?: boolean
   plots?: Array<{ dataframe_index: number; frame_index: number }>
+}
+
+/** Successful render with `include_log`: the image as base64 plus the plot output. */
+type RenderPlotResponse = { image: string; media_type: string; messages?: string[]; log?: string }
+
+function base64ToBlob(base64: string, mediaType: string): Blob {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return new Blob([bytes], { type: mediaType })
 }
 
 function buildPlotRequest(
@@ -58,7 +72,7 @@ function buildPlotRequest(
     return getSourceMode(dataframe ?? plotConfig.dataframes[0], availableDatasets ?? []) === 'file' && Boolean(dataframe?.importFileName) && datasourceFilesByDataframe[dataframeIndex]?.name !== dataframe.importFileName
   })
   if (missingDataframes.length > 0) {
-    throw new Error(t('reuploadDatasource', { list: missingDataframes.map((index) => index + 1).join(', ') }))
+    throw new BackendError({ message: t('reuploadDatasource', { list: missingDataframes.map((index) => index + 1).join(', ') }), messages: [] })
   }
 
   const datasourceIndices = uniqueIndices.filter((dataframeIndex) => {
@@ -95,14 +109,15 @@ function buildPlotRequest(
   }
 }
 
-type BatchFailure = { dataframeIndex: number; frameIndex: number; message: string }
+type BatchFailure = { dataframeIndex: number; frameIndex: number; details: BackendErrorDetails }
+type PageError = { title: string; details: BackendErrorDetails }
 
 export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets }: Props) {
   const { t } = useI18n()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<PageError | null>(null)
   const [messages, setMessages] = useState<string[]>([])
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null)
   const [isBatchMode, setIsBatchMode] = useState(false)
@@ -121,10 +136,14 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const plotLabel = (dataframeIndex: number, frameIndex: number) => t('plotLabel', { df: dataframeIndex + 1, frame: frameIndex + 1 })
 
   /**
-   * Renders one plot. A single preview shows its error and messages directly; batch renders
-   * (includeInCreated) append messages and return the error, so the batch can list every failure.
+   * Renders one plot and records it in the debug log. A single preview shows its error directly;
+   * batch renders (includeInCreated) return the error, so the batch can list every failure.
    */
-  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex, includeInCreated = false): Promise<string | null> => {
+  const fetchPlot = async (dataframeIndex = activeDataframeIndex, frameIndex = activeFrameIndex, includeInCreated = false): Promise<BackendErrorDetails | null> => {
+    const label = plotLabel(dataframeIndex, frameIndex)
+    const startedAt = performance.now()
+    const elapsed = () => Math.round(performance.now() - startedAt)
+    const unreachable = t('backendUnreachable')
     const isPreview = dataframeIndex === activeDataframeIndex && frameIndex === activeFrameIndex
     const requestId = isPreview ? ++latestPreviewRequestRef.current : latestPreviewRequestRef.current
     const showMessages = (next: string[]) =>
@@ -138,13 +157,14 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     }
 
     try {
-      const response = await fetch(
+      const response = await fetchBackend(
         '/api/render-plot',
         buildPlotRequest(
           {
             config: toExternalConfig(plotConfig),
             dataframe_index: dataframeIndex,
             frame_index: frameIndex,
+            include_log: true,
           },
           plotConfig,
           datasourceFilesByDataframe,
@@ -152,26 +172,31 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           [dataframeIndex],
           t,
         ),
+        unreachable,
       )
-      const nextMessages = parseBackendMessages(response.headers.get('X-Ashby-Messages'))
 
       if (!response.ok) {
-        const rawError = await response.text()
-        let payload: { message?: string; messages?: string[] } = {}
-        try {
-          payload = JSON.parse(rawError) as { message?: string; messages?: string[] }
-        } catch {
-          payload = { message: rawError }
-        }
-        showMessages(Array.isArray(payload.messages) ? payload.messages : nextMessages)
-        throw new Error(payload.message || t('renderFailed', { status: response.status }))
+        throw await readBackendError(response, { fallback: t('renderFailed', { status: response.status }), unreachable })
       }
 
-      const imageBlob = await response.blob()
+      // With include_log the backend answers with JSON; an older backend sends the image itself.
+      let imageBlob: Blob
+      let nextMessages: string[]
+      let log: string | undefined
+      if (response.headers.get('Content-Type')?.includes('application/json')) {
+        const payload = await response.json() as RenderPlotResponse
+        imageBlob = base64ToBlob(payload.image, payload.media_type)
+        nextMessages = payload.messages ?? []
+        log = payload.log
+      } else {
+        nextMessages = parseBackendMessages(response.headers.get('X-Ashby-Messages'))
+        imageBlob = await response.blob()
+      }
       if (imageBlob.size === 0) {
-        throw new Error(t('emptyImage'))
+        throw new BackendError({ message: t('emptyImage'), messages: nextMessages, log, status: response.status })
       }
       showMessages(nextMessages)
+      addLogEntry({ level: nextMessages.length > 0 ? 'warning' : 'info', source: 'render', title: label, message: t('renderSucceeded'), messages: nextMessages, log, status: response.status, durationMs: elapsed() })
 
       const nextUrl = URL.createObjectURL(imageBlob)
       // Ignore responses for previews that were superseded by a newer request.
@@ -196,9 +221,10 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       if (isPreview && requestId === latestPreviewRequestRef.current) {
         setImageUrl(null)
       }
-      const message = renderError instanceof Error ? renderError.message : t('renderFailedGeneric')
-      if (!includeInCreated) setError(message)
-      return message
+      const details = toErrorDetails(renderError, t('renderFailedGeneric'))
+      addLogEntry({ level: 'error', source: 'render', title: label, ...details, durationMs: elapsed() })
+      if (!includeInCreated) setError({ title: t('renderErrorTitle', { plot: label }), details })
+      return details
     } finally {
       setLoading(false)
     }
@@ -233,7 +259,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       for (const frameIndex of frameSelection) {
         const failure = await fetchPlot(dataframeIndex, frameIndex, true)
         if (failure) {
-          setBatchFailures((current) => [...current, { dataframeIndex, frameIndex, message: failure }])
+          setBatchFailures((current) => [...current, { dataframeIndex, frameIndex, details: failure }])
         }
         completed += 1
         setBatchProgress({ current: completed, total })
@@ -251,9 +277,11 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   }
   const downloadAllCreatedPlots = async () => {
     const plots = createdPlots.map((entry) => ({ dataframe_index: entry.dataframeIndex, frame_index: entry.frameIndex }))
-    let response: Response
+    const startedAt = performance.now()
+    const unreachable = t('backendUnreachable')
+    setError(null)
     try {
-      response = await fetch(
+      const response = await fetchBackend(
         '/api/download-plots',
         buildPlotRequest(
           {
@@ -266,17 +294,19 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           plots.map((plot) => plot.dataframe_index),
           t,
         ),
+        unreachable,
       )
+      if (!response.ok) {
+        throw await readBackendError(response, { fallback: t('downloadAllFailed', { status: response.status }), unreachable })
+      }
+      const zipBaseName = configBaseName.trim() || 'ashby-plots'
+      downloadBlob(await response.blob(), `${zipBaseName}.zip`)
+      addLogEntry({ level: 'info', source: 'download', title: t('downloadAll'), message: t('downloadSucceeded', { count: plots.length }), status: response.status, durationMs: Math.round(performance.now() - startedAt) })
     } catch (downloadError) {
-      setError(downloadError instanceof Error ? downloadError.message : t('downloadAllFailedGeneric'))
-      return
+      const details = toErrorDetails(downloadError, t('downloadAllFailedGeneric'))
+      addLogEntry({ level: 'error', source: 'download', title: t('downloadAll'), ...details, durationMs: Math.round(performance.now() - startedAt) })
+      setError({ title: t('downloadErrorTitle'), details })
     }
-    if (!response.ok) {
-      setError(t('downloadAllFailed', { status: response.status }))
-      return
-    }
-    const zipBaseName = configBaseName.trim() || 'ashby-plots'
-    downloadBlob(await response.blob(), `${zipBaseName}.zip`)
   }
 
   // One effect for both triggers, so mounting the page renders once: a new plot action runs that
@@ -332,18 +362,14 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       </section>
       {batchProgress ? <p className="m-0 text-xs text-zinc-500">{t('batchProgress', { current: batchProgress.current, total: batchProgress.total })}</p> : null}
 
-      {error ? <Alert variant="destructive">{error}</Alert> : null}
+      {error ? <ErrorDetails title={error.title} details={error.details} /> : null}
       {batchFailures.length > 0 ? (
-        <Alert variant="destructive">
-          <div className="grid gap-1">
-            <strong>{t('batchFailures', { count: batchFailures.length })}</strong>
-            {batchFailures.map((failure) => (
-              <p key={`${failure.dataframeIndex}-${failure.frameIndex}`} className="m-0">
-                {`${plotLabel(failure.dataframeIndex, failure.frameIndex)}: ${failure.message}`}
-              </p>
-            ))}
-          </div>
-        </Alert>
+        <div className="grid gap-2">
+          <strong className="text-sm text-red-700 dark:text-red-300">{t('batchFailures', { count: batchFailures.length })}</strong>
+          {batchFailures.map((failure) => (
+            <ErrorDetails key={`${failure.dataframeIndex}-${failure.frameIndex}`} title={plotLabel(failure.dataframeIndex, failure.frameIndex)} details={failure.details} />
+          ))}
+        </div>
       ) : null}
       {messages.length > 0 ? (
         <Alert>
