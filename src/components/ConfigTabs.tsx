@@ -40,6 +40,22 @@ type Drag = { kind: 'dataframe'; dataframe: number } | { kind: 'frame'; datafram
 
 const iconButtonClassName = 'grid h-6 w-6 place-items-center rounded text-xs text-current opacity-70 hover:opacity-100 disabled:pointer-events-none disabled:opacity-30'
 
+/**
+ * Middle click opens the plot in a new browser tab that stays in sync with this one. The tab is
+ * opened on `auxclick`: Firefox-based browsers block `window.open` from `mousedown`. Mouse down
+ * is only prevented, so the browser does not start autoscrolling.
+ */
+const middleClickOpens = (open: () => void) => ({
+  onMouseDown: (event: MouseEvent<HTMLElement>) => {
+    if (event.button === 1) event.preventDefault()
+  },
+  onAuxClick: (event: MouseEvent<HTMLElement>) => {
+    if (event.button !== 1) return
+    event.preventDefault()
+    open()
+  },
+})
+
 /** Number of missing required settings, as a small badge at the top right of a name. */
 const MissingBadge = ({ count, title, ringClassName }: { count: number; title: string; ringClassName: string }) => (
   <span
@@ -195,12 +211,7 @@ export function ConfigTabs(props: Props) {
                     title={`${t('datasetLabel')}: ${dataframeName} · ${t('renameHint')}`}
                     onClick={() => selectPlot(dataframeIndex, isActiveDataframe ? activeFrameIndex : 0)}
                     onDoubleClick={() => setTabRename({ type: 'dataframe', index: dataframeIndex, value: dataframeName })}
-                    onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
-                      if (event.button === 1) {
-                        event.preventDefault()
-                        openTabWithSelection(dataframeIndex, 0)
-                      }
-                    }}
+                    {...middleClickOpens(() => openTabWithSelection(dataframeIndex, 0))}
                   >
                     {dataframeName}
                   </button>
@@ -258,12 +269,7 @@ export function ConfigTabs(props: Props) {
                             selectPlot(dataframeIndex, frameIndex)
                             setTabRename({ type: 'frame', index: frameIndex, value: frameName })
                           }}
-                          onMouseDown={(event: MouseEvent<HTMLButtonElement>) => {
-                            if (event.button === 1) {
-                              event.preventDefault()
-                              openTabWithSelection(dataframeIndex, frameIndex)
-                            }
-                          }}
+                          {...middleClickOpens(() => openTabWithSelection(dataframeIndex, frameIndex))}
                         >
                           {frameName}
                         </button>

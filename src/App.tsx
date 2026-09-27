@@ -7,12 +7,12 @@ import type { PlotConfig } from './config/defaultPlotConfig'
 import { exportConfig, findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
-import { AppPopouts } from './components/AppPopouts'
+import { AppPopouts, SettingsRow } from './components/AppPopouts'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
 import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
-import { Field, Toggle } from './components/AppControls'
+import { Segmented, Toggle } from './components/AppControls'
 import { dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
@@ -944,20 +944,25 @@ function App() {
   }
   const settingsContent = (
     <>
-      <Field label={t('uiLanguage')} jsonPath="ui.language">
-        <Select value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
+      <SettingsRow label={t('uiLanguage')}>
+        <Select className="w-40" value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
           <option value="en">English</option>
           <option value="de">Deutsch</option>
         </Select>
-      </Field>
-      <Field label={t('uiTheme')} jsonPath="ui.theme">
-        <Select value={uiTheme} onChange={(event) => setUiTheme(event.target.value as UIThemePreference)}>
-          <option value="system">{t('themeSystem')}</option>
-          <option value="light">{t('themeLight')}</option>
-          <option value="dark">{t('themeDark')}</option>
-        </Select>
-      </Field>
-      <Field label={t('scrollSections')} jsonPath="ui.scroll_sections" hint={t('scrollSectionsHint')}>
+      </SettingsRow>
+      <SettingsRow label={t('uiTheme')}>
+        <Segmented<UIThemePreference>
+          ariaLabel={t('uiTheme')}
+          value={uiTheme}
+          onChange={setUiTheme}
+          options={[
+            { value: 'system', label: t('themeSystem') },
+            { value: 'light', label: t('themeLight') },
+            { value: 'dark', label: t('themeDark') },
+          ]}
+        />
+      </SettingsRow>
+      <SettingsRow label={t('scrollSections')} hint={t('scrollSectionsHint')}>
         <Toggle
           checked={scrollSections}
           label={t('scrollSections')}
@@ -966,12 +971,12 @@ function App() {
             writeStored(SCROLL_SECTIONS_STORAGE_KEY, String(next))
           }}
         />
-      </Field>
-      <Field label={t('localDataFiles')} jsonPath="ui.local_data_files">
-        <Button type="button" variant="outline" onClick={() => { void clearStoredDatasourceFiles() }}>
+      </SettingsRow>
+      <SettingsRow label={t('localDataFiles')}>
+        <Button type="button" variant="outline" size="sm" onClick={() => { void clearStoredDatasourceFiles() }}>
           {t('deleteStoredFiles')}
         </Button>
-      </Field>
+      </SettingsRow>
     </>
   )
   return (

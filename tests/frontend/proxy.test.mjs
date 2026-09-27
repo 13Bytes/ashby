@@ -126,3 +126,14 @@ test('datasource files are kept as in-memory copies and read with the stored cop
   assert.match(app, /cachedFile = await toMemoryFile\(file, filename\)/)
   assert.match(plotPage, /readDatasourceWithFallback\(file, \(\) => getCachedDatasourceFile\(file\.name\)/)
 })
+
+test('middle click on a dataset or plot opens a synced tab on auxclick, which Firefox allows to open tabs', async () => {
+  const tabs = await readSource('components/ConfigTabs.tsx')
+  const app = await readSource('App.tsx')
+
+  assert.match(tabs, /onAuxClick: \(event: MouseEvent<HTMLElement>\) => \{/)
+  assert.doesNotMatch(tabs, /onMouseDown=\{[^}]*openTabWithSelection/)
+  assert.equal(tabs.match(/\.\.\.middleClickOpens\(\(\) => openTabWithSelection\(/g)?.length, 2)
+  // No 'noopener': the new tab must inherit the sessionStorage (config and workspace id).
+  assert.match(app, /window\.open\(`\$\{window\.location\.pathname\}\?\$\{params\.toString\(\)\}`, '_blank'\)/)
+})

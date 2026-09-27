@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode, RefObject } from 'react'
+import { useEffect, type ChangeEvent, type ReactNode, type RefObject } from 'react'
 import { cn } from '../lib/utils'
 import { useI18n } from '../uiTranslations'
 import { Button } from './ui/button'
@@ -202,6 +202,19 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
   )
 }
 
+/** One line of the settings dialog: the name (and an optional hint) on the left, the control on the right. */
+export function SettingsRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="grid min-w-0 gap-0.5">
+        <span className="text-sm font-medium">{label}</span>
+        {hint ? <span className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</span> : null}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  )
+}
+
 function SettingsPopout({
   onClose,
   settingsContent,
@@ -210,15 +223,28 @@ function SettingsPopout({
   settingsContent: ReactNode
 }) {
   const { t } = useI18n()
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
   return (
-    <PopoutShell>
-      <h3 className="mt-0 text-lg">{t('settings')}</h3>
-      <div className="grid gap-2">{settingsContent}</div>
-      <DialogActions>
-        <Button variant="outline" onClick={onClose}>
-          {t('close')}
-        </Button>
-      </DialogActions>
+    <PopoutShell panelClassName="max-w-lg">
+      <div role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div className="flex items-center justify-between gap-2">
+          <h3 id="settings-title" className="m-0 text-lg">{t('settings')}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('close')}
+            title={t('close')}
+            className="grid h-8 w-8 place-items-center rounded-md text-lg leading-none text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            ×
+          </button>
+        </div>
+        <div className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">{settingsContent}</div>
+      </div>
     </PopoutShell>
   )
 }
