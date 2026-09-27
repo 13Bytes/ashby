@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
 :root{
-  --bg:#f5f5f8; --surface:#ffffff; --surface-2:#f3f2f7; --surface-3:#e9e7f0; --strip:#ebe9f1;
+  --bg:#f5f5f8; --surface:#ffffff; --surface-2:#f3f2f7; --surface-3:#e9e7f0; --strip:#eeecf3;
   --border:#dcdae4; --border-strong:#c4c1cf;
   --text:#18171d; --muted:#636072; --faint:#8d8a9b;
   --accent:#7c3aed; --accent-ink:#ffffff; --accent-soft:#efe9fe; --accent-text:#6427d6;
@@ -13,6 +13,7 @@
   --pj:#57546a; --pj-soft:#ecebf1;
   --req:#c2410c; --req-soft:#ffedd5;
   --ok:#15803d; --ok-soft:#dcfce7; --warn:#b45309; --warn-soft:#fef3c7;
+  --tip-bg:#18171d; --tip-ink:#ffffff;
   --shadow:0 1px 2px rgba(24,23,29,.06),0 8px 24px rgba(24,23,29,.07);
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
@@ -20,7 +21,7 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#0c0b10; --surface:#131219; --surface-2:#1a1921; --surface-3:#24222d; --strip:#09080c;
+    --bg:#0c0b10; --surface:#131219; --surface-2:#1a1921; --surface-3:#24222d; --strip:#0f0e14;
     --border:#2a2833; --border-strong:#3b3846;
     --text:#ecebf2; --muted:#a19eaf; --faint:#77748a;
     --accent:#8b5cf6; --accent-ink:#ffffff; --accent-soft:#261d3d; --accent-text:#b69cff;
@@ -28,12 +29,13 @@
     --pj:#b3b0c2; --pj-soft:#23212c;
     --req:#fb923c; --req-soft:#3a1e0c;
     --ok:#4ade80; --ok-soft:#10301c; --warn:#fbbf24; --warn-soft:#352a0e;
+    --tip-bg:#ecebf2; --tip-ink:#131219;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#0c0b10; --surface:#131219; --surface-2:#1a1921; --surface-3:#24222d; --strip:#09080c;
+  --bg:#0c0b10; --surface:#131219; --surface-2:#1a1921; --surface-3:#24222d; --strip:#0f0e14;
   --border:#2a2833; --border-strong:#3b3846;
   --text:#ecebf2; --muted:#a19eaf; --faint:#77748a;
   --accent:#8b5cf6; --accent-ink:#ffffff; --accent-soft:#261d3d; --accent-text:#b69cff;
@@ -41,40 +43,53 @@
   --pj:#b3b0c2; --pj-soft:#23212c;
   --req:#fb923c; --req-soft:#3a1e0c;
   --ok:#4ade80; --ok-soft:#10301c; --warn:#fbbf24; --warn-soft:#352a0e;
+  --tip-bg:#ecebf2; --tip-ink:#131219;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;margin:0;padding-inline:16px;padding-block:28px 64px}
-.page{max-width:1320px;margin:0 auto;display:grid;gap:26px}
+.page{max-width:1640px;margin:0 auto;display:grid;gap:26px}
+.narrow{max-width:1100px}
 h1,h2,h3,h4{text-wrap:balance;margin:0}
 h1{font-size:clamp(26px,3.4vw,34px);font-weight:700;letter-spacing:-.02em}
 h2{font-size:20px;font-weight:600;letter-spacing:-.01em}
 .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-text)}
-.lede{max-width:72ch;color:var(--muted);margin:8px 0 0}
+.lede{max-width:78ch;color:var(--muted);margin:8px 0 0}
 .lede b{color:var(--text)}
 code{font-family:var(--mono);font-size:.88em}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-/* explainer cards */
-.keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:1100px}
 .key{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:grid;gap:10px;align-content:start}
 .key h3{font-size:14px}
 .key ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:13.5px}
-.key li{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:baseline;color:var(--muted)}
+.key li{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;align-items:baseline;color:var(--muted)}
 .key li b{color:var(--text);font-weight:600}
 @media (max-width:760px){.keys{grid-template-columns:1fr}}
 
-/* scope + tier tags */
+/* scope tags */
 .scopetag{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;font-weight:500;border-radius:4px;padding:1px 6px;white-space:nowrap;justify-self:start}
 .scopetag.ds{background:var(--ds-soft);color:var(--ds-text);box-shadow:inset 0 0 0 1px var(--ds-line)}
 .scopetag.pl{background:var(--accent-soft);color:var(--accent-text);box-shadow:inset 0 0 0 1px var(--accent)}
 .scopetag.pj{background:var(--pj-soft);color:var(--pj);box-shadow:inset 0 0 0 1px var(--border-strong)}
 .scopetag.app{background:transparent;color:var(--faint);box-shadow:inset 0 0 0 1px var(--border)}
-.tr{font-size:10px;font-weight:600;border-radius:999px;padding:0 7px;line-height:17px;white-space:nowrap;justify-self:start}
-.tr.req{background:var(--req-soft);color:var(--req)}
-.tr.rev{box-shadow:inset 0 0 0 1px var(--border-strong);color:var(--muted)}
-.tr.def{color:var(--faint);box-shadow:inset 0 0 0 1px var(--border);font-weight:500}
+
+/* tier icons with tooltip */
+.ti{position:relative;display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;flex:none;font-size:10px;font-weight:700;line-height:1;cursor:help;font-style:normal}
+.ti.req{background:var(--req-soft);color:var(--req)}
+.ti.req::before{content:"*";font-size:13px;margin-top:3px}
+.fld.missing > .lbl .ti.req{background:var(--req);color:var(--surface)}
+.fld.missing > .lbl .ti.req::before{content:"!";font-size:10px;margin-top:0}
+.fld.ok > .lbl .ti.req,.ti.req.ok{background:var(--ok-soft);color:var(--ok)}
+.fld.ok > .lbl .ti.req::before,.ti.req.ok::before{content:"✓";font-size:9px;margin-top:0}
+.ti.rev{color:var(--muted);box-shadow:inset 0 0 0 1px var(--border-strong)}
+.ti.rev svg{width:10px;height:10px}
+.ti.def{box-shadow:inset 0 0 0 1px var(--border-strong);width:11px;height:11px;margin:2px}
+.fld.changed > .lbl .ti.def,.ti.def.chg{background:var(--accent);box-shadow:none}
+.q{position:relative;font-style:normal;font-size:9px;width:14px;height:14px;border-radius:50%;border:1px solid var(--border-strong);color:var(--muted);display:inline-grid;place-items:center;font-weight:600;flex:none;cursor:help}
+.ti::after,.q::after{content:attr(data-tip);position:absolute;left:-4px;top:calc(100% + 6px);background:var(--tip-bg);color:var(--tip-ink);font:500 11.5px/1.4 var(--sans);letter-spacing:0;text-transform:none;padding:6px 9px;border-radius:6px;width:max-content;max-width:240px;z-index:50;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .12s;white-space:normal;text-align:left;box-shadow:var(--shadow)}
+.ti:hover::after,.ti:focus-visible::after,.q:hover::after,.q:focus-visible::after{opacity:1;visibility:visible}
 
 /* window */
 .win{border:1px solid var(--border-strong);border-radius:12px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow)}
@@ -84,7 +99,7 @@ code{font-family:var(--mono);font-size:.88em}
 
 /* ---------- app ---------- */
 .app{font-size:13px;line-height:1.4;background:var(--surface);color:var(--text);position:relative}
-.ahdr{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)}
+.ahdr{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)}
 .brand{font-weight:700;font-size:15px;margin-right:auto}
 .b{font:inherit;font-size:12px;font-weight:500;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);border-radius:6px;padding:6px 10px;cursor:pointer;white-space:nowrap;line-height:1.2}
 .b:hover{background:var(--surface-2)}
@@ -98,6 +113,7 @@ code{font-family:var(--mono);font-size:.88em}
 .b.danger{color:var(--req)}
 .ib{font:inherit;font-size:12px;border:0;background:transparent;color:var(--muted);cursor:pointer;padding:2px 5px;border-radius:4px;line-height:1.2}
 .ib:hover{background:var(--surface-3);color:var(--text)}
+.ib.del:hover{color:var(--req)}
 .seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:7px;padding:2px;gap:2px;background:var(--surface-2);flex-wrap:wrap;justify-self:start}
 .seg button{font:inherit;font-size:12px;border:0;background:transparent;color:var(--muted);padding:4px 10px;border-radius:5px;cursor:pointer;white-space:nowrap}
 .seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.14);font-weight:600}
@@ -107,67 +123,62 @@ code{font-family:var(--mono);font-size:.88em}
 input[type=color].in{padding:1px 2px;height:29px;width:38px;flex:none}
 .ta{font-family:var(--mono);min-height:56px;resize:vertical}
 .tog{font:inherit;font-size:12px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--muted);border-radius:999px;padding:4px 12px 4px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;justify-self:start}
-.tog::before{content:"";width:24px;height:14px;border-radius:999px;background:var(--border-strong);box-shadow:inset -10px 0 0 2px var(--border-strong),inset 0 0 0 2px var(--border-strong);background:var(--surface)}
+.tog::before{content:"";width:24px;height:14px;border-radius:999px;background:var(--surface);box-shadow:inset -10px 0 0 2px var(--border-strong),inset 0 0 0 2px var(--border-strong)}
 .tog.on{color:var(--text);font-weight:600}
-.tog.on::before{background:var(--surface);box-shadow:inset 10px 0 0 2px var(--accent),inset 0 0 0 2px var(--accent)}
+.tog.on::before{box-shadow:inset 10px 0 0 2px var(--accent),inset 0 0 0 2px var(--accent)}
 .row{display:flex;gap:6px;align-items:center;min-width:0;flex-wrap:wrap}
 .small{font-size:11.5px;color:var(--muted)}
-.q{font-style:normal;font-size:9px;width:14px;height:14px;border-radius:50%;border:1px solid var(--border-strong);color:var(--muted);display:inline-grid;place-items:center;font-weight:600;flex:none;cursor:help}
-.g2,.g3,.g4{display:grid;gap:12px 14px;align-items:start}
+.g2,.g3,.g4{display:grid;gap:12px 16px;align-items:start}
 .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
-@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:1200px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
 
 /* fields */
 .fld{display:grid;gap:5px;align-content:start;min-width:0;border-radius:6px}
-.lbl{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-height:18px}
+.lbl{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;min-height:18px}
+.lt{min-width:0}
+.lang{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--muted);box-shadow:inset 0 0 0 1px var(--border-strong);border-radius:3px;padding:0 4px;line-height:15px}
 .fh{font-size:11px;color:var(--muted)}
-.fld.tier-req.ok .tr.req{background:var(--ok-soft);color:var(--ok)}
-.fld.tier-req.ok .tr.req::before{content:"✓ "}
-.fld.missing .in{border-color:var(--req);box-shadow:0 0 0 2px var(--req-soft)}
-.fld.missing .tr.req::after{content:" · missing"}
-.fld.changed .tr.def{display:none}
-.fld.changed .lbl::after{content:"changed";font-size:10px;font-weight:600;color:var(--accent-text);background:var(--accent-soft);border-radius:999px;padding:0 7px;line-height:17px}
+.fld.missing .in,.fld.missing .ms{border-color:var(--req);box-shadow:0 0 0 2px var(--req-soft)}
 .flash{animation:flash 1.8s ease}
 @keyframes flash{0%,45%{background:var(--accent-soft);box-shadow:0 0 0 6px var(--accent-soft)}100%{background:transparent;box-shadow:0 0 0 6px transparent}}
 .app:not(.mode-all) .sec:not(.showdef) .tier-def{display:none!important}
+.app:not(.mode-all) .otherlang{display:none!important}
+.mode-all .simpleonly,.sec.showdef .simpleonly{display:none!important}
 
-/* structure strip */
-.strip{display:flex;gap:12px;align-items:stretch;overflow-x:auto;padding:12px 14px 14px;background:var(--strip);border-bottom:1px solid var(--border-strong)}
-.striplab{display:grid;align-content:start;gap:4px;min-width:92px;padding-top:4px}
-.striplab b{font-size:12px}
-.striplab span{font-size:11px;color:var(--muted);line-height:1.35}
-.dsbox{border:1.5px solid var(--border-strong);border-radius:11px;background:var(--surface);padding:8px 10px 10px;display:grid;gap:8px;align-content:start;flex:none;transition:box-shadow .2s,border-color .2s}
-.dsbox.cur{border-color:var(--ds)}
-.dsbox.shared{box-shadow:0 0 0 4px var(--ds-soft);border-color:var(--ds)}
-.dsh{display:flex;align-items:center;gap:6px;font-size:12px;flex-wrap:wrap}
-.dsh .nm{font-weight:600;cursor:text;padding:1px 3px;border-radius:4px}
-.dsh .nm:hover{background:var(--surface-2)}
-.inc{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer}
-.inc input{margin:0;accent-color:var(--accent)}
-.sharednote{font-size:11px;color:var(--ds-text);display:flex;gap:6px;align-items:center}
-.plots{display:flex;gap:8px;align-items:stretch}
-.pcard{width:158px;border:1.5px solid var(--border);border-radius:9px;background:var(--surface-2);padding:5px;display:grid;gap:5px;align-content:start;position:relative;transition:border-color .2s,box-shadow .2s}
-.pcard.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--surface)}
-.dsbox.shared .pcard{border-color:var(--ds)}
-.dsbox.shared .pcard.active{box-shadow:0 0 0 3px var(--ds-soft)}
-.pcard .affect{display:none;position:absolute;top:9px;left:9px;font-size:10px;font-weight:600;background:var(--ds);color:var(--surface);border-radius:4px;padding:0 5px}
-.dsbox.shared .pcard .affect{display:block}
-.thumbbtn{border:0;padding:0;background:none;cursor:pointer;display:block;width:100%;border-radius:6px;overflow:hidden}
-.pmeta{display:flex;align-items:center;gap:4px;min-width:0}
-.pmeta .nm{font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;cursor:text}
-.pacts{display:flex;align-items:center;gap:2px}
-.pacts .warn{margin-left:auto;font-size:10.5px;font-weight:600;color:var(--req);background:var(--req-soft);border-radius:999px;padding:0 6px}
-.addcard{width:92px;border:1.5px dashed var(--border-strong);border-radius:9px;background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;display:grid;place-items:center;text-align:center;padding:8px}
-.addcard:hover{color:var(--text);border-color:var(--muted)}
-.stripend{margin-left:auto;display:grid;align-content:start;gap:6px;padding-left:12px;border-left:1px solid var(--border-strong);flex:none}
-.renamein{font:inherit;font-size:12px;padding:1px 4px;border:1px solid var(--accent);border-radius:4px;background:var(--surface);color:var(--text);width:140px}
-.movemenu{position:absolute;z-index:40;top:100%;left:0;margin-top:4px}
+/* plot tabs (structure) */
+.tabs{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:7px 14px;background:var(--strip);border-bottom:1px solid var(--border-strong);min-height:48px}
+.tlab{font-size:11px;font-family:var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--faint);flex:none}
+.dsg{display:flex;align-items:center;gap:2px;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);padding:2px 3px 2px 2px;flex:none;transition:box-shadow .2s,border-color .2s}
+.dsg.cur{border-color:var(--ds-line)}
+.dsg.shared{border-color:var(--ds);box-shadow:0 0 0 3px var(--ds-soft)}
+.dsn{display:flex;align-items:center;gap:5px;padding:3px 8px 3px 6px;border-radius:7px;background:var(--ds-soft);color:var(--ds-text);font-size:12px;font-weight:600;margin-right:3px;max-width:260px}
+.dsg:not(.cur) .dsn{background:var(--surface-2);color:var(--muted)}
+.dsn .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
+.dsn svg{flex:none}
+.inc{margin:0;accent-color:var(--accent);flex:none;width:13px;height:13px}
+.tab{display:flex;align-items:center;gap:3px;border-radius:7px;padding:0 3px 0 2px;position:relative;height:28px}
+.tab:hover{background:var(--surface-2)}
+.tabbtn{font:inherit;font-size:12px;border:0;background:none;color:var(--text);cursor:pointer;padding:4px 6px;display:flex;align-items:center;gap:6px;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis;border-radius:5px}
+.tab.active{background:var(--accent-soft)}
+.tab.active .tabbtn{color:var(--accent-text);font-weight:600}
+.tab.active::after{content:"";position:absolute;left:6px;right:6px;bottom:-3px;height:2px;border-radius:2px;background:var(--accent)}
+.dsg.shared .tab{background:var(--ds-soft)}
+.dsg.shared .tab.active .tabbtn{color:var(--ds-text)}
+.dsg.shared .tab.active::after{background:var(--ds)}
+.mdot{font-size:10px;font-weight:700;color:var(--surface);background:var(--req);border-radius:999px;min-width:15px;height:15px;display:inline-grid;place-items:center;padding:0 4px}
+.acts{display:inline-flex;align-items:center;max-width:0;overflow:hidden;opacity:0;transition:max-width .15s,opacity .15s}
+.tab.active .acts,.tab:hover .acts,.tab:focus-within .acts,.dsn:hover .acts,.dsn:focus-within .acts,.dsg.cur .dsn .acts{max-width:120px;opacity:1;overflow:visible}
+.acts .ib{padding:2px 3px;font-size:11px}
+.tadd{font:inherit;font-size:12px;border:1px dashed var(--border-strong);background:transparent;color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;white-space:nowrap;flex:none}
+.tadd:hover{color:var(--text);border-color:var(--muted)}
+.tabs .grow{flex:1;min-width:8px}
+.renamein{font:inherit;font-size:12px;padding:1px 4px;border:1px solid var(--accent);border-radius:4px;background:var(--surface);color:var(--text);width:180px}
 
 /* workspace */
-.work{display:grid;grid-template-columns:236px minmax(0,1fr) minmax(0,.95fr);height:720px}
+.work{display:grid;grid-template-columns:220px minmax(0,1fr) 9px var(--pv,400px);height:760px}
 .nav{border-right:1px solid var(--border);background:var(--surface-2);padding:12px;display:flex;flex-direction:column;gap:14px;overflow:auto}
 .search{position:relative}
 .search kbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:var(--faint);border:1px solid var(--border-strong);border-radius:4px;padding:0 4px;pointer-events:none}
@@ -184,29 +195,29 @@ input[type=color].in{padding:1px 2px;height:29px;width:38px;flex:none}
 .navgrp.pl .slist button.on{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
 .slist .st{margin-left:auto;font-size:10.5px;font-weight:600;white-space:nowrap}
 .st.ok{color:var(--ok)}
-.st.miss{color:var(--req);background:var(--req-soft);border-radius:999px;padding:0 6px}
+.st.miss{color:var(--surface);background:var(--req);border-radius:999px;padding:0 6px}
 .st.def{color:var(--faint);font-weight:500}
 .sres small{margin-left:auto;color:var(--faint);font-size:10px;white-space:nowrap}
 .sres .none{font-size:12px;color:var(--muted);padding:6px 8px}
-.tierkey{margin-top:auto;border-top:1px solid var(--border);padding-top:10px;display:grid;gap:6px;font-size:11px;color:var(--muted)}
-.tierkey div{display:grid;grid-template-columns:78px minmax(0,1fr);gap:6px;align-items:baseline}
+.tierkey{margin-top:auto;border-top:1px solid var(--border);padding-top:10px;display:grid;gap:7px;font-size:11px;color:var(--muted)}
+.tierkey div{display:flex;gap:8px;align-items:center}
 
-.editor{overflow:auto;display:flex;flex-direction:column}
-.banner{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:flex-start;padding:10px 16px;font-size:12.5px;border-bottom:1px solid var(--border)}
-.banner.ds{background:var(--ds-soft);color:var(--ds-text);border-bottom-color:var(--ds-line)}
-.banner.pl{background:var(--accent-soft);color:var(--accent-text);border-bottom-color:var(--accent)}
-.banner svg{flex:none;margin-top:2px}
-.banner b{font-weight:700}
-.secs{padding:16px;display:grid;gap:14px;align-content:start}
-.sec{display:none;gap:16px;align-content:start}
+.editor{overflow:auto;display:flex;flex-direction:column;min-width:0}
+.langbar{position:sticky;top:0;z-index:6;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.langbar .lb{font-size:12px;font-weight:600;display:flex;gap:6px;align-items:center}
+.langseg button{font-family:var(--mono);font-size:11.5px;text-transform:uppercase}
+.secs{padding:16px 20px 24px;display:grid;gap:14px;align-content:start}
+.sec{display:none;gap:18px;align-content:start}
 .sec.cur{display:grid}
-.sech{display:grid;gap:4px}
+.sech{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .sech h3{font-size:18px}
-.sech p{margin:0;color:var(--muted);font-size:12.5px;max-width:62ch}
-.secb{display:grid;gap:16px}
-.grp{display:grid;gap:10px;border-top:1px solid var(--border);padding-top:12px}
-.grp > h4{font-size:12px;font-family:var(--mono);font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.scopecard{border:1px solid var(--border);border-radius:10px;padding:12px;display:grid;gap:12px;background:var(--surface)}
+.sech p{margin:0;color:var(--muted);font-size:12.5px;flex-basis:100%;max-width:70ch}
+.secb{display:grid;gap:18px}
+.grp{display:grid;gap:12px;border-top:1px solid var(--border);padding-top:14px}
+.grp > h4,.grph{font-size:12px;font-family:var(--mono);font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grph .cnt{font-family:var(--sans);letter-spacing:0;text-transform:none;font-size:11px;color:var(--faint)}
+.grph .b{margin-left:auto;font-family:var(--sans);letter-spacing:0;text-transform:none}
+.scopecard{border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:grid;gap:12px;background:var(--surface)}
 .scopecard.pj{background:var(--surface-2)}
 .scopecard.ds{border-color:var(--ds-line)}
 .sch{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -215,50 +226,61 @@ input[type=color].in{padding:1px 2px;height:29px;width:38px;flex:none}
 .fileic{font-family:var(--mono);font-size:10px;font-weight:500;background:#1d6f42;color:#fff;border-radius:4px;padding:6px 5px}
 .filebox .fn{flex:1;min-width:130px;display:grid}
 .filebox small{color:var(--ok);font-size:11px}
-.axrow{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,1.3fr) minmax(0,.7fr) auto;gap:8px 10px;align-items:start;border:1px solid var(--border);border-radius:8px;padding:9px 10px;background:var(--surface)}
-.app:not(.mode-all) .sec:not(.showdef) .axrow{grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,1.3fr) auto}
-@media (max-width:1200px){.axrow,.app:not(.mode-all) .sec:not(.showdef) .axrow{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.colchips{display:flex;flex-wrap:wrap;gap:4px;border:1px solid var(--border-strong);background:var(--surface-2);border-radius:6px;padding:4px;min-height:29px;align-items:center}
-.cc{font-size:11px;border:1px solid var(--border);background:var(--surface);border-radius:4px;padding:0 0 0 6px;display:inline-flex;align-items:center;max-width:100%}
-.cc span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cc .ib{font-size:10px;padding:1px 4px}
-.matgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px}
-.matrow{display:flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:4px 4px 4px 6px;background:var(--surface)}
-.matrow .in{padding:4px 6px}
-.matrow input[type=color].in{height:26px;width:32px}
-.layer{border:1px solid var(--border);border-radius:9px;padding:10px 12px;display:grid;gap:10px;background:var(--surface)}
-.layerh{display:flex;align-items:center;gap:6px}
-.layerh b{margin-right:auto;font-size:12.5px}
-.kw{border:1px solid var(--border-strong);background:var(--surface-2);border-radius:6px;padding:5px;display:flex;flex-wrap:wrap;gap:4px;min-height:34px;align-content:start}
-.kw span{font-size:11px;border:1px solid var(--border);background:var(--surface);border-radius:4px;padding:1px 6px}
-.axisbox{display:grid;gap:12px;border:1px solid var(--border);border-radius:9px;padding:12px;background:var(--surface)}
+.axisbox{display:grid;gap:12px;border:1px solid var(--border);border-radius:9px;padding:12px 14px;background:var(--surface)}
 .axisbox > b{font-size:12.5px}
-.swaprow{display:flex;justify-content:center;margin:-6px 0}
-.hintlink{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:var(--surface-2);border-radius:7px;padding:7px 10px}
-.hintlink.ds{background:var(--ds-soft);color:var(--ds-text)}
+.swaprow{display:flex;justify-content:center;margin:-8px 0}
+.hintlink{font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-radius:7px;padding:7px 10px;background:var(--ds-soft);color:var(--ds-text)}
+
+/* items (axes, layers, areas, guidelines, annotations) */
 .items{display:grid;gap:8px}
 .item{border:1px solid var(--border);border-radius:9px;background:var(--surface)}
-.item.editing{border-color:var(--accent)}
-.itemrow{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px}
+.item.editing{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.itemrow{display:flex;align-items:center;gap:10px;padding:7px 8px 7px 10px;min-width:0}
 .itemrow .ico{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;font-size:12px;background:var(--surface-3);flex:none}
-.itemrow .nmx{flex:1;min-width:0;display:grid}
-.itemrow .nmx b{font-weight:600;font-size:12.5px}
-.itemrow .nmx span{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.itemedit{display:none;padding:4px 12px 14px;gap:14px}
+.itemrow .nmx{flex:1;min-width:0;display:flex;gap:10px;align-items:baseline;overflow:hidden}
+.itemrow .nmx b{font-weight:600;font-size:12.5px;white-space:nowrap}
+.itemrow .nmx code{font-size:12px;white-space:nowrap}
+.itemrow .nmx span{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.itemrow .badge{font-size:10.5px;color:var(--muted);box-shadow:inset 0 0 0 1px var(--border-strong);border-radius:999px;padding:0 7px;white-space:nowrap}
+.itemedit{display:none;padding:6px 14px 16px;gap:16px;border-top:1px solid var(--border)}
 .item.editing .itemedit{display:grid}
+.twocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px 22px;align-items:start}
+@media (max-width:1250px){.twocol{grid-template-columns:1fr}}
+.stack{display:grid;gap:12px;align-content:start}
 .sub{display:grid;gap:10px;border-top:1px dashed var(--border-strong);padding-top:10px}
 .sub > span{font-size:10.5px;font-family:var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
 .cm{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .cm .in{flex:1;min-width:80px}
-.empty{font-size:12px;color:var(--muted);border:1px dashed var(--border-strong);border-radius:8px;padding:12px;text-align:center}
+.empty{font-size:12px;color:var(--muted);border:1px dashed var(--border-strong);border-radius:8px;padding:10px;text-align:center}
+
+/* multiselect */
+.ms{border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);display:grid}
+.mshead{display:flex;gap:6px;align-items:center;padding:6px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.mshead .in{flex:1;min-width:120px}
+.mslist{max-height:150px;overflow:auto;padding:4px;display:grid;gap:1px}
+.ms.tall .mslist{max-height:340px}
+.msopt{display:flex;gap:8px;align-items:center;font-size:12px;padding:4px 6px;border-radius:5px;cursor:pointer}
+.msopt:hover{background:var(--surface-2)}
+.msopt input{margin:0;accent-color:var(--accent)}
+.msfoot{font-size:11px;color:var(--muted);padding:5px 8px;border-top:1px solid var(--border)}
+
+.matgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px}
+.matrow{display:flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:4px 4px 4px 6px;background:var(--surface)}
+.matrow .in{padding:4px 6px}
+.matrow input[type=color].in{height:26px;width:32px}
 .alldef{display:none;font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:8px;padding:12px 14px;border:1px dashed var(--border-strong)}
 .app:not(.mode-all) .sec.onlydef:not(.showdef) .alldef{display:block}
 .deftoggle{font:inherit;font-size:12.5px;justify-self:start;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);cursor:pointer;padding:6px 12px;border-radius:999px;display:flex;gap:8px;align-items:center}
 .deftoggle:hover{background:var(--surface-2)}
-.deftoggle .chg{font-size:10.5px;font-weight:600;color:var(--accent-text);background:var(--accent-soft);border-radius:999px;padding:0 7px}
+.deftoggle .chg{font-size:10.5px;font-weight:600;color:var(--accent-text);background:var(--accent-soft);border-radius:999px;padding:0 7px;display:inline-flex;gap:5px;align-items:center}
+.deftoggle .chg::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .mode-all .deftoggle,.sec:not(.hasdef) .deftoggle{display:none}
 
-.prev{border-left:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto;background:var(--surface-2)}
+/* splitter + preview */
+.split{cursor:col-resize;background:var(--surface-2);border-left:1px solid var(--border);border-right:1px solid var(--border);display:grid;place-items:center;touch-action:none}
+.split::before{content:"";width:3px;height:36px;border-radius:3px;background:var(--border-strong)}
+.split:hover::before,.split.drag::before,.split:focus-visible::before{background:var(--accent)}
+.prev{padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto;background:var(--surface-2);min-width:0}
 .prevh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .prevh .t{margin-right:auto;display:grid;min-width:0}
 .prevh .t b{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -267,10 +289,7 @@ input[type=color].in{padding:1px 2px;height:29px;width:38px;flex:none}
 .pill.miss{background:var(--req-soft);color:var(--req)}
 .msgs{font-size:12px;border:1px solid var(--req);background:var(--req-soft);color:var(--req);border-radius:8px;padding:9px 11px;display:grid;gap:4px}
 .msgs .b.link{color:var(--req);text-decoration:underline;justify-self:start}
-.alsochanges{font-size:12px;color:var(--ds-text);background:var(--ds-soft);border-radius:8px;padding:9px 11px;display:grid;gap:8px}
-.alsochanges .mini{display:flex;gap:6px;flex-wrap:wrap}
-.alsochanges .mini .pw{width:92px}
-@media (max-width:1060px){.work{grid-template-columns:210px minmax(0,1fr);height:auto}.prev{grid-column:1/-1;border-left:0;border-top:1px solid var(--border)}.editor{max-height:680px}}
+@media (max-width:1060px){.work{grid-template-columns:200px minmax(0,1fr);height:auto}.split{display:none}.prev{grid-column:1/-1;border-top:1px solid var(--border)}.editor{max-height:700px}}
 @media (max-width:680px){.work{grid-template-columns:1fr}.nav{border-right:0;border-bottom:1px solid var(--border);max-height:360px}}
 
 /* plot */
@@ -292,38 +311,42 @@ input[type=color].in{padding:1px 2px;height:29px;width:38px;flex:none}
 .pw.dark .plot .pan{fill:#5eead4}
 .plot .pcr{fill:var(--pmute);font:9px var(--sans)}
 .pmiss{aspect-ratio:3/2;display:grid;place-items:center;text-align:center;padding:10px;color:var(--req);font-size:12px;font-weight:600;background:var(--pbg)}
-.thumb .pmiss{font-size:10.5px}
 
 /* menus, dialogs, toast */
-.menuwrap{position:relative}
+.menuwrap{position:relative;display:inline-flex}
 .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:200px;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;box-shadow:var(--shadow);padding:5px;display:grid}
 .menu.left{left:0;right:auto}
 .menu button{font:inherit;font-size:12px;text-align:left;background:transparent;border:0;color:var(--text);padding:7px 10px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;gap:12px}
 .menu button:hover{background:var(--surface-2)}
 .menu .mh{font-size:10px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:6px 10px 2px}
+.menu .mrow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 4px 10px;font-family:var(--mono);font-size:12px}
+.menu .mrow .ib{padding:2px 6px}
+.menu .madd{display:flex;gap:6px;padding:6px;border-top:1px solid var(--border);margin-top:4px}
 .modal{position:fixed;inset:0;z-index:60;background:rgba(10,8,20,.45);display:grid;place-items:center;padding:16px}
 .dlg{background:var(--surface);color:var(--text);border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow);width:min(460px,100%);padding:18px;display:grid;gap:14px;font-size:13px}
 .dlg h3{font-size:16px}
 .dlg .foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-.outsum{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px;background:var(--ds-soft);border-radius:8px;padding:10px 12px;color:var(--ds-text)}
+.outsum{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px;background:var(--ds-soft);border-radius:8px;padding:10px 12px;color:var(--ds-text);margin:0}
 .outsum dt{font-weight:600}.outsum dd{margin:0}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:13px;border-radius:8px;padding:9px 14px;z-index:70;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 
 /* bottom tables */
 .block{display:grid;gap:12px}
-.block > p{margin:0;color:var(--muted);max-width:78ch}
+.block > p{margin:0;color:var(--muted);max-width:80ch}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:13px;min-width:760px}
 th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--border)}
 tbody tr:last-child td{border-bottom:0}
-th{font-size:11px;font-family:var(--mono);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);position:sticky;top:0}
+th{font-size:11px;font-family:var(--mono);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2);position:sticky;top:0;z-index:1}
 td.grouprow{background:var(--surface-2);font-weight:600;font-size:12px}
 .chg-tag{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:1px 9px;white-space:nowrap}
 .chg-moved{background:var(--surface-3);color:var(--text)}
 .chg-removed{background:var(--req-soft);color:var(--req)}
 .chg-new{background:var(--accent-soft);color:var(--accent-text)}
+.chg-back{background:var(--ok-soft);color:var(--ok)}
 .chk{font-weight:700;color:var(--ok)}
 .chk.no{color:var(--req)}
+.lvl{display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
 .covsum{display:flex;gap:10px;flex-wrap:wrap}
 .covsum div{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;display:grid}
 .covsum b{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -335,26 +358,26 @@ td.grouprow{background:var(--surface-2);font-weight:600;font-size:12px}
 
 <div class="page">
   <header>
-    <div class="eyebrow">Ashby Plot Builder · Concept B, iteration 2</div>
+    <div class="eyebrow">Ashby Plot Builder · Concept B, iteration 3</div>
     <h1>Ashby Concept B</h1>
-    <p class="lede">Plots and datasets now live in their own strip above the editor, and every setting says <b>who it affects</b> (the whole dataset or only this plot) and <b>whether you need to touch it</b>. Simple mode hides everything that can stay at its default. Clickable mockup with the <code>spritzguss-showcase</code> example; nothing renders or downloads.</p>
+    <p class="lede">Slim plot tabs, small status icons, one language at a time, roomier axis definitions and a resizable preview. Clickable mockup with the <code>spritzguss-showcase</code> example; nothing renders or downloads.</p>
   </header>
 
   <div class="keys">
     <div class="key">
       <h3>Who a setting affects</h3>
       <ul>
-        <li><span class="scopetag ds">Dataset</span><span><b>Shared.</b> Saved once per dataframe and used by every plot in it: data source, axis definitions, material colors, legend title, fonts, dark mode, image output.</span></li>
-        <li><span class="scopetag pl">Plot</span><span><b>Only this plot</b> (frame): X/Y quantities, scale, range, title, hulls, areas, guidelines, annotations.</span></li>
-        <li><span class="scopetag pj">Project</span><span><b>The config file</b> with all datasets: import, export, JSON, reset.</span></li>
+        <li><span class="scopetag ds">Dataset</span><span><b>Shared</b> by every plot of the dataframe: data source, languages, axis definitions, material colors, legend title, fonts, dark mode, image output.</span></li>
+        <li><span class="scopetag pl">Plot</span><span><b>Only this plot</b> (frame): title, X/Y, range, hulls, areas, guidelines, annotations.</span></li>
+        <li><span class="scopetag pj">Project</span><span><b>The config file</b> with all datasets.</span></li>
       </ul>
     </div>
     <div class="key">
-      <h3>Whether you need to change it</h3>
+      <h3>Whether you need to change it (hover the icons)</h3>
       <ul>
-        <li><span class="tr req">Required</span><span><b>Must be set</b> or the plot cannot render. Turns green when done, orange when missing.</span></li>
-        <li><span class="tr rev">Check</span><span><b>Works as is,</b> but you usually want to review it: titles, labels, scale, colors.</span></li>
-        <li><span class="tr def">Default OK</span><span><b>Gives a good result untouched.</b> Hidden in Simple mode; a counter shows how many and whether any were changed.</span></li>
+        <li><span class="lvl"><i class="ti req"></i><i class="ti req ok"></i></span><span><b>Required.</b> Orange until set, green when done.</span></li>
+        <li><span class="lvl"><i class="ti rev" id="revIconKey"></i></span><span><b>Check.</b> Works as is, but usually worth a look.</span></li>
+        <li><span class="lvl"><i class="ti def"></i><i class="ti def chg"></i></span><span><b>Default OK.</b> Hidden in Simple mode. Filled when changed from the default.</span></li>
       </ul>
     </div>
   </div>
@@ -364,40 +387,60 @@ td.grouprow{background:var(--surface-2);font-weight:600;font-size:12px}
     <div class="app" id="app"></div>
   </div>
 
-  <section class="block">
+  <section class="block narrow">
+    <h2>What changed in iteration 3</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Your feedback</th><th>Change</th></tr></thead>
+      <tbody>
+        <tr><td>Tab bar too massive</td><td>One 48 px row of tabs grouped by dataset. Thumbnails are gone; a red dot shows missing required settings. Duplicate, move and remove appear on the active tab and on hover.</td></tr>
+        <tr><td>Required / Default OK badges too massive</td><td>15 px icons with a tooltip. The same icon fills when a default was changed.</td></tr>
+        <tr><td>Languages used before they are defined; no way to select one</td><td>Language bar at the top of the settings: pick the plot language, add and remove languages. It sits above every section, so languages exist before any text field.</td></tr>
+        <tr><td>Text fields for every language</td><td>Simple shows only the selected language. All settings shows every language with a language tag.</td></tr>
+        <tr><td>Axis definitions cramped</td><td>One row per axis (name, label, columns). Edit opens it full width with a searchable column list.</td></tr>
+        <tr><td>Duplicate buttons missing</td><td>⧉ is back on axes, layers, areas, guidelines and annotations.</td></tr>
+        <tr><td>Areas, guidelines, annotations not grouped</td><td>Three groups in the section, each with count and its own + button. Annotation defaults sit in the annotation group.</td></tr>
+        <tr><td>Remove the “Shared dataset setting” banner</td><td>Removed, together with the “these plots change too” box in the preview.</td></tr>
+        <tr><td>Settings pane too narrow</td><td>The page uses more of the screen, the preview starts at 400 px and the divider can be dragged (or moved with the arrow keys). The width is remembered.</td></tr>
+        <tr><td>Title should not be a section</td><td>Plot title is now the first block of “Title &amp; axes”.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="block narrow">
     <h2>Button changes compared with the current app</h2>
-    <p>Everything the current app can do is still here. These are the buttons that moved, disappeared or are new in this concept.</p>
+    <p>Everything the current app can do is still here. These buttons moved, disappeared or are new.</p>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Change</th><th>Button</th><th>Current app</th><th>In this concept</th></tr></thead>
       <tbody>
-        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Import config · Export config · JSON · Reset config</td><td>Header menu “Config actions”</td><td>Data section, card “Config file” (scope Project)</td></tr>
-        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Settings · Log · About</td><td>Header menu “More”</td><td>Header menu ⚙, same three entries</td></tr>
-        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Generate all plots</td><td>“Generate plot ▼” menu</td><td>“Generate all (n)” at the right end of the plot strip; the include checkboxes sit on the same cards</td></tr>
-        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Generate current plot</td><td>“Generate plot” button</td><td>↻ in the preview (already exists on the Plot page) plus optional auto-refresh</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Import config · Export config · JSON · Reset config</td><td>Header menu “Config actions”</td><td>Data section, card “Config file”</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Settings · Log · About</td><td>Header menu “More”</td><td>Header menu ⚙</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Generate all plots</td><td>“Generate plot ▼” menu</td><td>“Generate all (n)” at the right end of the plot tabs</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Generate current plot</td><td>“Generate plot” button</td><td>↻ in the preview, plus optional auto-refresh</td></tr>
         <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Download all (.zip) · Download this plot</td><td>Plot page</td><td>“Export…” dialog in the preview</td></tr>
-        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Add / duplicate / remove / include dataframe and frame, rename by double-click</td><td>Two tab rows above the config</td><td>Same buttons on the dataset boxes and plot cards in the strip</td></tr>
-        <tr><td><span class="chg-tag chg-moved">Changed</span></td><td>Move frame</td><td>Dataframe select + “Move frame” button</td><td>⇄ on each plot card, opens a list of target datasets</td></tr>
-        <tr><td><span class="chg-tag chg-removed">Removed</span></td><td>Config / Plot view toggle</td><td>Header</td><td>Not needed: the preview is always next to the settings</td></tr>
-        <tr><td><span class="chg-tag chg-removed">Removed</span></td><td>“Generate plot ▼” split button</td><td>Header</td><td>Both of its actions moved (see above)</td></tr>
-        <tr><td><span class="chg-tag chg-new">New</span></td><td>Simple / All settings switch</td><td>–</td><td>Header. Simple hides settings marked “Default OK”</td></tr>
-        <tr><td><span class="chg-tag chg-new">New</span></td><td>“Show n default settings”</td><td>–</td><td>Bottom of each section, shows that section’s hidden defaults</td></tr>
-        <tr><td><span class="chg-tag chg-new">New</span></td><td>Find a setting (search field)</td><td>–</td><td>Top of the settings list; also finds hidden defaults</td></tr>
-        <tr><td><span class="chg-tag chg-new">New</span></td><td>Export… and Auto-refresh checkbox</td><td>–</td><td>Preview header; Export… opens the dialog with the two download buttons</td></tr>
-        <tr><td><span class="chg-tag chg-new">New</span></td><td>Edit / Done on each area, guideline and annotation</td><td>All details always open</td><td>Rows collapse to a one-line summary</td></tr>
-        <tr><td><span class="chg-tag chg-new">New</span></td><td>Cross links (“Edit axis definitions”, “Material colors”, “Go to …”)</td><td>–</td><td>Jump between a plot setting and the shared setting it depends on</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Add / duplicate / remove / include / rename dataframe and frame</td><td>Two tab rows</td><td>Plot tabs. Duplicate and remove show on the active tab and on hover</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Moved</span></td><td>Add / remove plot language</td><td>Dataframe section</td><td>Language bar → “Languages…” menu</td></tr>
+        <tr><td><span class="chg-tag chg-moved">Changed</span></td><td>Move frame</td><td>Dataframe select + “Move frame”</td><td>⇄ on the tab, opens a list of target datasets</td></tr>
+        <tr><td><span class="chg-tag chg-back">Kept</span></td><td>Duplicate (⧉) on axes, layers, areas, guidelines, annotations</td><td>Each item</td><td>Each item row (was missing in iteration 2)</td></tr>
+        <tr><td><span class="chg-tag chg-removed">Removed</span></td><td>Config / Plot view toggle</td><td>Header</td><td>Preview is always visible</td></tr>
+        <tr><td><span class="chg-tag chg-removed">Removed</span></td><td>“Generate plot ▼” split button</td><td>Header</td><td>Both actions moved (see above)</td></tr>
+        <tr><td><span class="chg-tag chg-new">New</span></td><td>Plot language selector</td><td>– (<code>language</code> is in the config, no control)</td><td>Language bar. Sets the dataframe’s <code>language</code> and which text fields Simple mode shows</td></tr>
+        <tr><td><span class="chg-tag chg-new">New</span></td><td>Simple / All settings switch · “Show n default settings”</td><td>–</td><td>Header · bottom of each section</td></tr>
+        <tr><td><span class="chg-tag chg-new">New</span></td><td>Find a setting · Export… · Auto-refresh</td><td>–</td><td>Settings list · preview header</td></tr>
+        <tr><td><span class="chg-tag chg-new">New</span></td><td>Edit / Done on axes, layers, areas, guidelines, annotations</td><td>All details always open</td><td>Rows collapse to a one-line summary</td></tr>
+        <tr><td><span class="chg-tag chg-new">New</span></td><td>Cross links (“Edit axis definitions →” …) · preview divider</td><td>–</td><td>Jump to the shared setting · resize the preview</td></tr>
       </tbody>
     </table></div>
   </section>
 
   <section class="block">
     <h2>Settings coverage</h2>
-    <p>Every control of the current app (from <code>DataframeSection</code>, <code>AxesSection</code>, <code>FrameSection</code>, <code>LayersSection</code>, <code>MaterialColorsSection</code>, <code>ColoredAreasSection</code>, <code>GuidelinesSection</code>, <code>AnnotationsSection</code>, <code>AdvancedJsonSection</code>, <code>ConfigTabs</code>, <code>AppHeader</code>, <code>AppPopouts</code> and <code>PlotPage</code>) is listed below. The table is filled by looking each one up in the mockup above, so a missing control shows a red ✗. “Show” jumps to it.</p>
+    <p>Every control of the current app, looked up in the mockup above. A missing control shows a red ✗. “Show” jumps to it.</p>
     <div class="covsum" id="covsum"></div>
     <div class="tbl-wrap covwrap"><table>
       <thead><tr><th>Setting / control</th><th>Current app</th><th>Who it affects</th><th>Level</th><th>Where in the mockup</th><th>Found</th><th></th></tr></thead>
       <tbody id="cov"></tbody>
     </table></div>
-    <p>In the config but without a control in the current app (unchanged here): frame <code>legend_flag</code>, <code>legend_above</code>, <code>language</code>, frame <code>dark_mode</code>, <code>export_file_name</code>, guideline <code>label_rotated</code>.</p>
+    <p>In the config but without a control in the current app (unchanged here): frame <code>legend_flag</code>, <code>legend_above</code>, frame <code>language</code>, frame <code>dark_mode</code>, <code>export_file_name</code>, guideline <code>label_rotated</code>. The dataframe <code>language</code> now has the new selector.</p>
   </section>
 </div>
 
@@ -406,7 +449,7 @@ td.grouprow{background:var(--surface-2);font-weight:600;font-size:12px}
     <h3 id="exTitle">Export</h3>
     <div class="sch"><span class="scopetag ds">Dataset</span><span class="small">Output settings of <b id="exDs"></b></span></div>
     <dl class="outsum" id="exSum"></dl>
-    <button type="button" class="b link ds" data-go="output" data-close>Change in Image output →</button>
+    <button type="button" class="b link ds" data-go="output" data-close style="justify-self:start">Change in Image output →</button>
     <div class="foot">
       <button type="button" class="b" data-close>Cancel</button>
       <button type="button" class="b" data-s="app.downloadAll" data-toast="Mockup: would render the included plots and download a .zip" data-close id="exAll">Download all (.zip)</button>
@@ -420,7 +463,7 @@ td.grouprow{background:var(--surface-2);font-weight:600;font-size:12px}
     <div class="sch"><span class="scopetag app">App</span><span class="small">Only this browser, not saved in the config</span></div>
     <label class="fld" data-s="app.uiLanguage"><span class="lbl">UI language</span><select class="in" id="st-lang"><option>English</option><option>Deutsch</option></select></label>
     <div class="fld" data-s="app.uiTheme" role="group" aria-label="UI theme"><span class="lbl">UI theme</span><div class="seg"><button type="button" class="on">System</button><button type="button">Light</button><button type="button">Dark</button></div></div>
-    <div class="fld"><span class="lbl">Local data files</span><button type="button" class="b danger" data-s="app.deleteFiles" data-toast="Mockup: would delete stored Excel files">Delete all stored files</button></div>
+    <div class="fld"><span class="lbl">Local data files</span><button type="button" class="b danger" data-s="app.deleteFiles" data-toast="Mockup: would delete stored Excel files" style="justify-self:start">Delete all stored files</button></div>
     <div class="foot"><button type="button" class="b pri" data-close>Close</button></div>
   </div>
 </div>
@@ -438,9 +481,10 @@ const FAMS1=[
   {n:"PBT",c:"#169e6f",cx:176,cy:100,rx:40,ry:13,rot:-10},
   {n:"PEEK",c:"#9a6a1c",cx:252,cy:108,rx:55,ry:10,rot:-5}
 ];
-const COLS=["Deflection Temperature at 0.46 MPa 66 psi","Deflection Temperature at 1.8 MPa 264 psi","Tensile Strength Ultimate","Tensile Strength","Tensile Strength Yield","Density","Tensile Modulus","Modulus of Elasticity","Melting Point","Melt Temperature","Processing Temperature","Gruppe","Hersteller","Typ"];
+const COLS=["Deflection Temperature at 0.46 MPa 66 psi","Deflection Temperature at 1.8 MPa 264 psi","Tensile Strength Ultimate","Tensile Strength","Tensile Strength at Break","Tensile Strength Yield","Density","Tensile Modulus","Modulus of Elasticity","Flexural Modulus","Melting Point","Melt Temperature","Processing Temperature","Glass Transition Temperature","Elongation at Break","Water Absorption","Gruppe","Hersteller","Typ"];
+const LANGNAMES={en:"English",de:"Deutsch",fr:"Français",it:"Italiano",es:"Español"};
 const DS=[
-  {name:"Spritzguss polymer showcase",include:true,dark:false,langs:["en","de"],file:"dataset_3.xlsx",rows:214,ncols:38,
+  {name:"Spritzguss polymer showcase",include:true,dark:false,langs:["en","de"],language:"en",file:"dataset_3.xlsx",rows:214,ncols:38,
    legend:{en:"Polymer family",de:"Polymerfamilie"},ratio:[16,9],
    font:{style:"sans-serif",family:"Arial",size:18,title:30,legendTitle:14,legendItem:14,axisLabel:16,tick:12},
    mats:FAMS1.map(f=>({n:f.n,c:f.c})),
@@ -452,10 +496,10 @@ const DS=[
     {name:"melt",cols:["Melting Point","Melt Temperature"],mode:"max",label:{en:"Melting point T_M [°C]",de:"Schmelztemperatur T_S [°C]"}}],
    plots:[
     {name:"01-thermal-strength-selection",include:true,x:"heat_deflection",y:"tensile_strength",xlog:false,ylog:false,group:"Gruppe",extras:true,
-     title:{en:"Thermal capability versus tensile strength",de:"Temperaturbestaendigkeit und Zugfestigkeit"}},
+     title:{en:"Thermal capability versus tensile strength",de:"Temperaturbeständigkeit und Zugfestigkeit"}},
     {name:"02-lightweight-stiffness",include:true,x:"density",y:"",xlog:false,ylog:true,group:"Gruppe",extras:false,
      title:{en:"Lightweight stiffness map",de:"Leichtbau-Steifigkeitskarte"}}]},
-  {name:"Axen",include:false,dark:true,langs:["en","de"],file:"axen.xlsx",rows:96,ncols:22,
+  {name:"Axen",include:false,dark:true,langs:["en","de"],language:"de",file:"axen.xlsx",rows:96,ncols:22,
    legend:{en:"Material",de:"Werkstoff"},ratio:[3,2],
    font:{style:"sans-serif",family:"Arial",size:22,title:40,legendTitle:20,legendItem:20,axisLabel:15,tick:5},
    mats:[{n:"PA66",c:"#3b7ddd"},{n:"PPS",c:"#e0475b"},{n:"LCP",c:"#169e6f"},{n:"POM",c:"#e8a317"},{n:"PBT",c:"#9a6a1c"}],
@@ -472,41 +516,64 @@ const DS=[
 const DEF={ratio:"3:2",font:{style:"sans-serif",family:"Arial",size:"22",title:"40",legendTitle:"20",legendItem:"20",axisLabel:"15",tick:"5"}};
 
 /* ================= state ================= */
-const st={d:0,p:0,sec:"data",all:false,showdef:new Set(),srcmode:"Excel file"};
+const st={d:0,p:0,sec:"data",all:false,showdef:new Set(),srcmode:"Excel file",open:new Set(["axis:0"])};
 const ds=()=>DS[st.d], pl=()=>DS[st.d].plots[st.p];
 
 /* ================= helpers ================= */
 const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 let N=0;const id=()=>"f"+(++N);
-const Q=`<i class="q" title="Help">?</i>`;
-const CHIP={req:`<span class="tr req">Required</span>`,rev:`<span class="tr rev">Check</span>`,def:`<span class="tr def">Default OK</span>`};
+const EYE=`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1.5 10S5 4 10 4s8.5 6 8.5 6-3.5 6-8.5 6-8.5-6-8.5-6z"/><circle cx="10" cy="10" r="2.5"/></svg>`;
+const LINK=`<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></svg>`;
+const TIP={req:"Required: must be set, otherwise the plot cannot render.",rev:"Check: works as is, but usually worth reviewing.",def:"Default OK: gives a good result untouched. Hidden in Simple mode."};
+const ICON={
+  req:`<i class="ti req" tabindex="0" role="img" aria-label="Required" data-tip="${TIP.req}"></i>`,
+  rev:`<i class="ti rev" tabindex="0" role="img" aria-label="Check" data-tip="${TIP.rev}">${EYE}</i>`,
+  def:`<i class="ti def" tabindex="0" role="img" aria-label="Default OK" data-tip="${TIP.def}"></i>`
+};
+const HELP=`<i class="q" tabindex="0" role="img" aria-label="Help" data-tip="Help text for this field, as in the current app.">?</i>`;
 function F(s,label,ctrl,tier,o={}){
   const tag=o.group?"div":"label";
-  return `<${tag} class="fld tier-${tier} ${o.cls||""}" data-s="${s}"${o.group?` role="group" aria-label="${esc(label)}"`:""}${o.def!==undefined?` data-def="${esc(o.def)}"`:""}${o.req?` data-req="${o.req}"`:""}${o.extra||""}><span class="lbl"><span class="lt">${label}</span>${Q}${CHIP[tier]}</span>${ctrl}${o.hint?`<span class="fh">${o.hint}</span>`:""}</${tag}>`;
+  return `<${tag} class="fld tier-${tier} ${o.cls||""}" data-s="${s}"${o.group?` role="group" aria-label="${esc(label)}"`:""}${o.def!==undefined?` data-def="${esc(o.def)}"`:""}${o.req?` data-req="${o.req}"`:""}${o.lang?` data-lang="${o.lang}"`:""}><span class="lbl"><span class="lt">${label}</span>${o.lang?`<span class="lang">${o.lang.toUpperCase()}</span>`:""}${ICON[tier]}${HELP}</span>${ctrl}${o.hint?`<span class="fh">${o.hint}</span>`:""}</${tag}>`;
+}
+/* language dependent: one field per plot language; Simple mode shows only the selected one */
+function LF(s,label,vals,tier,o={}){
+  const d=ds();
+  return d.langs.map(l=>F(s,label,I((vals&&vals[l])||"",{bind:o.bind?o.bind+"."+l:"",ph:o.ph}),tier,{...o,lang:l,cls:(o.cls||"")+(l===d.language?"":" otherlang")})).join("");
 }
 const I=(v,o={})=>`<input class="in" id="${id()}" value="${esc(v)}"${o.ph?` placeholder="${esc(o.ph)}"`:""}${o.bind?` data-bind="${o.bind}"`:""}${o.type?` type="${o.type}"`:""}${o.dis?" disabled":""}>`;
 const S=(opts,sel,o={})=>`<select class="in" id="${id()}"${o.bind?` data-bind="${o.bind}"`:""}>${o.ph?`<option value=""${sel?"":" selected"}>${esc(o.ph)}</option>`:""}${opts.map(x=>`<option${x===sel?" selected":""}>${esc(x)}</option>`).join("")}</select>`;
 const C=(v)=>`<input type="color" class="in" id="${id()}" value="${v}" aria-label="Color">`;
 const TA=v=>`<textarea class="in ta" id="${id()}">${esc(v)}</textarea>`;
 const T=(on,act="")=>`<button type="button" class="tog${on?" on":""}" aria-pressed="${on}"${act?` data-act="${act}"`:""}>${on?"On":"Off"}</button>`;
-const SEG=(opts,sel,act="")=>`<div class="seg"${act?` data-act="${act}"`:""}>${opts.map(x=>`<button type="button" class="${x===sel?"on":""}">${x}</button>`).join("")}</div>`;
+const SEG=(opts,sel,act="",cls="")=>`<div class="seg ${cls}"${act?` data-act="${act}"`:""}>${opts.map(x=>`<button type="button" class="${x===sel?"on":""}">${x}</button>`).join("")}</div>`;
 const A=(s,t,cls="",tier="act",attr="")=>`<button type="button" class="b ${cls} tier-${tier}" data-s="${s}" ${attr}>${t}</button>`;
-const GRP=(title,inner,extra="")=>`<div class="grp">${title?`<h4>${title}${extra}</h4>`:""}${inner}</div>`;
-const CM=(mode,val,s)=>`<div class="cm">${SEG(["Custom","Material"],mode,"cmode")}${mode==="Custom"?C(val):S(ds().mats.map(m=>m.n).concat("default"),val)}</div>`;
-const LINK=`<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1"/></svg>`;
+const GRP=(title,inner,right="")=>`<div class="grp">${title?`<div class="grph">${title}${right}</div>`:""}${inner}</div>`;
+const CM=(mode,val)=>`<div class="cm">${SEG(["Custom","Material"],mode,"cmode")}${mode==="Custom"?C(val):S(ds().mats.map(m=>m.n).concat("default"),val)}</div>`;
+const MS=(opts,sel)=>`<div class="ms"><div class="mshead"><input class="in" data-s="ms.search" data-ms-search placeholder="Search options…" aria-label="Search options"><button type="button" class="b sm" data-s="ms.selectAll" data-ms="all">Select all</button><button type="button" class="b sm" data-s="ms.deselectAll" data-ms="none">Deselect all</button><button type="button" class="ib" data-s="ms.expand" data-ms="expand" aria-label="Expand list" title="Expand list">⤢</button></div>
+  <div class="mslist">${opts.map(o=>`<label class="msopt"><input type="checkbox"${sel.includes(o)?" checked":""}>${esc(o)}</label>`).join("")}</div><div class="msfoot"><span data-ms-count>${sel.length}</span> selected</div></div>`;
 const axisNames=()=>ds().axes.map(a=>a.name);
-const axisLabel=n=>{const a=ds().axes.find(x=>x.name===n);return a?a.label.en:n};
+/* collapsible item: row summary + editor; dup/remove are the app's existing buttons */
+function ITEM(key,ico,name,detail,edit,dupS,rmS,extra=""){
+  const open=st.open.has(key);
+  return `<div class="item${open?" editing":""}" data-item="${key}"><div class="itemrow">${ico?`<span class="ico" aria-hidden="true">${ico}</span>`:""}<span class="nmx">${name}<span>${detail}</span></span>${extra}
+    <button type="button" class="b sm" data-edit>${open?"Done":"Edit"}</button>
+    ${dupS?`<button type="button" class="ib" data-s="${dupS}" data-act="dup" aria-label="Duplicate" title="Duplicate">⧉</button>`:""}
+    <button type="button" class="ib del" data-s="${rmS}" data-act="rm" aria-label="Remove" title="Remove">✕</button></div>
+    <div class="itemedit">${edit}</div></div>`;
+}
 
 /* ================= plot drawing ================= */
 function hash(s){let h=2166136261;for(const ch of s){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
 function specFor(d,p){
   if(!p.x||!p.y)return null;
-  const lab=n=>{const a=d.axes.find(x=>x.name===n);return a?a.label.en:n};
+  const L=d.language;
+  const lab=n=>{const a=d.axes.find(x=>x.name===n);return a?(a.label[L]||a.label.en):n};
+  const base={title:p.title[L]||"",xl:lab(p.x),yl:lab(p.y),legend:d.legend[L]||"",dark:d.dark};
   if(d===DS[0]&&p.x==="heat_deflection"&&p.y==="tensile_strength")
-    return {title:p.title.en,xl:lab(p.x),yl:lab(p.y),xr:[40,320],yr:[0,130],xt:[50,100,150,200,250,300],yt:[0,20,40,60,80,100,120],fams:FAMS1,extras:p.extras,legend:d.legend.en,dark:d.dark};
+    return {...base,xr:[40,320],yr:[0,130],xt:[50,100,150,200,250,300],yt:[0,20,40,60,80,100,120],fams:FAMS1,extras:p.extras};
   let seed=hash(p.x+"|"+p.y+"|"+d.name)||1;const r=()=>(seed=(seed*16807)%2147483647)/2147483647;
-  const fams=d.mats.map(m=>({n:m.n,c:m.c,cx:30+r()*62,cy:12+r()*70,rx:5+r()*12,ry:4+r()*8,rot:-25+r()*50}));
-  return {title:p.title.en,xl:lab(p.x),yl:lab(p.y),xr:[0,100],yr:[0,100],xt:[0,20,40,60,80,100],yt:[0,20,40,60,80,100],fams,extras:false,legend:d.legend.en,dark:d.dark};
+  const fams=d.mats.map(m=>({n:m.n,c:m.c,cx:34+r()*58,cy:12+r()*70,rx:5+r()*12,ry:4+r()*8,rot:-25+r()*50}));
+  return {...base,xr:[0,100],yr:[0,100],xt:[0,20,40,60,80,100],yt:[0,20,40,60,80,100],fams,extras:false};
 }
 function plotSVG(sp){
   const [x0,x1]=sp.xr,[y0,y1]=sp.yr;
@@ -534,40 +601,38 @@ function plotSVG(sp){
   sp.fams.forEach((f,i)=>{s+=`<rect x="89" y="${78+i*13}" width="9" height="9" rx="2" fill="${f.c}" fill-opacity=".45" stroke="${f.c}"/><text class="plgi" x="104" y="${86+i*13}">${esc(f.n)}</text>`});
   return s+`<text class="pcr" x="592" y="394" text-anchor="end">© RPS</text></svg>`;
 }
-function plotBox(d,p,thumb){
-  const sp=specFor(d,p);
-  const miss=!p.x?"X quantity missing":!p.y?"Y quantity missing":!p.group?"Hull column missing":"";
-  return `<div class="pw${d.dark?" dark":""}${thumb?" thumb":""}">${sp&&!miss?plotSVG(sp):`<div class="pmiss">${miss}</div>`}</div>`;
+const missingList=p=>[!p.x&&["X quantity","axes","x.q"],!p.y&&["Y quantity","axes","y.q"],!p.group&&["Group materials by column","hulls","hl.column"]].filter(Boolean);
+function plotBox(d,p){
+  const sp=specFor(d,p),miss=missingList(p);
+  return `<div class="pw${d.dark?" dark":""}">${sp&&!miss.length?plotSVG(sp):`<div class="pmiss">${miss.map(m=>m[0]).join(", ")} missing</div>`}</div>`;
 }
-const missingOf=p=>(!p.x?1:0)+(!p.y?1:0)+(!p.group?1:0);
 
-/* ================= structure strip ================= */
+/* ================= plot tabs ================= */
 const app=document.getElementById("app");
-function renderStrip(){
-  const incCount=DS.filter(d=>d.include).reduce((n,d)=>n+d.plots.filter(p=>p.include).length,0);
-  return `<div class="strip" data-area="Plot strip" data-scope="structure">
-    <div class="striplab"><b>Plots</b><span>grouped by dataset. Click a plot to edit it.</span></div>
-    ${DS.map((d,di)=>`<div class="dsbox${di===st.d?" cur":""}" data-dsbox="${di}">
-      <div class="dsh"><span class="scopetag ds">Dataset</span><span class="nm" data-s="ds.rename" data-rename="ds:${di}" title="Double-click to rename">${esc(d.name)}</span>
-        <label class="inc" title="Include this dataset when generating all plots"><input type="checkbox" data-s="ds.include" data-inc="ds:${di}"${d.include?" checked":""}>include</label>
-        <button type="button" class="ib" data-s="ds.dup" data-act="dsdup" data-i="${di}" title="Duplicate dataset" aria-label="Duplicate dataset">⧉</button>
-        <button type="button" class="ib" data-s="ds.remove" data-act="dsdel" data-i="${di}" title="Remove dataset" aria-label="Remove dataset">✕</button></div>
-      <div class="plots">${d.plots.map((p,pi)=>{const m=missingOf(p);return `<div class="pcard${di===st.d&&pi===st.p?" active":""}">
-          <span class="affect">affected</span>
-          <button type="button" class="thumbbtn" data-plot="${di}:${pi}" aria-label="Edit plot ${esc(p.name)}">${plotBox(d,p,true)}</button>
-          <div class="pmeta"><span class="nm" data-s="pl.rename" data-rename="pl:${di}:${pi}" title="Double-click to rename">${esc(p.name)}</span><input type="checkbox" data-s="pl.include" data-inc="pl:${di}:${pi}"${p.include?" checked":""} title="Include when generating all plots" aria-label="Include ${esc(p.name)} when generating all plots" style="accent-color:var(--accent)"></div>
-          <div class="pacts"><button type="button" class="ib" data-s="pl.dup" data-act="pldup" data-i="${di}:${pi}" title="Duplicate plot" aria-label="Duplicate plot">⧉</button>
+const includedCount=()=>DS.filter(d=>d.include).reduce((n,d)=>n+d.plots.filter(p=>p.include).length,0);
+function renderTabs(){
+  const n=includedCount();
+  return `<div class="tabs" data-area="Plot tabs" data-scope="structure">
+    <span class="tlab">Plots</span>
+    ${DS.map((d,di)=>`<div class="dsg${di===st.d?" cur":""}" data-dsg="${di}">
+      <span class="dsn" title="Dataset: settings in the teal group of the list are shared by its plots">
+        <input type="checkbox" class="inc" data-s="ds.include" data-inc="ds:${di}"${d.include?" checked":""} title="Include this dataset when generating all plots" aria-label="Include dataset ${esc(d.name)}">
+        <span class="nm" data-s="ds.rename" data-rename="ds:${di}" title="Double-click to rename">${esc(d.name)}</span>
+        <span class="acts"><button type="button" class="ib" data-s="ds.dup" data-act="dsdup" data-i="${di}" title="Duplicate dataset" aria-label="Duplicate dataset">⧉</button><button type="button" class="ib del" data-s="ds.remove" data-act="dsdel" data-i="${di}" title="Remove dataset" aria-label="Remove dataset">✕</button></span>
+      </span>
+      ${d.plots.map((p,pi)=>{const m=missingList(p).length;return `<div class="tab${di===st.d&&pi===st.p?" active":""}">
+          <input type="checkbox" class="inc" data-s="pl.include" data-inc="pl:${di}:${pi}"${p.include?" checked":""} title="Include when generating all plots" aria-label="Include ${esc(p.name)} when generating all plots">
+          <button type="button" class="tabbtn" data-plot="${di}:${pi}"><span class="nm" data-s="pl.rename" data-rename="pl:${di}:${pi}" title="Double-click to rename">${esc(p.name)}</span>${m?`<span class="mdot" title="${m} required setting${m>1?"s":""} missing">${m}</span>`:""}</button>
+          <span class="acts"><button type="button" class="ib" data-s="pl.dup" data-act="pldup" data-i="${di}:${pi}" title="Duplicate plot" aria-label="Duplicate plot">⧉</button>
             <span class="menuwrap"><button type="button" class="ib" data-s="pl.move" data-menu="mv-${di}-${pi}" title="Move to another dataset" aria-label="Move to another dataset">⇄</button>
-              <div class="menu left movemenu" id="mv-${di}-${pi}" hidden><div class="mh">Move to dataset</div>${DS.map((o,oi)=>oi===di?"":`<button type="button" data-act="plmove" data-i="${di}:${pi}:${oi}">${esc(o.name)}</button>`).join("")}</div></span>
-            <button type="button" class="ib" data-s="pl.remove" data-act="pldel" data-i="${di}:${pi}" title="Remove plot" aria-label="Remove plot">✕</button>
-            ${m?`<span class="warn">${m} missing</span>`:""}</div>
+              <div class="menu left" id="mv-${di}-${pi}" hidden><div class="mh">Move to dataset</div>${DS.map((o,oi)=>oi===di?"":`<button type="button" data-act="plmove" data-i="${di}:${pi}:${oi}">${esc(o.name)}</button>`).join("")}</div></span>
+            <button type="button" class="ib del" data-s="pl.remove" data-act="pldel" data-i="${di}:${pi}" title="Remove plot" aria-label="Remove plot">✕</button></span>
         </div>`}).join("")}
-        <button type="button" class="addcard" data-s="pl.add" data-act="pladd" data-i="${di}">+ Plot</button>
-      </div>
-      ${di===st.d?`<div class="sharednote" id="sharednote" hidden>${LINK}<span>Editing shared settings: affects all ${d.plots.length} plot${d.plots.length>1?"s":""} in this dataset</span></div>`:""}
+      <button type="button" class="tadd" data-s="pl.add" data-act="pladd" data-i="${di}" title="Add plot to ${esc(d.name)}" aria-label="Add plot">+</button>
     </div>`).join("")}
-    <button type="button" class="addcard" data-s="ds.add" data-act="dsadd" style="width:110px">+ Dataset</button>
-    <div class="stripend"><button type="button" class="b pri" data-s="app.generateAll" data-toast="Mockup: would render all ${incCount} included plots">Generate all (${incCount})</button><span class="small">${incCount} plots are included</span></div>
+    <button type="button" class="tadd" data-s="ds.add" data-act="dsadd">+ Dataset</button>
+    <span class="grow"></span>
+    <button type="button" class="b pri" data-s="app.generateAll" data-toast="Mockup: would render all ${n} included plots" title="Renders every checked plot">Generate all (${n})</button>
   </div>`;
 }
 
@@ -578,10 +643,9 @@ const NAV=[
   {id:"materials",scope:"ds",t:"Materials & legend"},
   {id:"look",scope:"ds",t:"Text & look"},
   {id:"output",scope:"ds",t:"Image output"},
-  {id:"axes",scope:"pl",t:"Axes & range"},
-  {id:"title",scope:"pl",t:"Title"},
+  {id:"axes",scope:"pl",t:"Title & axes"},
   {id:"hulls",scope:"pl",t:"Hulls"},
-  {id:"extras",scope:"pl",t:"Areas, guidelines & notes"},
+  {id:"extras",scope:"pl",t:"Areas, guidelines & annotations"},
   {id:"json",scope:"pl",t:"Advanced JSON"}
 ];
 function SEC(sid,title,intro,body){
@@ -590,10 +654,10 @@ function SEC(sid,title,intro,body){
 }
 function secData(){
   const d=ds(),m=st.srcmode;
-  return SEC("data","Data","Where the material properties of this dataset come from. The config file card holds every dataset and plot.",`
+  return SEC("data","Data","Where the material properties of this dataset come from.",`
     <div class="scopecard pj" data-scope="project"><div class="sch"><span class="scopetag pj">Project</span><b>Config file</b><span class="small">All datasets and plots in one .json</span></div>
       <div class="row">${A("cfg.import","Import config…")}${A("cfg.export","Export config")}${A("cfg.json","Edit JSON")}${A("cfg.reset","Reset config","ghost danger")}</div></div>
-    <div class="scopecard ds" data-scope="dataset"><div class="sch"><span class="scopetag ds">Dataset</span><b>Data source</b><span class="small">Used by all ${d.plots.length} plots of “${esc(d.name)}”</span></div>
+    <div class="scopecard ds" data-scope="dataset"><div class="sch"><span class="scopetag ds">Dataset</span><b>Data source</b><span class="small">Used by all ${d.plots.length} plot${d.plots.length>1?"s":""} of “${esc(d.name)}”</span></div>
       ${F("src.mode","Source",SEG(["Excel file","Provided dataset","Teable"],m,"srcmode"),"req",{group:1,req:"ok"})}
       <div data-srcpanel="Excel file"${m==="Excel file"?"":" hidden"}>${F("src.file","Excel file",`<div class="filebox"><span class="fileic">XLSX</span><div class="fn"><b>${esc(d.file)}</b><small>Imported</small></div>${A("src.upload","Upload &amp; import","pri")}</div>`,"req",{group:1,req:"ok"})}</div>
       <div data-srcpanel="Provided dataset" class="g2"${m==="Provided dataset"?"":" hidden"}>${F("src.dataset","Dataset",S(["dataset_1.xlsx","dataset_2.xlsx","dataset_3.xlsx"],"dataset_3.xlsx"),"req")}<div class="fld"><span class="lbl">&nbsp;</span>${A("src.datasetImport","Import database","pri")}</div></div>
@@ -603,32 +667,33 @@ function secData(){
     </div>`);
 }
 function secAxisDefs(){
-  const d=ds();
-  const rows=d.axes.map(a=>`<div class="axrow">
-      ${F("ax.name","Name",I(a.name),"req",{req:"ok"})}
-      ${F("ax.columns","Columns",`<div class="colchips">${a.cols.map(c=>`<span class="cc"><span>${esc(c)}</span><button type="button" class="ib" aria-label="Remove column">×</button></span>`).join("")}<button type="button" class="ib" aria-label="Add column">+</button></div>`,"req",{group:1,req:"ok"})}
-      ${d.langs.map(l=>F("ax.labels",`Label · ${l.toUpperCase()}`,I(a.label[l]||""),"rev")).join("")}
-      ${F("ax.mode","Mode",S(["default","max","min","span"],a.mode),"def",{def:"default"})}
-      <button type="button" class="ib" data-s="ax.remove" aria-label="Remove axis ${esc(a.name)}" style="margin-top:22px">✕</button>
-    </div>`).join("");
-  return SEC("axisdefs","Axis definitions",`Name the quantities you want to plot and pick the spreadsheet columns they come from. All plots of this dataset choose their X and Y from this list.`,
+  const d=ds(),L=d.language;
+  const rows=d.axes.map((a,i)=>ITEM("axis:"+i,"",`<code>${esc(a.name)}</code>`,`${esc(a.label[L]||"")} · ${a.cols.length} column${a.cols.length>1?"s":""}`,
+    `<div class="twocol">
+      <div class="stack">
+        ${F("ax.name","Name",I(a.name),"req",{req:"ok",hint:"Plots pick X and Y by this name"})}
+        ${LF("ax.labels","Axis label",a.label,"rev")}
+        ${F("ax.mode","Mode",S(["default","max","min","span"],a.mode),"def",{def:"default",hint:"How several columns are combined"})}
+      </div>
+      ${F("ax.columns","Columns",MS(COLS,a.cols),"req",{group:1,req:"ok",hint:"The first column with a value is used"})}
+    </div>`,"ax.dup","ax.remove",a.mode!=="default"?`<span class="badge">${a.mode}</span>`:"")).join("");
+  return SEC("axisdefs","Axis definitions",`Name the quantities and pick the spreadsheet columns they come from. All plots of this dataset choose their X and Y from this list.`,
     `<div class="items">${rows}</div><div>${A("ax.add","+ Axis","sm")}</div>`);
 }
 function secMaterials(){
   const d=ds();
-  const rows=[...d.mats,{n:"default",c:"#000000"}].map(m=>`<div class="matrow">${`<input type="color" class="in" id="${id()}" value="${m.c}" data-s="mc.color" aria-label="${esc(m.n)} color">`}<span style="flex:1;min-width:0" data-s="mc.name">${S([...d.mats.map(x=>x.n),"default","Custom…"],m.n)}</span><button type="button" class="ib" data-s="mc.remove" aria-label="Remove ${esc(m.n)}">✕</button></div>`).join("");
-  return SEC("materials","Materials &amp; legend","Colors and legend are shared: the same material has the same color in every plot of this dataset.",`
-    ${GRP("Legend title",`<div class="g2">${d.langs.map(l=>F("lg.title",`Legend title · ${l.toUpperCase()}`,I(d.legend[l]||"",{bind:"legend."+l}),"rev")).join("")}</div>`)}
+  const rows=[...d.mats,{n:"default",c:"#000000"}].map(m=>`<div class="matrow"><input type="color" class="in" id="${id()}" value="${m.c}" data-s="mc.color" aria-label="${esc(m.n)} color"><span style="flex:1;min-width:0" data-s="mc.name">${S([...d.mats.map(x=>x.n),"default","Custom…"],m.n)}</span><button type="button" class="ib del" data-s="mc.remove" aria-label="Remove ${esc(m.n)}" title="Remove">✕</button></div>`).join("");
+  return SEC("materials","Materials &amp; legend","The same material has the same color in every plot of this dataset.",`
+    <div class="g2">${LF("lg.title","Legend title",d.legend,"rev",{bind:"legend"})}</div>
     ${GRP("Material colors",`${F("mc.list","Colors per material",`<div class="matgrid">${rows}</div>`,"rev",{group:1})}
       <div class="row">${A("mc.add","+ Color","sm")}${A("mc.populate","Populate colors","sm",undefined,'title="Add a color entry for every keyword used in any layer"')}${A("mc.generate","Generate colors","sm")}</div>`)}`);
 }
 function secLook(){
   const d=ds(),f=d.font,df=DEF.font;
-  return SEC("look","Text &amp; look","Fonts, languages and the plot background for all plots of this dataset.",`
+  return SEC("look","Text &amp; look","Fonts, text sizes and background for all plots of this dataset.",`
     ${GRP("Plot",`<div class="g3">
       ${F("lk.ratio","Aspect ratio",`<div class="row" style="flex-wrap:nowrap">${I(d.ratio[0])}<span>/</span>${I(d.ratio[1])}</div>`,"def",{group:1,def:DEF.ratio})}
-      ${F("lk.dark","Dark mode",T(d.dark,"dark"),"def",{group:1,def:"Off"})}
-      ${F("lk.langs","Plot languages",`<div class="row">${d.langs.map(l=>`<span class="cc"><span>${l}</span><button type="button" class="ib" aria-label="Remove ${l}">×</button></span>`).join("")}<span style="width:70px">${I("",{ph:"fr"})}</span>${A("lk.langAdd","Add","sm","def")}</div>`,"def",{group:1})}</div>`)}
+      ${F("lk.dark","Dark mode",T(d.dark,"dark"),"def",{group:1,def:"Off"})}</div>`)}
     ${GRP("Font",`<div class="g3">
       ${F("lk.fontStyle","Font style",S(["serif","sans-serif","cursive","fantasy","monospace"],f.style),"def",{def:df.style})}
       ${F("lk.fontFamily","Font family",S(["DejaVu Sans","DejaVu Serif","DejaVu Sans Mono","Arial","Helvetica","Times New Roman","Courier New","Custom…"],f.family),"def",{def:df.family})}
@@ -653,7 +718,6 @@ function secOutput(){
 }
 function axisBlock(ax){
   const p=pl(),q=ax==="x"?p.x:p.y,lg=ax==="x"?p.xlog:p.ylog,U=ax.toUpperCase();
-  const auto=true;
   return `<div class="axisbox"><b>${U} axis</b><div class="g3">
     ${F(ax+".q",`${U} quantity`,S(axisNames(),q,{ph:"Select required axis",bind:ax}),"req",{req:ax})}
     ${F(ax+".log",`${U} scale`,SEG(["Linear","Log"],lg?"Log":"Linear"),"rev",{group:1})}
@@ -661,69 +725,78 @@ function axisBlock(ax){
   </div></div>`;
 }
 function secAxes(){
-  return SEC("axes","Axes &amp; range","What this plot compares.",`
-    <div class="hintlink ds">${LINK}<span>The quantities come from the shared axis definitions of this dataset.</span><button type="button" class="b link ds" data-go="axisdefs">Edit axis definitions →</button></div>
+  const p=pl();
+  return SEC("axes","Title &amp; axes","What this plot shows.",`
+    <div class="g2">${LF("pt.title","Plot title",p.title,"rev",{bind:"title"})}</div>
     ${axisBlock("x")}
     <div class="swaprow">${A("ax.swap","⇅ Swap X and Y","sm")}</div>
     ${axisBlock("y")}
+    <div class="hintlink">${LINK}<span>Quantities and axis labels come from the shared axis definitions.</span><button type="button" class="b link ds" data-go="axisdefs">Edit axis definitions →</button></div>
     ${GRP("Display area",`
-      ${F("area.auto","Automatic display area",T(true,"autoarea"),"def",{group:1,def:"On",hint:"On: range follows the data plus a margin. Off: set fixed limits."})}
+      ${F("area.auto","Automatic display area",T(true,"autoarea"),"def",{group:1,def:"On",hint:"On: range follows the data plus a margin. Off: fixed limits."})}
       <div data-areapanel="auto">${F("area.margins","Margins (share of the data range)",`<div class="g4">${["Left","Right","Bottom","Top"].map(s=>`<label class="fld"><span class="small">${s}</span>${I("0.12")}</label>`).join("")}</div>`,"def",{group:1,def:"0.12:0.12:0.12:0.12"})}</div>
       <div data-areapanel="fixed" hidden>${F("area.limits","Fixed limits",`<div class="g4">${["X min","X max","Y min","Y max"].map(s=>`<label class="fld"><span class="small">${s}</span>${I("",{ph:"auto"})}</label>`).join("")}</div>`,"def",{group:1})}</div>`)}`);
 }
-function secTitle(){
-  const d=ds(),p=pl();
-  return SEC("title","Title","Shown above this plot.",`
-    <div class="g2">${d.langs.map(l=>F("pt.title",`Plot title · ${l.toUpperCase()}`,I(p.title[l]||"",{bind:"title."+l}),"rev")).join("")}</div>
-    <div class="hintlink ds">${LINK}<span>The legend title is shared by all plots of this dataset.</span><button type="button" class="b link ds" data-go="materials">Materials &amp; legend →</button></div>`);
-}
 function secHulls(){
-  const p=pl();
-  return SEC("hulls","Hulls","One hull is drawn around the points of each material group.",`
-    <div class="layer"><div class="layerh"><b>Layer 1</b>${A("hl.dup","⧉","sm ghost","def",'aria-label="Duplicate layer" title="Duplicate layer"')}${A("hl.remove","✕","sm ghost","def",'aria-label="Remove layer" title="Remove layer"')}</div>
+  const p=pl(),mats=ds().mats.map(m=>m.n);
+  const layer=ITEM("layer:0","","<b>Layer 1</b>",`grouped by ${esc(p.group||"—")} · all materials`,`
       ${F("hl.column","Group materials by column",S(["Gruppe","Hersteller","Typ"],p.group,{ph:"Select column",bind:"group"}),"req",{req:"group"})}
       <div class="g2">${F("hl.linewidth","Line width",I("1.6"),"def",{def:"1.5"})}${F("hl.opacity","Opacity",I("0.22"),"def",{def:"0.4"})}</div>
-      ${F("hl.filter","Materials in this layer",`${SEG(["Show all except","Show only"],"Show all except")}<div class="kw"><span class="small">none excluded</span></div>`,"def",{group:1,def:"Show all except",hint:"Whitelist / blacklist of keywords"})}
-    </div>
-    <div class="row">${A("hl.add","+ Layer","sm","def")}</div>
+      ${F("hl.filter","Materials in this layer",`${SEG(["Blacklist","Whitelist"],"Blacklist")}${MS(mats,[])}`,"def",{group:1,def:"Blacklist",hint:"Blacklist: hide the checked keywords. Whitelist: show only them."})}`,"hl.dup","hl.remove");
+  return SEC("hulls","Hulls","One hull is drawn around the points of each material group.",`
+    ${F("hl.column","Group materials by column",S(["Gruppe","Hersteller","Typ"],p.group,{ph:"Select column",bind:"group"}),"req",{req:"group",cls:"simpleonly",hint:"Layer 1. Show the default settings for more options per layer."})}
+    <div class="items tier-def">${layer}</div>
+    <div class="tier-def">${A("hl.add","+ Layer","sm","def")}</div>
     ${GRP("All layers",`<div class="g3">${F("hl.algorithm","Hull algorithm",S(["cubic","alpha"],"cubic"),"def",{def:"cubic"})}${F("hl.alphaPoints","Point opacity",I("0.75",{ph:"auto"}),"def",{def:""})}${F("hl.alphaAreas","Range opacity",I("0.12",{ph:"auto"}),"def",{def:""})}</div>`)}
-    <div class="hintlink ds">${LINK}<span>Hull colors come from the shared material colors.</span><button type="button" class="b link ds" data-go="materials">Material colors →</button></div>`);
+    <div class="hintlink">${LINK}<span>Hull colors come from the shared material colors.</span><button type="button" class="b link ds" data-go="materials">Material colors →</button></div>`);
 }
-function itemBox(ico,name,detail,edit){return `<div class="item"><div class="itemrow"><span class="ico" aria-hidden="true">${ico}</span><span class="nmx"><b>${name}</b><span>${detail}</span></span><button type="button" class="b sm" data-edit>Edit</button></div><div class="itemedit">${edit}</div></div>`}
 function secExtras(){
-  const p=pl(),names=[p.x||"x",p.y||"y"];
-  const area=itemBox("▭","Colored area","HDT ≥ 120 °C and Rₘ ≥ 60 MPa",`
+  const p=pl(),names=[p.x||"x",p.y||"y"],L=ds().language;
+  const area=ITEM("area:0","▭","<b>Target area</b>","HDT ≥ 120 °C and Rₘ ≥ 60 MPa",`
     ${F("ca.type","Area type",SEG(["Axis ranges","Polygon"],"Axis ranges","areatype"),"def",{group:1,def:"Axis ranges"})}
     <div data-typepanel="Axis ranges" class="g2">${names.map((n,i)=>F("ca.ranges",`Range on ${n}`,`<div class="row" style="flex-wrap:nowrap">${I(i?"60":"120",{ph:"min (open)"})}${I("",{ph:"max (open)"})}</div>`,"req",{group:1})).join("")}</div>
     <div data-typepanel="Polygon" hidden>${F("ca.points","Corner points",`<div class="g3"><span class="small">Point 1</span>${I("120")}${I("60")}</div><div class="row">${A("ca.addPoint","+ Add point","sm")}<button type="button" class="ib" data-s="ca.removePoint">✕ remove point</button></div>`,"req",{group:1,hint:"At least 3 points are needed for a polygon."})}</div>
-    <div class="g2">${F("ca.color","Color",CM("Custom","#99f6e4"),"rev",{group:1})}${F("ca.opacity","Opacity",I("0.16"),"def",{def:"0.2"})}</div>
-    <div>${A("ca.remove","Remove area","sm danger")}</div>`);
-  const guide=itemBox("╱","Guideline","example design tradeoff · through (120, 60), slope 0.25",`
+    <div class="g2">${F("ca.color","Color",CM("Custom","#99f6e4"),"rev",{group:1})}${F("ca.opacity","Opacity",I("0.16"),"def",{def:"0.2"})}</div>`,"ca.dup","ca.remove");
+  const guide=ITEM("guide:0","╱",`<b>${L==="de"?"Beispiel-Zielkonflikt":"example design tradeoff"}</b>`,"through (120, 60), slope 0.25",`
     <div class="g3">${F("gl.x","Anchor point x",I("120"),"req",{hint:"Empty: vertical line"})}${F("gl.y","Anchor point y",I("60"),"req",{hint:"Empty: horizontal line"})}${F("gl.m","Slope m",I("0.25"),"req")}</div>
-    <div class="g2">${F("gl.text","Text",I("example design tradeoff"),"rev")}${F("gl.color","Color",CM("Custom","#475569"),"rev",{group:1})}</div>
+    <div class="g2">${LF("gl.text","Text",{en:"example design tradeoff",de:"Beispiel-Zielkonflikt"},"rev")}${F("gl.color","Color",CM("Custom","#475569"),"rev",{group:1})}</div>
     <div class="g3">${F("gl.style","Line style",S(["-","--",":","-."],"--"),"def",{def:"--"})}${F("gl.width","Line width",I("1.5"),"def",{def:"1.5"})}${F("gl.fontColor","Font color",CM("Custom","#334155"),"def",{group:1})}
-      ${F("gl.fontSize","Font size",I("13"),"def",{def:"18"})}${F("gl.padding","Label padding",I("5"),"def",{def:"6"})}${F("gl.position","Label position",SEG(["Above","Below"],"Above"),"def",{group:1,def:"Above"})}</div>
-    <div>${A("gl.remove","Remove guideline","sm danger")}</div>`);
-  const annot=itemBox("★","Annotation","illustrative target · at (150, 85)",`
-    <div class="g3">${F("an.text","Text label",I("illustrative target"),"req")}${names.map((n,i)=>F("an.pos",`Position on ${n}`,I(i?"85":"150"),"req")).join("")}</div>
+      ${F("gl.fontSize","Font size",I("13"),"def",{def:"18"})}${F("gl.padding","Label padding",I("5"),"def",{def:"6"})}${F("gl.position","Label position",SEG(["Above","Below"],"Above"),"def",{group:1,def:"Above"})}</div>`,"gl.dup","gl.remove");
+  const annot=ITEM("annot:0","★",`<b>${L==="de"?"Beispielziel":"illustrative target"}</b>`,"at (150, 85) · marker",`
+    <div class="g3">${LF("an.text","Text label",{en:"illustrative target",de:"Beispielziel"},"req")}${names.map((n,i)=>F("an.pos",`Position on ${n}`,I(i?"85":"150"),"req")).join("")}</div>
     <div class="g2">${F("an.markerFlag","Marker",T(true,"markerflag"),"rev",{group:1})}${F("an.arrowFlag","Arrow",T(false,"arrowflag"),"rev",{group:1})}</div>
     <div class="g3">${F("an.offX","Text offset X",I("0.035"),"def",{def:"0.02"})}${F("an.offY","Text offset Y",I("0.045"),"def",{def:"0.02"})}${F("an.textColor","Text color",CM("Custom","#0f766e"),"def",{group:1})}</div>
     <div class="sub tier-def" data-flagpanel="marker"><span>Marker settings</span><div class="g3">${F("an.mSymbol","Marker symbol",S(["o","*","^","s","D","x"],"*"),"def",{def:"o"})}${F("an.mSize","Marker size factor",I("1.3"),"def",{def:"1"})}${F("an.mWidth","Marker line width",I("0.8"),"def",{def:"1"})}${F("an.mColor","Marker color",CM("Custom","#14b8a6"),"def",{group:1})}${F("an.mEdge","Marker edge color",CM("Custom","#115e59"),"def",{group:1})}</div></div>
-    <div class="sub tier-def" data-flagpanel="arrow" hidden><span>Arrow settings</span><div class="g3">${F("an.aWidth","Arrow width",I("0.5"),"def",{def:"0.5"})}${F("an.aHeadLen","Arrow head length",I("8"),"def",{def:"8"})}${F("an.aHeadW","Arrow head width",I("6"),"def",{def:"6"})}${F("an.aLine","Arrow line width",I("1"),"def",{def:"1"})}${F("an.aFace","Arrow face color",CM("Custom","#000000"),"def",{group:1})}</div></div>
-    <div>${A("an.remove","Remove annotation","sm danger")}</div>`);
-  return SEC("extras","Areas, guidelines &amp; notes","Optional. Nothing here is needed for a good plot.",`
-    <div class="items">${p.extras?area+guide+annot:`<div class="empty">No areas, guidelines or annotations in this plot.</div>`}</div>
-    <div class="row">${A("ca.add","+ Area","sm")}${A("gl.add","+ Guideline","sm")}${A("an.add","+ Annotation","sm")}</div>
-    ${GRP("Annotation defaults",`<div class="g2">${F("an.defMarker","Default marker size",I(p.extras?"180":"330"),"def",{def:"330"})}${F("an.defFont","Default font size",I(p.extras?"13":"18"),"def",{def:"18"})}</div>`)}`);
+    <div class="sub tier-def" data-flagpanel="arrow" hidden><span>Arrow settings</span><div class="g3">${F("an.aWidth","Arrow width",I("0.5"),"def",{def:"0.5"})}${F("an.aHeadLen","Arrow head length",I("8"),"def",{def:"8"})}${F("an.aHeadW","Arrow head width",I("6"),"def",{def:"6"})}${F("an.aLine","Arrow line width",I("1"),"def",{def:"1"})}${F("an.aFace","Arrow face color",CM("Custom","#000000"),"def",{group:1})}</div></div>`,"an.dup","an.remove");
+  const cnt=n=>`<span class="cnt">${n}</span>`,e=p.extras;
+  const none=w=>`<div class="empty">No ${w} in this plot.</div>`;
+  return SEC("extras","Areas, guidelines &amp; annotations","Optional. Nothing here is needed for a good plot.",`
+    ${GRP("Colored areas"+cnt(e?1:0),`<div class="items">${e?area:none("colored areas")}</div>`,A("ca.add","+ Area","sm"))}
+    ${GRP("Guidelines"+cnt(e?1:0),`<div class="items">${e?guide:none("guidelines")}</div>`,A("gl.add","+ Guideline","sm"))}
+    ${GRP("Annotations"+cnt(e?1:0),`<div class="items">${e?annot:none("annotations")}</div>
+      <div class="g2">${F("an.defMarker","Default marker size",I(e?"180":"330"),"def",{def:"330"})}${F("an.defFont","Default font size",I(e?"13":"18"),"def",{def:"18"})}</div>`,A("an.add","+ Annotation","sm"))}`);
 }
 function secJson(){
   return SEC("json","Advanced JSON","Raw config fields without their own controls.",`<div class="g2">${F("adv.filter","Filter",TA("{}"),"def",{def:"{}"})}${F("adv.hulls","Highlighted hulls",TA("[]"),"def",{def:"[]"})}</div>`);
+}
+function langBar(){
+  const d=ds();
+  return `<div class="langbar" data-scope="dataset" data-area="Language bar">
+    <span class="lb"><span class="scopetag ds">Dataset</span>Plot language<i class="q" tabindex="0" role="img" aria-label="Help" data-tip="The language the plots of this dataset are rendered in. Text fields show this language in Simple mode; All settings shows every language.">?</i></span>
+    <span data-s="lang.select">${SEG(d.langs,d.language,"lang","langseg")}</span>
+    <span class="menuwrap"><button type="button" class="b sm ghost" data-s="lk.langs" data-menu="langmenu">Languages… </button>
+      <div class="menu left" id="langmenu" hidden><div class="mh">Plot languages of this dataset</div>
+        ${d.langs.map(l=>`<div class="mrow"><span>${l} · ${LANGNAMES[l]||l}</span><button type="button" class="ib del" data-s="lk.langRemove" data-act="langrm" data-i="${l}" aria-label="Remove ${l}" title="Remove">✕</button></div>`).join("")}
+        <div class="madd"><input class="in" id="langNew" placeholder="e.g. fr" aria-label="New language code" style="width:90px"><button type="button" class="b sm" data-s="lk.langAdd" data-act="langadd">Add</button></div></div></span>
+    <span class="small" style="margin-left:auto">${d.langs.length} languages</span>
+  </div>`;
 }
 
 /* ================= layout ================= */
 function render(){
   N=0;
   const d=ds(),p=pl();
+  const ed=document.getElementById("editor"),keep=ed?ed.scrollTop:0;
   app.className="app"+(st.all?" mode-all":"");
   app.innerHTML=`
   <div class="ahdr" data-area="Header" data-scope="app"><span class="brand">Ashby Plot Builder</span>
@@ -731,8 +804,8 @@ function render(){
     <div class="menuwrap"><button type="button" class="b" data-menu="gear" aria-label="Menu" aria-haspopup="menu">⚙ ▾</button><div class="menu" id="gear" role="menu" hidden>
       <button type="button" data-s="app.settings" data-open="settingsModal">Settings</button><button type="button" data-s="app.log" data-toast="Mockup: opens the log of renders, imports and downloads">Log</button><button type="button" data-s="app.about" data-toast="Mockup: opens About">About</button></div></div>
   </div>
-  ${renderStrip()}
-  <div class="work">
+  ${renderTabs()}
+  <div class="work" id="work">
     <aside class="nav" data-area="Settings list">
       <div class="search"><input class="in" id="q" placeholder="Find a setting…" aria-label="Find a setting" autocomplete="off"><kbd>Ctrl K</kbd></div>
       <ul class="sres" id="res" hidden></ul>
@@ -742,60 +815,51 @@ function render(){
         <div class="navgrp pl"><div class="ngh"><span class="scopetag pl">Plot · only this one</span><b>${esc(p.name)}</b><span class="small">frame ${st.p+1} of ${d.plots.length}</span></div>
           <ul class="slist">${NAV.filter(n=>n.scope==="pl").map(n=>`<li><button type="button" data-go="${n.id}">${n.t}<span class="st" data-st="${n.id}"></span></button></li>`).join("")}</ul></div>
       </div>
-      <div class="tierkey"><div>${CHIP.req}<span>must be set</span></div><div>${CHIP.rev}<span>review it</span></div><div>${CHIP.def}<span>${st.all?"shown (All settings)":"hidden in Simple"}</span></div></div>
+      <div class="tierkey"><div>${ICON.req}<span>Required</span></div><div>${ICON.rev}<span>Check</span></div><div>${ICON.def}<span>Default OK${st.all?"":" · hidden"}</span></div></div>
     </aside>
     <div class="editor" id="editor" data-area="Editor">
-      <div class="banner" id="banner"></div>
-      <div class="secs">${secData()}${secAxisDefs()}${secMaterials()}${secLook()}${secOutput()}${secAxes()}${secTitle()}${secHulls()}${secExtras()}${secJson()}</div>
+      ${langBar()}
+      <div class="secs">${secData()}${secAxisDefs()}${secMaterials()}${secLook()}${secOutput()}${secAxes()}${secHulls()}${secExtras()}${secJson()}</div>
     </div>
+    <div class="split" id="split" role="separator" aria-orientation="vertical" aria-label="Resize preview" tabindex="0" title="Drag to resize the preview. Double-click to reset."></div>
     <div class="prev" data-area="Preview" data-scope="plot" id="prev"></div>
   </div>`;
+  applyPv();
   app.querySelectorAll(".sec").forEach(s=>{
     if(st.showdef.has(s.dataset.sec))s.classList.add("showdef");
-    const hasDef=!!s.querySelector(".tier-def");
-    s.classList.toggle("hasdef",hasDef);
-    s.classList.toggle("onlydef",!s.querySelector(".tier-req,.tier-rev,.tier-act,.item,.empty"));
+    s.classList.toggle("hasdef",!!s.querySelector(".tier-def"));
+    s.classList.toggle("onlydef",!s.querySelector(".tier-req,.tier-rev,.tier-act,.empty"));
   });
   app.querySelectorAll(".grp").forEach(g=>{if(!g.querySelector(".tier-req,.tier-rev,.tier-act"))g.classList.add("tier-def")});
   renderPreview();
-  go(st.sec,null,true);
+  go(st.sec,null);
   refresh();
+  document.getElementById("editor").scrollTop=keep;
 }
 function renderPreview(busy){
-  const d=ds(),p=pl(),miss=[];
-  if(!p.x)miss.push(["X quantity","axes"]);if(!p.y)miss.push(["Y quantity","axes"]);if(!p.group)miss.push(["Group materials by column","hulls"]);
-  const others=d.plots.filter(o=>o!==p);
-  const shared=(NAV.find(n=>n.id===st.sec)||{}).scope==="ds";
+  const d=ds(),p=pl(),miss=missingList(p);
   document.getElementById("prev").innerHTML=`
-    <div class="prevh"><span class="t"><span class="small">Preview</span><b>${esc(p.name)}</b></span>
+    <div class="prevh"><span class="t"><span class="small">Preview · ${d.language.toUpperCase()}</span><b>${esc(p.name)}</b></span>
       <span class="pill${miss.length?" miss":busy?" busy":""}" id="pill">${miss.length?"Cannot render":busy?"Rendering…":"Up to date"}</span>
       <button type="button" class="b sm" data-s="app.refresh" data-act="refresh" aria-label="Refresh preview" title="Refresh preview">↻</button>
       <button type="button" class="b sm pri" data-open="exportModal">Export…</button></div>
-    ${plotBox(d,p,false)}
-    ${miss.length?`<div class="msgs"><b>${miss.length} required setting${miss.length>1?"s":""} missing</b>${miss.map(([t,s])=>`<button type="button" class="b link" data-go="${s}">${t} →</button>`).join("")}</div>`:""}
-    ${shared&&others.length?`<div class="alsochanges"><span>${LINK} Shared setting: these plots change too</span><div class="mini">${others.map(o=>plotBox(d,o,true)).join("")}</div></div>`:""}
+    ${plotBox(d,p)}
+    ${miss.length?`<div class="msgs"><b>${miss.length} required setting${miss.length>1?"s":""} missing</b>${miss.map(([t,s,k])=>`<button type="button" class="b link" data-jump="${s}|${k}">${t} →</button>`).join("")}</div>`:""}
     <label class="row small"><input type="checkbox" id="auto" checked style="accent-color:var(--accent)"> Refresh automatically after changes</label>`;
 }
-function go(sid,fieldKey,silent){
+function go(sid,fieldKey){
   st.sec=sid;
-  const n=NAV.find(x=>x.id===sid),d=ds(),p=pl();
+  const n=NAV.find(x=>x.id===sid);
   app.querySelectorAll(".sec").forEach(s=>s.classList.toggle("cur",s.dataset.sec===sid));
   app.querySelectorAll(".slist [data-go]").forEach(b=>b.classList.toggle("on",b.dataset.go===sid));
-  const shared=n.scope==="ds";
-  const banner=document.getElementById("banner");
-  banner.className="banner "+(shared?"ds":"pl");
-  banner.innerHTML=shared?`${LINK}<span><b>Shared dataset setting.</b> Changes apply to all ${d.plots.length} plot${d.plots.length>1?"s":""} of “${esc(d.name)}”: ${d.plots.map(x=>esc(x.name)).join(", ")}.</span>`
-    :`<span><b>Only this plot.</b> Changes apply to “${esc(p.name)}”. Other plots of the dataset keep their own values.</span>`;
-  app.querySelectorAll(".dsbox").forEach(b=>b.classList.toggle("shared",shared&&+b.dataset.dsbox===st.d));
-  const sn=document.getElementById("sharednote");if(sn)sn.hidden=!shared;
-  if(!silent)renderPreview();
+  app.querySelectorAll(".dsg").forEach(b=>b.classList.toggle("shared",n.scope==="ds"&&+b.dataset.dsg===st.d));
   if(fieldKey){
-    const f=app.querySelector(`.sec.cur [data-s="${fieldKey}"]`);
+    const f=app.querySelector(`.sec.cur [data-s="${fieldKey}"]:not(.otherlang)`)||app.querySelector(`.sec.cur [data-s="${fieldKey}"]`);
     if(f){
       const s=f.closest(".sec");
       if(f.closest(".tier-def")&&!st.all){s.classList.add("showdef");st.showdef.add(s.dataset.sec)}
-      const it=f.closest(".item");if(it){it.classList.add("editing");it.querySelector("[data-edit]").textContent="Done"}
-      const hp=f.closest("[hidden]");if(hp)hp.hidden=false;
+      const it=f.closest(".item");if(it&&!it.classList.contains("editing")){it.classList.add("editing");it.querySelector("[data-edit]").textContent="Done";st.open.add(it.dataset.item)}
+      const hp=f.closest("[hidden]");if(hp&&hp.closest(".sec"))hp.hidden=false;
       refresh();
       f.classList.remove("flash");void f.offsetWidth;f.classList.add("flash");
       f.scrollIntoView({block:"center",behavior:"smooth"});
@@ -803,36 +867,57 @@ function go(sid,fieldKey,silent){
   }
 }
 
-/* ================= status: required / changed / counters ================= */
+/* ================= status ================= */
 function valOf(f){
-  const seg=f.querySelector(".seg button.on");if(seg&&f.dataset.def!==undefined&&!f.querySelector("input,select"))return seg.textContent;
   const tog=f.querySelector(".tog");if(tog)return tog.classList.contains("on")?"On":"Off";
-  const ins=[...f.querySelectorAll("input:not([type=color]),select,textarea")];
-  if(seg&&!ins.length)return seg.textContent;
+  const ins=[...f.querySelectorAll("input:not([type=color]):not([type=checkbox]):not([data-ms-search]),select,textarea")];
+  const seg=f.querySelector(".seg button.on");
+  if(seg&&(!ins.length||f.querySelector(".ms")))return seg.textContent;
   return ins.map(i=>i.value).join(":");
 }
 function refresh(){
   const p=pl();
   app.querySelectorAll(".fld.tier-req").forEach(f=>{
-    const r=f.dataset.req;let ok;
-    if(r==="x")ok=!!p.x;else if(r==="y")ok=!!p.y;else if(r==="group")ok=!!p.group;else if(r==="ok")ok=true;else ok=null;
+    const r=f.dataset.req;let ok=null;
+    if(r==="x")ok=!!p.x;else if(r==="y")ok=!!p.y;else if(r==="group")ok=!!p.group;else if(r==="ok")ok=true;
     f.classList.toggle("ok",ok===true);f.classList.toggle("missing",ok===false);
+    const ic=f.querySelector(":scope > .lbl .ti");
+    if(ic)ic.dataset.tip=ok===false?"Required: not set yet. The plot cannot render without it.":ok?"Required: set.":"Required for this item.";
   });
-  app.querySelectorAll(".fld[data-def]").forEach(f=>f.classList.toggle("changed",valOf(f)!==f.dataset.def));
+  app.querySelectorAll(".fld[data-def]").forEach(f=>{
+    const ch=valOf(f)!==f.dataset.def;f.classList.toggle("changed",ch);
+    const ic=f.querySelector(":scope > .lbl .ti");
+    if(ic)ic.dataset.tip=ch?`Changed from the default (${f.dataset.def||"auto"}). Hidden in Simple mode.`:TIP.def;
+  });
   app.querySelectorAll(".sec").forEach(s=>{
     const defs=[...s.querySelectorAll(".fld.tier-def")].filter(f=>!f.parentElement.closest(".fld"));
     const chg=defs.filter(f=>f.classList.contains("changed")).length;
     const b=s.querySelector(".deftoggle");
     b.innerHTML=s.classList.contains("showdef")?`Hide default settings`:`Show ${defs.length} default setting${defs.length===1?"":"s"}${chg?`<span class="chg">${chg} changed</span>`:""}`;
     const stEl=app.querySelector(`[data-st="${s.dataset.sec}"]`);if(!stEl)return;
-    const miss=s.querySelectorAll(".fld.missing").length,req=s.querySelectorAll(".fld.tier-req").length;
-    if(miss){stEl.className="st miss";stEl.textContent=`${miss} missing`}
-    else if(req&&s.dataset.sec!=="extras"){stEl.className="st ok";stEl.textContent="✓"}
-    else if(s.classList.contains("onlydef")){stEl.className="st def";stEl.textContent=chg?`defaults · ${chg} changed`:"defaults"}
+    const miss=new Set([...s.querySelectorAll(".fld.missing")].map(f=>f.dataset.s)).size,req=s.querySelectorAll(".fld.tier-req").length;
+    if(miss){stEl.className="st miss";stEl.textContent=miss}
     else if(s.dataset.sec==="extras"){stEl.className="st def";stEl.textContent=p.extras?"3 items":"optional"}
+    else if(req){stEl.className="st ok";stEl.textContent="✓"}
+    else if(s.classList.contains("onlydef")){stEl.className="st def";stEl.textContent=chg?`defaults · ${chg} changed`:"defaults"}
     else{stEl.className="st";stEl.textContent=""}
   });
 }
+
+/* ================= preview splitter ================= */
+let PV=400;try{const v=+localStorage.getItem("ashby-concept-b-pv");if(v)PV=v}catch(e){}
+function applyPv(){const w=document.getElementById("work");if(w)w.style.setProperty("--pv",PV+"px");const sp=document.getElementById("split");if(sp)sp.setAttribute("aria-valuenow",PV)}
+function setPv(v){const w=document.getElementById("work");const max=Math.max(320,w.clientWidth-220-420);PV=Math.round(Math.min(max,Math.max(260,v)));applyPv();try{localStorage.setItem("ashby-concept-b-pv",PV)}catch(e){}}
+document.addEventListener("pointerdown",e=>{
+  const sp=e.target.closest&&e.target.closest("#split");if(!sp)return;
+  e.preventDefault();sp.classList.add("drag");sp.setPointerCapture(e.pointerId);
+  const right=document.getElementById("work").getBoundingClientRect().right;
+  const mv=ev=>setPv(right-ev.clientX-4);
+  const up=()=>{sp.classList.remove("drag");sp.removeEventListener("pointermove",mv);sp.removeEventListener("pointerup",up)};
+  sp.addEventListener("pointermove",mv);sp.addEventListener("pointerup",up);
+});
+document.addEventListener("dblclick",e=>{if(e.target.id==="split")setPv(400)});
+document.addEventListener("keydown",e=>{if(e.target.id==="split"&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){e.preventDefault();setPv(PV+(e.key==="ArrowLeft"?24:-24))}});
 
 /* ================= interactions ================= */
 const toastEl=document.getElementById("toast");let tt;
@@ -842,12 +927,12 @@ let rt;
 function rerenderPreviewSoon(){
   const auto=document.getElementById("auto");
   if(auto&&!auto.checked){const pill=document.getElementById("pill");if(pill){pill.textContent="Changes not rendered";pill.className="pill busy"}return}
-  renderPreview(true);clearTimeout(rt);rt=setTimeout(()=>{renderPreview(false);updateThumbs()},700);
+  renderPreview(true);clearTimeout(rt);rt=setTimeout(()=>{renderPreview(false);updateTabs()},700);
 }
-function updateThumbs(){
-  const holder=document.createElement("div");holder.innerHTML=renderStrip();
-  const old=app.querySelector(".strip");old.replaceWith(holder.firstElementChild);
-  go(st.sec,null,true);
+function updateTabs(){
+  const h=document.createElement("div");h.innerHTML=renderTabs();
+  app.querySelector(".tabs").replaceWith(h.firstElementChild);
+  go(st.sec,null);
 }
 function openModal(idm){
   const m=document.getElementById(idm);
@@ -856,30 +941,31 @@ function openModal(idm){
     const v=k=>valOf(o.querySelector(`[data-s="${k}"]`));
     document.getElementById("exDs").textContent=d.name;
     const fmt=v("out.format");
-    document.getElementById("exSum").innerHTML=`<dt>Format</dt><dd>${fmt}${fmt==="PNG"?` · ${v("out.dpi")} dpi`:""}</dd><dt>Background</dt><dd>${v("out.transparent")==="On"?"Transparent":d.dark?"Dark":"White"}</dd><dt>Watermark</dt><dd>${v("out.watermark")}</dd><dt>Copyright</dt><dd>${v("out.copyright")}</dd>`;
-    const n=DS.filter(x=>x.include).reduce((a,x)=>a+x.plots.filter(p=>p.include).length,0);
-    document.getElementById("exAll").textContent=`Download all ${n} included plots (.zip)`;
+    document.getElementById("exSum").innerHTML=`<dt>Format</dt><dd>${fmt}${fmt==="PNG"?` · ${v("out.dpi")} dpi`:""}</dd><dt>Language</dt><dd>${LANGNAMES[d.language]||d.language}</dd><dt>Background</dt><dd>${v("out.transparent")==="On"?"Transparent":d.dark?"Dark":"White"}</dd><dt>Watermark</dt><dd>${v("out.watermark")}</dd><dt>Copyright</dt><dd>${v("out.copyright")}</dd>`;
+    document.getElementById("exAll").textContent=`Download all ${includedCount()} included plots (.zip)`;
   }
   m.hidden=false;const f=m.querySelector("button,select,input");if(f)f.focus();
 }
 document.addEventListener("click",e=>{
   const t=e.target;
   const mb=t.closest("[data-menu]");
-  if(mb){const m=document.getElementById(mb.dataset.menu);closeMenus(m);m.hidden=!m.hidden;return}
+  if(mb){const m=document.getElementById(mb.dataset.menu);closeMenus(m);m.hidden=!m.hidden;if(!m.hidden){const i=m.querySelector("input");if(i)i.focus()}return}
   if(!t.closest(".menu"))closeMenus();
   const op=t.closest("[data-open]");if(op){closeMenus();openModal(op.dataset.open);return}
   const tb=t.closest("[data-toast]");if(tb){closeMenus();toast(tb.dataset.toast)}
   const cl=t.closest("[data-close]");if(cl||t.classList.contains("modal")){(t.closest(".modal")||t).hidden=true}
-  const g=t.closest("[data-go]");if(g){go(g.dataset.go);if(cl)return;return}
-
+  const g=t.closest("[data-go]");if(g){go(g.dataset.go);return}
+  const j=t.closest("[data-jump]");if(j){const [s,k]=j.dataset.jump.split("|");go(s,k);return}
   if(!t.closest("#app"))return;
-  const pc=t.closest("[data-plot]");if(pc){const [a,b]=pc.dataset.plot.split(":").map(Number);st.d=a;st.p=b;render();return}
+
+  const pc=t.closest("[data-plot]");if(pc){if(e.detail>1)return;const [a,b]=pc.dataset.plot.split(":").map(Number);if(a!==st.d)st.srcmode="Excel file";st.d=a;st.p=b;render();return}
   const seg=t.closest(".seg button");
   if(seg){
     const gr=seg.parentElement;[...gr.children].forEach(c=>c.classList.toggle("on",c===seg));
     const act=gr.dataset.act,v=seg.textContent,sec=seg.closest(".sec");
     if(act==="mode"){st.all=v==="All settings";render();return}
-    if(act==="srcmode"){st.srcmode=v;sec.querySelectorAll("[data-srcpanel]").forEach(x=>x.hidden=x.dataset.srcpanel!==v);sec.querySelector('[data-s="src.status"]').innerHTML=v==="Excel file"?sec.querySelector('[data-s="src.status"]').innerHTML.replace(/\(.*?\)/,"(Excel file)"):`Import status: <b style="color:var(--warn)">Not imported</b>`}
+    if(act==="lang"){ds().language=v;render();toast(`Plot language: ${LANGNAMES[v]||v}. Text fields now show ${v.toUpperCase()}.`);return}
+    if(act==="srcmode"){st.srcmode=v;sec.querySelectorAll("[data-srcpanel]").forEach(x=>x.hidden=x.dataset.srcpanel!==v);const stt=sec.querySelector('[data-s="src.status"]');stt.innerHTML=v==="Excel file"?`Import status: <b style="color:var(--ok)">Imported (Excel file)</b> · ${ds().rows} rows · ${ds().ncols} columns`:`Import status: <b style="color:var(--warn)">Not imported</b>`}
     if(act==="fmt")sec.querySelector('[data-s="out.dpi"] input').disabled=v!=="PNG";
     if(act==="areatype"){const ed=seg.closest(".itemedit");ed.querySelectorAll("[data-typepanel]").forEach(x=>x.hidden=x.dataset.typepanel!==v)}
     if(act==="cmode"){const cm=gr.parentElement;const other=cm.querySelector("select,input");other.outerHTML=v==="Custom"?C("#475569"):S(ds().mats.map(m=>m.n).concat("default"),ds().mats[0].n)}
@@ -891,47 +977,61 @@ document.addEventListener("click",e=>{
   if(tog){
     const on=!tog.classList.contains("on");tog.classList.toggle("on",on);tog.setAttribute("aria-pressed",on);tog.textContent=on?"On":"Off";
     const act=tog.dataset.act,sec=tog.closest(".sec");
-    if(act==="dark"){ds().dark=on;renderPreview();updateThumbs()}
+    if(act==="dark"){ds().dark=on;renderPreview()}
     if(act==="autoarea")sec.querySelectorAll("[data-areapanel]").forEach(x=>x.hidden=(x.dataset.areapanel==="auto")!==on);
     if(act==="markerflag"||act==="arrowflag"){const ed=tog.closest(".itemedit");ed.querySelector(`[data-flagpanel="${act==="markerflag"?"marker":"arrow"}"]`).hidden=!on}
     refresh();if(act!=="dark")rerenderPreviewSoon();
   }
+  const msb=t.closest("[data-ms]");
+  if(msb){const ms=msb.closest(".ms"),k=msb.dataset.ms;
+    if(k==="expand")ms.classList.toggle("tall");
+    else ms.querySelectorAll(".msopt:not([hidden]) input").forEach(i=>i.checked=k==="all");
+    ms.querySelector("[data-ms-count]").textContent=ms.querySelectorAll(".mslist input:checked").length;}
   const dt=t.closest(".deftoggle");
   if(dt){const s=dt.closest(".sec");const o=!s.classList.contains("showdef");s.classList.toggle("showdef",o);o?st.showdef.add(s.dataset.sec):st.showdef.delete(s.dataset.sec);refresh()}
   const ed=t.closest("[data-edit]");
-  if(ed){const it=ed.closest(".item");const o=!it.classList.contains("editing");it.classList.toggle("editing",o);ed.textContent=o?"Done":"Edit"}
+  if(ed){const it=ed.closest(".item");const o=!it.classList.contains("editing");it.classList.toggle("editing",o);ed.textContent=o?"Done":"Edit";o?st.open.add(it.dataset.item):st.open.delete(it.dataset.item)}
   const ac=t.closest("[data-act]");
   if(ac&&ac.tagName==="BUTTON"&&!ac.classList.contains("tog")){
     const a=ac.dataset.act,ix=(ac.dataset.i||"").split(":").map(Number);
     if(a==="refresh"){renderPreview(true);setTimeout(()=>renderPreview(false),700)}
-    if(a==="pladd"){const d=DS[ix[0]];d.plots.push({name:`${String(d.plots.length+1).padStart(2,"0")}-new-plot`,include:true,x:"",y:"",xlog:false,ylog:false,group:"Gruppe",extras:false,title:{en:"",de:""}});st.d=ix[0];st.p=d.plots.length-1;st.sec="axes";render();toast("New plot: pick X and Y to render it")}
+    if(a==="dup"||a==="rm")toast(a==="dup"?"Mockup: would duplicate this item":"Mockup: would remove this item");
+    if(a==="langadd"){const inp=document.getElementById("langNew"),v=(inp.value||"").trim().toLowerCase();if(!v)return;const d=ds();if(!d.langs.includes(v))d.langs.push(v);render();toast(`Added ${v.toUpperCase()}. Text fields for ${v.toUpperCase()} start empty.`)}
+    if(a==="langrm"){const d=ds(),l=ac.dataset.i;if(d.langs.length<2){toast("A dataset needs at least one language");return}d.langs=d.langs.filter(x=>x!==l);if(d.language===l)d.language=d.langs[0];render()}
+    if(a==="pladd"){const d=DS[ix[0]];d.plots.push({name:`${String(d.plots.length+1).padStart(2,"0")}-new-plot`,include:true,x:"",y:"",xlog:false,ylog:false,group:"Gruppe",extras:false,title:{}});st.d=ix[0];st.p=d.plots.length-1;st.sec="axes";render();toast("New plot: pick X and Y to render it")}
     if(a==="pldup"){const d=DS[ix[0]],o=d.plots[ix[1]];d.plots.splice(ix[1]+1,0,JSON.parse(JSON.stringify({...o,name:o.name+"-copy"})));st.d=ix[0];st.p=ix[1]+1;render()}
     if(a==="pldel"){const d=DS[ix[0]];if(d.plots.length<2){toast("A dataset needs at least one plot");return}d.plots.splice(ix[1],1);if(st.d===ix[0])st.p=Math.min(st.p,d.plots.length-1);render();toast("Plot removed (mockup)")}
     if(a==="plmove"){const [di,pi,oi]=ix;const d=DS[di];if(d.plots.length<2){toast("A dataset needs at least one plot");return}const [p]=d.plots.splice(pi,1);DS[oi].plots.push(p);st.d=oi;st.p=DS[oi].plots.length-1;render();toast(`Moved to “${DS[oi].name}”. It now uses that dataset’s shared settings.`)}
-    if(a==="dsadd"){DS.push({...JSON.parse(JSON.stringify(DS[1])),name:`Dataset ${DS.length+1}`,file:"",plots:[{name:"01-new-plot",include:true,x:"",y:"",xlog:false,ylog:false,group:"",extras:false,title:{en:"",de:""}}]});st.d=DS.length-1;st.p=0;st.sec="data";render()}
+    if(a==="dsadd"){const c=JSON.parse(JSON.stringify(DS[1]));Object.assign(c,{name:`Dataset ${DS.length+1}`,file:"",plots:[{name:"01-new-plot",include:true,x:"",y:"",xlog:false,ylog:false,group:"",extras:false,title:{}}]});DS.push(c);st.d=DS.length-1;st.p=0;st.sec="data";render()}
     if(a==="dsdup"){const c=JSON.parse(JSON.stringify(DS[ix[0]]));c.name+=" copy";DS.splice(ix[0]+1,0,c);render()}
     if(a==="dsdel"){if(DS.length<2){toast("The config needs at least one dataset");return}DS.splice(ix[0],1);st.d=Math.min(st.d,DS.length-1);st.p=0;render();toast("Dataset removed (mockup)")}
   }
-  if(t.closest(".app")&&t.closest(".tier-act,[data-s='mc.remove'],[data-s='ax.remove']")&&!t.closest("[data-act],[data-toast],[data-open]"))toast("Mockup: no action");
+  if(t.closest(".tier-act,[data-s='mc.remove'],[data-s='ax.add']")&&!t.closest("[data-act],[data-toast],[data-open],[data-menu]"))toast("Mockup: no action");
 });
 document.addEventListener("change",e=>{
   const t=e.target;
-  const inc=t.closest("[data-inc]");
-  if(inc){const [k,a,b]=inc.dataset.inc.split(":");if(k==="ds")DS[+a].include=t.checked;else DS[+a].plots[+b].include=t.checked;updateThumbs();return}
+  const inc=t.closest&&t.closest("[data-inc]");
+  if(inc){const [k,a,b]=inc.dataset.inc.split(":");if(k==="ds")DS[+a].include=t.checked;else DS[+a].plots[+b].include=t.checked;updateTabs();return}
+  const opt=t.closest&&t.closest(".msopt");if(opt){const ms=opt.closest(".ms");ms.querySelector("[data-ms-count]").textContent=ms.querySelectorAll(".mslist input:checked").length}
 });
 document.addEventListener("input",e=>{
-  const t=e.target;if(!t.closest||!t.closest("#editor"))return;
+  const t=e.target;
+  if(t.matches&&t.matches("[data-ms-search]")){const v=t.value.toLowerCase();t.closest(".ms").querySelectorAll(".msopt").forEach(o=>o.hidden=!o.textContent.toLowerCase().includes(v));return}
+  if(!t.closest||!t.closest("#editor")||t.id==="langNew")return;
   const b=t.dataset.bind,p=pl(),d=ds();
-  if(b==="x")p.x=t.value;if(b==="y")p.y=t.value;if(b==="group")p.group=t.value;
+  if(b==="x")p.x=t.value;if(b==="y")p.y=t.value;if(b==="group"){p.group=t.value;app.querySelectorAll('[data-bind="group"]').forEach(s=>{if(s!==t)s.value=t.value})}
   if(b&&b.startsWith("title."))p.title[b.slice(6)]=t.value;
   if(b&&b.startsWith("legend."))d.legend[b.slice(7)]=t.value;
   refresh();rerenderPreviewSoon();
-  if(b==="x"||b==="y"||b==="group")setTimeout(updateThumbs,720);
+});
+document.addEventListener("keydown",e=>{
+  if(e.target.id==="langNew"&&e.key==="Enter"){e.preventDefault();document.querySelector('[data-act="langadd"]').click()}
 });
 document.addEventListener("dblclick",e=>{
   const r=e.target.closest("[data-rename]");if(!r)return;
   const [k,a,b]=r.dataset.rename.split(":");const obj=k==="ds"?DS[+a]:DS[+a].plots[+b];
-  const inp=document.createElement("input");inp.className="renamein";inp.value=obj.name;r.replaceWith(inp);inp.focus();inp.select();
+  const inp=document.createElement("input");inp.className="renamein";inp.value=obj.name;
+  const host=r.closest(".tabbtn")||r;host.replaceWith(inp);inp.focus();inp.select();
   const done=()=>{obj.name=inp.value.trim()||obj.name;render()};
   inp.addEventListener("blur",done);inp.addEventListener("keydown",ev=>{if(ev.key==="Enter")inp.blur();if(ev.key==="Escape"){inp.value=obj.name;inp.blur()}});
 });
@@ -949,7 +1049,7 @@ document.addEventListener("input",e=>{
   app.querySelectorAll(".sec .fld[data-s]").forEach(f=>{
     const l=f.querySelector(".lt");if(!l)return;const txt=l.textContent.trim();
     const sec=f.closest(".sec").dataset.sec,key=txt+sec;
-    if(txt.toLowerCase().includes(v)&&!seen.has(key)){seen.add(key);hits.push({txt,sec,s:f.dataset.s,def:f.classList.contains("tier-def")})}
+    if(txt.toLowerCase().includes(v)&&!seen.has(key)){seen.add(key);hits.push({txt,sec,s:f.dataset.s,def:!!f.closest(".tier-def")})}
   });
   res.innerHTML=hits.length?hits.slice(0,10).map(h=>`<li><button type="button" data-hit="${h.sec}|${h.s}">${esc(h.txt)}<small>${NAV.find(n=>n.id===h.sec).t}${h.def&&!st.all?" · hidden":""}</small></button></li>`).join(""):`<li class="none">No setting matches “${esc(v)}”.</li>`;
 });
@@ -961,42 +1061,45 @@ document.addEventListener("click",e=>{
 
 /* ================= coverage check ================= */
 const EXPECTED=[
- ["Plot strip (ConfigTabs)",[
+ ["Plot tabs (ConfigTabs)",[
   ["ds.add","Add dataframe","ConfigTabs +"],["ds.dup","Duplicate dataframe","ConfigTabs ⧉"],["ds.remove","Remove dataframe","ConfigTabs ✕"],["ds.rename","Rename dataframe","ConfigTabs double-click"],["ds.include","Include dataframe in “generate all”","ConfigTabs checkbox"],
   ["pl.add","Add frame","ConfigTabs +"],["pl.dup","Duplicate frame","ConfigTabs ⧉"],["pl.remove","Remove frame","ConfigTabs ✕"],["pl.rename","Rename frame","ConfigTabs double-click"],["pl.include","Include frame in “generate all”","ConfigTabs checkbox"],["pl.move","Move frame to another dataframe","ConfigTabs select + Move frame"]]],
  ["Header, menus and plot page (AppHeader, AppPopouts, PlotPage)",[
   ["cfg.import","Import config","Config actions menu"],["cfg.export","Export config","Config actions menu"],["cfg.json","JSON editor","Config actions menu"],["cfg.reset","Reset config","Config actions menu"],
   ["app.settings","Settings","More menu"],["app.log","Log","More menu"],["app.about","About","More menu"],["app.uiLanguage","UI language","Settings popup"],["app.uiTheme","UI theme","Settings popup"],["app.deleteFiles","Delete all stored files","Settings popup"],
   ["app.generateAll","Generate all plots","Generate plot menu"],["app.refresh","Generate current plot / refresh preview","Generate plot, Plot page ↻"],["app.downloadAll","Download all (.zip)","Plot page"],["app.downloadOne","Download this plot","Plot page"]]],
- ["Data source (DataframeSection)",[
+ ["Data source and languages (DataframeSection)",[
   ["src.mode","Source mode","DataframeSection"],["src.file","Upload .xlsx (file)","DataframeSection"],["src.upload","Upload & import","DataframeSection"],["src.dataset","Provided dataset","DataframeSection"],["src.datasetImport","Import database (dataset)","DataframeSection"],
-  ["src.teableUrl","Teable URL","DataframeSection"],["src.apiKey","API key","DataframeSection"],["src.teableImport","Import database (Teable)","DataframeSection"],["src.sheet","Import sheet","DataframeSection"],["src.status","Database import status","DataframeSection"]]],
+  ["src.teableUrl","Teable URL","DataframeSection"],["src.apiKey","API key","DataframeSection"],["src.teableImport","Import database (Teable)","DataframeSection"],["src.sheet","Import sheet","DataframeSection"],["src.status","Database import status","DataframeSection"],
+  ["lk.langs","Plot languages list","DataframeSection"],["lk.langAdd","Add plot language","DataframeSection"],["lk.langRemove","Remove plot language","DataframeSection"]]],
  ["Axis definitions (AxesSection)",[
-  ["ax.add","+ Axis","AxesSection"],["ax.name","Axis name","AxesSection"],["ax.mode","Axis mode","AxesSection"],["ax.labels","Axis label (per language)","AxesSection"],["ax.columns","Axis columns","AxesSection"],["ax.remove","Remove axis","AxesSection"]]],
+  ["ax.add","+ Axis","AxesSection"],["ax.name","Axis name","AxesSection"],["ax.mode","Axis mode","AxesSection"],["ax.labels","Axis label (per language)","AxesSection"],["ax.columns","Axis columns","AxesSection"],["ax.dup","Duplicate axis","AxesSection"],["ax.remove","Remove axis","AxesSection"]]],
+ ["Multiselect lists (AppControls, used for axis columns and layer keywords)",[
+  ["ms.search","Search options","MultiSelectInput"],["ms.selectAll","Select all","MultiSelectInput"],["ms.deselectAll","Deselect all","MultiSelectInput"],["ms.expand","Expand / collapse list","MultiSelectInput"]]],
  ["Materials & legend (MaterialColorsSection, FrameSection)",[
   ["lg.title","Legend title (per language)","FrameSection (dataframe value)"],["mc.list","Material color list","MaterialColorsSection"],["mc.name","Material name / custom name","MaterialColorsSection"],["mc.color","Material color","MaterialColorsSection"],["mc.remove","Remove material color","MaterialColorsSection"],
   ["mc.add","+ Color","MaterialColorsSection"],["mc.populate","Populate colors","MaterialColorsSection"],["mc.generate","Generate colors","MaterialColorsSection"]]],
  ["Look and output (DataframeSection)",[
-  ["lk.ratio","Aspect ratio","DataframeSection"],["lk.dark","Dark mode","DataframeSection"],["lk.langs","Plot languages","DataframeSection"],["lk.langAdd","Add plot language","DataframeSection"],["lk.fontStyle","Font style","DataframeSection"],["lk.fontFamily","Font family (incl. custom)","DataframeSection"],["lk.fontSize","Font size","DataframeSection"],
+  ["lk.ratio","Aspect ratio","DataframeSection"],["lk.dark","Dark mode","DataframeSection"],["lk.fontStyle","Font style","DataframeSection"],["lk.fontFamily","Font family (incl. custom)","DataframeSection"],["lk.fontSize","Font size","DataframeSection"],
   ["lk.titleSize","Title size","DataframeSection"],["lk.legendTitleSize","Legend title size","DataframeSection"],["lk.legendItemSize","Legend item size","DataframeSection"],["lk.axisLabelSize","Axis label size","DataframeSection"],["lk.tickSize","Tick size","DataframeSection"],
   ["out.format","File format","DataframeSection"],["out.dpi","Resolution (dpi)","DataframeSection"],["out.transparent","Transparency","DataframeSection"],["out.watermark","Watermark","DataframeSection"],["out.copyright","Copyright","DataframeSection"]]],
- ["Axes & title (FrameSection)",[
-  ["x.q","X quantity","FrameSection"],["x.rel","X relative quantity","FrameSection"],["x.log","X scale","FrameSection"],["y.q","Y quantity","FrameSection"],["y.rel","Y relative quantity","FrameSection"],["y.log","Y scale","FrameSection"],["ax.swap","Swap X and Y axis","FrameSection"],
-  ["area.auto","Automatic display area","FrameSection"],["area.margins","Margins left/right/bottom/top","FrameSection"],["area.limits","Axis limits min/max","FrameSection"],["pt.title","Title (per language)","FrameSection"]]],
+ ["Title & axes (FrameSection)",[
+  ["pt.title","Title (per language)","FrameSection"],["x.q","X quantity","FrameSection"],["x.rel","X relative quantity","FrameSection"],["x.log","X scale","FrameSection"],["y.q","Y quantity","FrameSection"],["y.rel","Y relative quantity","FrameSection"],["y.log","Y scale","FrameSection"],["ax.swap","Swap X and Y axis","FrameSection"],
+  ["area.auto","Automatic display area","FrameSection"],["area.margins","Margins left/right/bottom/top","FrameSection"],["area.limits","Axis limits min/max","FrameSection"]]],
  ["Hulls (FrameSection, LayersSection)",[
   ["hl.algorithm","Algorithm","FrameSection"],["hl.add","+ Layer","LayersSection"],["hl.column","Layer name (column)","LayersSection"],["hl.linewidth","Line width","LayersSection"],["hl.opacity","Opacity","LayersSection"],["hl.filter","Whitelist / blacklist keywords","LayersSection"],
   ["hl.dup","Duplicate layer","LayersSection"],["hl.remove","Remove layer","LayersSection"],["hl.alphaPoints","Alpha points","LayersSection"],["hl.alphaAreas","Alpha areas","LayersSection"]]],
  ["Colored areas (ColoredAreasSection)",[
   ["ca.add","+ Area","ColoredAreasSection"],["ca.type","Area type","ColoredAreasSection"],["ca.ranges","Range on axis","ColoredAreasSection"],["ca.points","Polygon corner points","ColoredAreasSection"],["ca.addPoint","Add point","ColoredAreasSection"],["ca.removePoint","Remove point","ColoredAreasSection"],
-  ["ca.color","Color (custom / material)","ColoredAreasSection"],["ca.opacity","Opacity","ColoredAreasSection"],["ca.remove","Remove area","ColoredAreasSection"]]],
+  ["ca.color","Color (custom / material)","ColoredAreasSection"],["ca.opacity","Opacity","ColoredAreasSection"],["ca.dup","Duplicate area","ColoredAreasSection"],["ca.remove","Remove area","ColoredAreasSection"]]],
  ["Guidelines (GuidelinesSection)",[
   ["gl.add","+ Guideline","GuidelinesSection"],["gl.x","Anchor point x","GuidelinesSection"],["gl.y","Anchor point y","GuidelinesSection"],["gl.m","Slope m","GuidelinesSection"],["gl.color","Color","GuidelinesSection"],["gl.style","Line style","GuidelinesSection"],["gl.width","Line width","GuidelinesSection"],
-  ["gl.fontColor","Font color","GuidelinesSection"],["gl.fontSize","Font size","GuidelinesSection"],["gl.padding","Label padding","GuidelinesSection"],["gl.position","Label position","GuidelinesSection"],["gl.text","Text","GuidelinesSection"],["gl.remove","Remove guideline","GuidelinesSection"]]],
+  ["gl.fontColor","Font color","GuidelinesSection"],["gl.fontSize","Font size","GuidelinesSection"],["gl.padding","Label padding","GuidelinesSection"],["gl.position","Label position","GuidelinesSection"],["gl.text","Text (per language)","GuidelinesSection"],["gl.dup","Duplicate guideline","GuidelinesSection"],["gl.remove","Remove guideline","GuidelinesSection"]]],
  ["Annotations (AnnotationsSection)",[
-  ["an.add","+ Annotation","AnnotationsSection"],["an.defMarker","Default marker size","AnnotationsSection"],["an.defFont","Default font size","AnnotationsSection"],["an.text","Text label","AnnotationsSection"],["an.pos","Position on axis","AnnotationsSection"],
+  ["an.add","+ Annotation","AnnotationsSection"],["an.defMarker","Default marker size","AnnotationsSection"],["an.defFont","Default font size","AnnotationsSection"],["an.text","Text label (per language)","AnnotationsSection"],["an.pos","Position on axis","AnnotationsSection"],
   ["an.offX","Text offset X","AnnotationsSection"],["an.offY","Text offset Y","AnnotationsSection"],["an.textColor","Text color","AnnotationsSection"],["an.markerFlag","Marker on/off","AnnotationsSection"],["an.arrowFlag","Arrow on/off","AnnotationsSection"],
   ["an.mSymbol","Marker symbol","AnnotationsSection"],["an.mSize","Marker size factor","AnnotationsSection"],["an.mWidth","Marker line width","AnnotationsSection"],["an.mColor","Marker color","AnnotationsSection"],["an.mEdge","Marker edge color","AnnotationsSection"],
-  ["an.aWidth","Arrow width","AnnotationsSection"],["an.aHeadLen","Arrow head length","AnnotationsSection"],["an.aHeadW","Arrow head width","AnnotationsSection"],["an.aLine","Arrow line width","AnnotationsSection"],["an.aFace","Arrow face color","AnnotationsSection"],["an.remove","Remove annotation","AnnotationsSection"]]],
+  ["an.aWidth","Arrow width","AnnotationsSection"],["an.aHeadLen","Arrow head length","AnnotationsSection"],["an.aHeadW","Arrow head width","AnnotationsSection"],["an.aLine","Arrow line width","AnnotationsSection"],["an.aFace","Arrow face color","AnnotationsSection"],["an.dup","Duplicate annotation","AnnotationsSection"],["an.remove","Remove annotation","AnnotationsSection"]]],
  ["Advanced JSON (AdvancedJsonSection)",[["adv.filter","Filter","AdvancedJsonSection"],["adv.hulls","Highlighted hulls","AdvancedJsonSection"]]]
 ];
 const SCOPE_TAG={dataset:`<span class="scopetag ds">Dataset</span>`,plot:`<span class="scopetag pl">Plot</span>`,project:`<span class="scopetag pj">Project</span>`,structure:`<span class="scopetag app">Structure</span>`,app:`<span class="scopetag app">App</span>`};
@@ -1012,18 +1115,20 @@ function coverage(){
     const tier=tierEl?(tierEl.classList.contains("tier-req")?"req":tierEl.classList.contains("tier-rev")?"rev":tierEl.classList.contains("tier-def")?"def":"act"):"act";
     if(tier==="req")req++;else if(tier==="rev")rev++;else if(tier==="def")def++;
     if(tier!=="def")simple++;
-    const sec=el.closest(".sec"),where=sec?NAV.find(n=>n.id===sec.dataset.sec).t:(el.closest("[data-area]")||{dataset:{area:el.closest("#exportModal")?"Export dialog":el.closest("#settingsModal")?"Settings dialog":"–"}}).dataset.area;
-    const lvl=tier==="req"?CHIP.req:tier==="rev"?CHIP.rev:tier==="def"?CHIP.def:`<span class="small">always shown</span>`;
+    const sec=el.closest(".sec"),area=el.closest("[data-area]");
+    const where=sec?NAV.find(n=>n.id===sec.dataset.sec).t:area?area.dataset.area:el.closest("#exportModal")?"Export dialog":el.closest("#settingsModal")?"Settings dialog":"–";
+    const lvl=tier==="act"?`<span class="small">always shown</span>`:`<span class="lvl">${ICON[tier]}${tier==="req"?"Required":tier==="rev"?"Check":"Default OK"}</span>`;
     return `<tr><td>${esc(label)}</td><td class="small">${esc(src)}</td><td>${SCOPE_TAG[scope]||""}</td><td>${lvl}</td><td>${esc(where)}</td><td class="chk">✓</td><td>${sec?`<button type="button" class="showbtn" data-show="${sec.dataset.sec}|${s}">Show</button>`:""}</td></tr>`;
   }).join("")).join("");
   document.getElementById("cov").innerHTML=rows;
-  document.getElementById("covsum").innerHTML=`<div><b>${found} / ${total}</b><span>controls of the current app found in the mockup</span></div><div><b>${req}</b><span>Required</span></div><div><b>${rev}</b><span>Check</span></div><div><b>${def}</b><span>Default OK, hidden in Simple</span></div><div><b>${simple}</b><span>visible in Simple (incl. actions)</span></div>`;
+  document.getElementById("covsum").innerHTML=`<div><b>${found} / ${total}</b><span>controls of the current app found</span></div><div><b>${req}</b><span>Required</span></div><div><b>${rev}</b><span>Check</span></div><div><b>${def}</b><span>Default OK, hidden in Simple</span></div><div><b>${simple}</b><span>visible in Simple (incl. actions)</span></div>`;
 }
 document.getElementById("cov").addEventListener("click",e=>{
   const b=e.target.closest("[data-show]");if(!b)return;const [sec,s]=b.dataset.show.split("|");
-  if(DS[0].plots[0]&&(st.d!==0||st.p!==0)){st.d=0;st.p=0;render()}
+  if(st.d!==0||st.p!==0){st.d=0;st.p=0;render()}
   document.querySelector(".win").scrollIntoView({behavior:"smooth",block:"start"});go(sec,s);
 });
+document.getElementById("revIconKey").innerHTML=EYE;
 
 render();
 coverage();
