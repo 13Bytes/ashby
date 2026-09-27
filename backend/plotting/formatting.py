@@ -30,6 +30,7 @@ class format_storage():
 
     def language_text(self, label:dict|str,) -> str:
         '''retrieves the label in the correct language'''
+        label_ = label
         if isinstance(label, dict):
             label_ = label.get(self.language, False)
             if label_ == False:
@@ -182,14 +183,10 @@ def copyright(ax:plt.subplot, text:str|bool, font_color:str) -> None:
 
 
 def figurename(frame:dict, dateframe_index:int, frame_index:int) -> str:
-    frame_name  = frame.get('name', None)
-    export_name = frame.get('export_file_name', None)
+    frame_name = frame.get('name', None)
     if frame_name != None:
         return frame_name
-    if export_name != None:
-        return export_name
-    else:
-        return f"Figure {dateframe_index+1}.{frame_index+1}"
+    return f"Figure {dateframe_index+1}.{frame_index+1}"
 
 
 class plot_size():

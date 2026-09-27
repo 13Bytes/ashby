@@ -79,7 +79,6 @@ export function toExternalConfig(config: PlotConfig): unknown {
         ...(frame.darkMode === undefined ? {} : { dark_mode: frame.darkMode }),
         legend_above: frame.legendAbove ?? false,
         language: frame.language,
-        export_file_name: frame.exportFileName ?? null,
         x_quantity: frame.xQuantity,
         x_rel_quantity: frame.xRelQuantity ?? null,
         log_x_flag: frame.logXFlag,

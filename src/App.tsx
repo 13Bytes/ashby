@@ -3,29 +3,37 @@ import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { normalizePlotConfig } from './config/configMappers'
-import { createDefaultPlotConfig, type PlotConfig } from './config/defaultPlotConfig'
+import type { PlotConfig } from './config/defaultPlotConfig'
 import { findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
-import { UI_LABELS, type UILanguage } from './uiTranslations'
+import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
 import { AppPopouts } from './components/AppPopouts'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
 import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
 import { Field } from './components/AppControls'
-import { getAxisBasesFromColumns, getConfigAxisColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
+import { getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
 import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFile } from './utils/datasourceStorage'
+import { createConfigSync, type ConfigSync } from './utils/tabSync'
+import { BackendError, fetchBackend, toErrorDetails } from './utils/backendErrors'
+import { addLogEntry } from './utils/debugLog'
 
 type AppPage = 'config' | 'plot'
 type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
 type PlotAction = 'preview-current' | 'create-all'
 
 type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[] }
+/** What the last datasource import of a dataframe returned; kept per dataframe (by UI key). */
+type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[] }
+const EMPTY_KEYWORDS: Record<string, string[]> = {}
 
 const CONFIG_STORAGE_KEY = 'ashby-plot-config'
+/** Datasource imports (Teable tables can take a while) give up after this long. */
+const IMPORT_TIMEOUT_MS = 120_000
 const JSON_EDITOR_LINE_HEIGHT = 18
 
 /** Restores the config of this browser tab (sessionStorage survives reloads and is copied into tabs opened from here). */
@@ -36,7 +44,7 @@ function readStoredPlotConfig(): PlotConfig {
   } catch {
     // ignore unavailable storage or an invalid cached config
   }
-  return createDefaultPlotConfig()
+  return normalizePlotConfig()
 }
 
 function App() {
@@ -46,6 +54,7 @@ function App() {
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [hoveredRemoveGroup, setHoveredRemoveGroup] = useState<string | null>(null)
+  const [hoveredDuplicateGroup, setHoveredDuplicateGroup] = useState<string | null>(null)
   const [showJson, setShowJson] = useState(false)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [jsonDraft, setJsonDraft] = useState('')
@@ -58,14 +67,11 @@ function App() {
   const datasetAutoImportRef = useRef<string | null>(null)
   const fileAutoImportRef = useRef<string | null>(null)
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
-  const [uiLanguage, setUiLanguage] = useState<UILanguage>('en')
+  const [uiLanguage, setUiLanguage] = useState<UILanguage>(readStoredUILanguage)
   const [uiTheme, setUiTheme] = useState<UIThemePreference>(() => readStoredUITheme())
-  const [availableColumns, setAvailableColumns] = useState<string[]>([])
-  const [availableKeywordsByColumn, setAvailableKeywordsByColumn] = useState<Record<string, string[]>>({})
-  const [availableSheetsByDataframe, setAvailableSheetsByDataframe] = useState<Record<number, string[]>>({})
+  const [importedSources, setImportedSources] = useState<Record<string, ImportedSource>>({})
   const [importInProgress, setImportInProgress] = useState(false)
   const [tabRename, setTabRename] = useState<{ type: 'dataframe' | 'frame'; index: number; value: string } | null>(null)
-  const [showMenu, setShowMenu] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
@@ -87,21 +93,35 @@ function App() {
   const [datasourcePrompt, setDatasourcePrompt] = useState<{ dataframeIndex: number; filename: string } | null>(null)
   const [dismissedDatasourcePrompts, setDismissedDatasourcePrompts] = useState<Record<string, boolean>>({})
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
-  const materialColorOptions = Object.keys(activeDataframe.materialColors)
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
   const automaticDisplayAreaActive = activeFrame.automaticDisplayAreaMargin !== null
-  const t = (key: string) => UI_LABELS[uiLanguage][key] ?? key
+  const i18n = useMemo(() => ({ language: uiLanguage, t: createTranslator(uiLanguage) }), [uiLanguage])
+  const { t } = i18n
+  const configSyncRef = useRef<ConfigSync | null>(null)
+  const lastSyncedConfigRef = useRef<string | null>(null)
+  const activeDataframeKey = getUiKey(activeDataframe, 'dataframe')
+  const activeImportedSource = importedSources[activeDataframeKey]
+  const availableColumns = useMemo(() => activeImportedSource?.columns ?? [], [activeImportedSource])
+  const availableKeywordsByColumn = activeImportedSource?.keywordsByColumn ?? EMPTY_KEYWORDS
   const availableWhitelistKeywords = useMemo(
     () => getConfigWhitelistKeywords(plotConfig).map((entry) => ({ value: entry, label: entry })),
     [plotConfig],
   )
+  // Before this dataframe's source is imported, offer the columns the config already uses, so
+  // selected entries stay visible and can be deselected.
   const availableAxisColumns = useMemo(
-    () => getAxisBasesFromColumns(availableColumns).map((column) => ({ value: column, label: column })),
-    [availableColumns],
+    () => (activeImportedSource
+      ? getAxisBasesFromColumns(availableColumns)
+      : [...new Set(activeDataframe.axes.flatMap((axis) => axis.columns))].sort((a, b) => a.localeCompare(b))
+    ).map((column) => ({ value: column, label: column })),
+    [activeDataframe.axes, activeImportedSource, availableColumns],
   )
   const layerNameOptions = useMemo(() => {
-    if (availableColumns.length === 0) {
-      return []
+    if (!activeImportedSource) {
+      return [...new Set(activeDataframe.frames.flatMap((frame) => frame.layers.map((layer) => layer.name?.trim() ?? '')))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+        .map((column) => ({ value: column, label: column }))
     }
     const excluded = new Set<string>()
     for (const axisBase of getAxisBasesFromColumns(availableColumns)) {
@@ -113,7 +133,7 @@ function App() {
       .filter((column) => !excluded.has(column))
       .sort((a, b) => a.localeCompare(b))
       .map((column) => ({ value: column, label: column }))
-  }, [availableColumns])
+  }, [activeDataframe.frames, activeImportedSource, availableColumns])
   const materialKeywordOptions = useMemo(() => {
     const layerColumns = new Set(
       activeDataframe.frames.flatMap((frame) =>
@@ -131,6 +151,26 @@ function App() {
     }
     return [...keywords].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn])
+  // Keywords a layer's whitelist/blacklist selection actually includes, across every frame of this
+  // dataframe — used to populate a material-color entry for each of them.
+  const includedLayerKeywords = useMemo(() => {
+    const included = new Set<string>()
+    for (const frame of activeDataframe.frames) {
+      for (const layer of frame.layers) {
+        const column = layer.name?.trim()
+        if (!column) continue
+        const sourceKeywords = (availableKeywordsByColumn[column] ?? []).length > 0
+          ? availableKeywordsByColumn[column]
+          : availableWhitelistKeywords.map((option) => option.value)
+        const selected = new Set(layer.whitelist ?? [])
+        for (const keyword of sourceKeywords) {
+          const isIncluded = layer.whitelistFlag ? selected.has(keyword) : !selected.has(keyword)
+          if (isIncluded) included.add(keyword)
+        }
+      }
+    }
+    return [...included].sort((a, b) => a.localeCompare(b))
+  }, [activeDataframe.frames, availableKeywordsByColumn, availableWhitelistKeywords])
   const missingDatasourceDataframes = useMemo(
     () =>
       availableDatasets === null
@@ -200,13 +240,45 @@ function App() {
       setActiveFrameIndex(frame)
     }
   }, [])
+  // Live sync with tabs of the same workspace (see utils/tabSync.ts).
   useEffect(() => {
+    const sync = createConfigSync((serialized) => {
+      try {
+        const next = normalizePlotConfig(parseImportedConfig(serialized))
+        // Remember what we received so the save effect below does not echo it back.
+        lastSyncedConfigRef.current = JSON.stringify(toExternalConfig(next))
+        setPlotConfig(next)
+      } catch {
+        // ignore malformed messages
+      }
+    })
+    configSyncRef.current = sync
+    return () => {
+      sync.close()
+      configSyncRef.current = null
+    }
+  }, [])
+  useEffect(() => {
+    const serialized = JSON.stringify(toExternalConfig(plotConfig))
     try {
-      window.sessionStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(toExternalConfig(plotConfig)))
+      window.sessionStorage.setItem(CONFIG_STORAGE_KEY, serialized)
     } catch {
       // storage full or unavailable: the config still lives in memory
     }
+    // Publish local changes only; the initial config and received configs are not re-sent.
+    if (lastSyncedConfigRef.current !== null && serialized !== lastSyncedConfigRef.current) {
+      configSyncRef.current?.publish(serialized)
+    }
+    lastSyncedConfigRef.current = serialized
   }, [plotConfig])
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, uiLanguage)
+    } catch {
+      // not persisted, still applied for this session
+    }
+    document.documentElement.lang = uiLanguage
+  }, [uiLanguage])
   // Keep the selection valid when dataframes/frames disappear (reset, import, JSON edit, URL params).
   useEffect(() => {
     const lastDataframeIndex = plotConfig.dataframes.length - 1
@@ -234,7 +306,8 @@ function App() {
     let active = true
     const checkBackendAvailability = async () => {
       try {
-        const response = await fetch('/api/health', { cache: 'no-store' })
+        // A backend that does not answer within 10 s counts as unavailable.
+        const response = await fetch('/api/health', { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
         if (active) setBackendAvailable(response.ok)
       } catch {
         if (active) setBackendAvailable(false)
@@ -336,12 +409,16 @@ function App() {
   const importDatabase = async (file?: File) => {
     setImportInProgress(true)
     const selectedDataframe = activeDataframe
+    const selectedDataframeKey = activeDataframeKey
     const selectedSourceMode = getSourceMode(selectedDataframe, availableDatasets ?? [])
+    const sourceLabel = selectedSourceMode === 'teable' ? 'Teable' : selectedSourceMode === 'dataset' ? t('datasetName') : 'Excel'
+    const logTitle = `${sourceLabel}: ${file?.name ?? (selectedSourceMode === 'teable' ? selectedDataframe.teableUrl : selectedDataframe.importFileName) ?? '–'}`
+    const startedAt = performance.now()
     try {
       if (selectedSourceMode === 'dataset' && !selectedDataframe.importFileName) {
-        throw new Error('Select a provided dataset before importing.')
+        throw new Error(t('selectDatasetFirst'))
       }
-      const response = await fetch('/api/import-database', {
+      const response = await fetchBackend('/api/import-database', {
         method: 'POST',
         headers: selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
         body:
@@ -366,15 +443,17 @@ function App() {
               form.append('import_sheet', String(selectedDataframe.importSheet))
               return form
             })(),
-      })
+      }, { unreachable: t('backendUnreachable'), timeoutMs: IMPORT_TIMEOUT_MS, timedOut: t('requestTimedOut', { seconds: IMPORT_TIMEOUT_MS / 1000 }) })
       const payload = (await response.json().catch(() => ({}))) as ImportDatabaseResponse
       if (!response.ok || payload.success === false) {
-        throw new Error(payload.message || `Import failed (${response.status}).`)
+        // The dev proxy answers 502–504 without a body when the backend is down.
+        const unreachable = !payload.message && [502, 503, 504].includes(response.status)
+        throw new BackendError({ message: payload.message || (unreachable ? t('backendUnreachable') : t('importFailed', { status: response.status })), messages: [], status: response.status })
       }
       const columns = parseColumnsFromImportResult(payload.columns)
       const keywordsByColumn = payload.keywords_by_column ?? {}
       const sheetNames = payload.sheet_names ?? []
-      let storageMessage = ''
+      let cachingFailed = false
       if (file) {
         let cachedFile = file
         try {
@@ -385,7 +464,7 @@ function App() {
             return next
           })
         } catch {
-          storageMessage = ' The file is available for this session, but browser storage could not cache it.'
+          cachingFailed = true
         }
         setDatasourceFilesByDataframe((current) => ({
           ...current,
@@ -427,29 +506,23 @@ function App() {
         ...current,
         [activeDataframeIndex]: { imported: true, source: selectedSourceMode },
       }))
-      setAvailableSheetsByDataframe((current) => ({
+      setImportedSources((current) => ({
         ...current,
-        [activeDataframeIndex]: sheetNames,
+        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames },
       }))
-      setAvailableColumns(columns)
-      setAvailableKeywordsByColumn(keywordsByColumn)
-      const unavailableColumnsMessage =
-        unknownColumns.size > 0
-          ? ` Unavailable config columns were removed for this source: ${[...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ')}.`
-          : ''
-      const sourceLabel = selectedSourceMode === 'teable' ? 'Teable' : selectedSourceMode === 'dataset' ? 'Dataset' : 'Excel'
-      setAlert({
-        tone: 'success',
-        message:
-          columns.length > 0
-            ? `${sourceLabel} import successful. ${columns.length} columns available.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`
-            : `${sourceLabel} import successful.${payload.message ? ` ${payload.message}` : ''}${unavailableColumnsMessage}${storageMessage}`,
-      })
+      const messageParts = [
+        columns.length > 0 ? t('importSuccessColumns', { source: sourceLabel, count: columns.length }) : t('importSuccess', { source: sourceLabel }),
+        payload.message ?? '',
+        unknownColumns.size > 0 ? t('unavailableColumnsRemoved', { columns: [...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ') }) : '',
+        cachingFailed ? t('datasourceNotCached') : '',
+      ]
+      const successMessage = messageParts.filter(Boolean).join(' ')
+      setAlert({ tone: 'success', message: successMessage })
+      addLogEntry({ level: unknownColumns.size > 0 || cachingFailed ? 'warning' : 'info', source: 'import', title: logTitle, message: successMessage, status: response.status, durationMs: Math.round(performance.now() - startedAt) })
     } catch (error) {
-      setAlert({
-        tone: 'error',
-        message: error instanceof Error ? error.message : 'Database import failed.',
-      })
+      const details = toErrorDetails(error, t('importFailedGeneric'))
+      addLogEntry({ level: 'error', source: 'import', title: logTitle, ...details, durationMs: Math.round(performance.now() - startedAt) })
+      setAlert({ tone: 'error', message: details.message })
     } finally {
       setImportInProgress(false)
     }
@@ -541,10 +614,12 @@ function App() {
       setDismissedDatasourcePrompts({})
       setImportedDatabaseStatus({})
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
-      setAvailableColumns(getConfigAxisColumns(normalizedWithLanguages))
-      setAlert({ tone: 'success', message: `Imported ${file.name} successfully.` })
-    } catch {
-      setAlert({ tone: 'error', message: 'Invalid config file.' })
+      setImportedSources({})
+      setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
+    } catch (error) {
+      const details = toErrorDetails(error, t('invalidConfigFile'))
+      addLogEntry({ level: 'error', source: 'config', title: file.name, ...details })
+      setAlert({ tone: 'error', message: t('invalidConfigFileDetails', { error: details.message }) })
     } finally {
       event.target.value = ''
     }
@@ -589,11 +664,11 @@ function App() {
         return next
       })
       setDatasourcePrompt(null)
-      setAlert({ tone: 'success', message: `Loaded ${prompt.filename} from browser storage.` })
+      setAlert({ tone: 'success', message: t('datasourceLoaded', { name: prompt.filename }) })
     } catch (error) {
       setAlert({
         tone: 'error',
-        message: error instanceof Error ? error.message : `Could not cache ${prompt.filename}.`,
+        message: error instanceof Error ? error.message : t('datasourceCacheFailed', { name: prompt.filename }),
       })
     }
   }
@@ -625,10 +700,12 @@ function App() {
   const applyJsonEditor = () => {
     try {
       setPlotConfig(normalizePlotConfig(parseImportedConfig(jsonDraft, true)))
-      setAlert({ tone: 'success', message: 'JSON applied.' })
+      setAlert({ tone: 'success', message: t('jsonApplied') })
       setShowJson(false)
-    } catch {
-      setAlert({ tone: 'error', message: 'Invalid JSON in popup editor.' })
+    } catch (error) {
+      const details = toErrorDetails(error, t('jsonInvalid'))
+      addLogEntry({ level: 'error', source: 'config', title: t('jsonEditor'), ...details })
+      setAlert({ tone: 'error', message: t('jsonInvalidDetails', { error: details.message }) })
     }
   }
   const clearStoredDatasourceFiles = async () => {
@@ -638,55 +715,54 @@ function App() {
       setImportedDatabaseStatus({})
       setDatasourcePrompt(null)
       setDismissedDatasourcePrompts({})
-      setAlert({ tone: 'success', message: 'Cleared all locally stored Excel data files.' })
+      setAlert({ tone: 'success', message: t('storedFilesCleared') })
     } catch (error) {
       setAlert({
         tone: 'error',
-        message: error instanceof Error ? error.message : 'Could not clear locally stored data files.',
+        message: error instanceof Error ? error.message : t('storedFilesClearFailed'),
       })
     }
   }
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
   const resetConfig = () => {
-    setPlotConfig(createDefaultPlotConfig())
+    setPlotConfig(normalizePlotConfig())
     setConfigBaseName('ashby-config')
     setActiveDataframeIndex(0)
     setActiveFrameIndex(0)
-    setAvailableColumns([])
-    setAvailableKeywordsByColumn({})
-    setAvailableSheetsByDataframe({})
+    setImportedSources({})
     setDatasourceFilesByDataframe({})
     setDatasourcePrompt(null)
     setDismissedDatasourcePrompts({})
     setImportedDatabaseStatus({})
     setShowResetConfirm(false)
   }
-  const headerProps  = { activePage, configBaseName, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowMenu, setShowResetConfirm, setShowSettings, showMenu, t }
-  const tabProps     = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, t, toggleDataframeGeneration, toggleFrameGeneration }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: availableSheetsByDataframe[activeDataframeIndex] ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, layerNameOptions, materialColorOptions, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, t, uiLanguage, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
+  const headerProps  = { activePage, configBaseName, fileInputRef, handleImportFile, openJsonEditor, plotConfig, setActivePage, setPlotAction, setPlotActionNonce, setShowAbout, setShowResetConfirm, setShowSettings }
+  const tabProps     = { activeDataframe, activeDataframeIndex, activeFrameIndex, addDataframe, addFrame, applyTabRename, dataframeDropIndex, draggedDataframeIndex, draggedFrameIndex, duplicateDataframe, duplicateFrame, frameDropIndex, moveFrameTargetDataframe, moveFrameToDataframe, openTabWithSelection, plotConfig, removeDataframe, removeFrame, reorderDataframes, reorderFrames, setActiveDataframeIndex, setActiveFrameIndex, setDataframeDropIndex, setDraggedDataframeIndex, setDraggedFrameIndex, setExpandedAxisColumns, setFrameDropIndex, setMoveFrameTargetDataframe, setTabRename, tabRename, toggleDataframeGeneration, toggleFrameGeneration }
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, hoveredDuplicateGroup, hoveredRemoveGroup, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setHoveredDuplicateGroup, setHoveredRemoveGroup, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef }
   const settingsContent = (
     <>
-      <Field language={uiLanguage} label={t('uiLanguage')} jsonPath="ui.language">
+      <Field label={t('uiLanguage')} jsonPath="ui.language">
         <Select value={uiLanguage} onChange={(event) => setUiLanguage(event.target.value as UILanguage)}>
           <option value="en">English</option>
           <option value="de">Deutsch</option>
         </Select>
       </Field>
-      <Field language={uiLanguage} label={t('uiTheme')} jsonPath="ui.theme">
+      <Field label={t('uiTheme')} jsonPath="ui.theme">
         <Select value={uiTheme} onChange={(event) => setUiTheme(event.target.value as UIThemePreference)}>
           <option value="system">{t('themeSystem')}</option>
           <option value="light">{t('themeLight')}</option>
           <option value="dark">{t('themeDark')}</option>
         </Select>
       </Field>
-      <Field language={uiLanguage} label="Local data files" jsonPath="ui.local_data_files">
+      <Field label={t('localDataFiles')} jsonPath="ui.local_data_files">
         <Button type="button" variant="outline" onClick={() => { void clearStoredDatasourceFiles() }}>
-          Delete all stored files
+          {t('deleteStoredFiles')}
         </Button>
       </Field>
     </>
   )
   return (
+    <I18nContext.Provider value={i18n}>
     <div className="flex min-h-screen flex-col">
       <AppHeader {...headerProps} />
       {backendAvailable === false ? (
@@ -697,7 +773,7 @@ function App() {
       {missingDatasourceDataframes.length > 0 ? (
         <div className="mx-auto w-full px-5 pt-5">
           <Alert variant="warning">
-            {`Excel datasource data missing for ${missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => `dataframe ${dataframeIndex + 1} (${dataframe.importFileName})`).join(', ')}. Re-select the workbook before rendering.`}
+            {t('datasourceMissing', { list: missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => t('datasourceMissingItem', { n: dataframeIndex + 1, filename: dataframe.importFileName ?? '' })).join(', ') })}
           </Alert>
         </div>
       ) : null}
@@ -707,7 +783,7 @@ function App() {
           {alert ? (
             <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">
               <span>{alert.message}</span>
-              <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label="Close notification">✕</button>
+              <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label={t('closeNotification')}>✕</button>
             </Alert>
           ) : null}
           <ConfigSections {...sectionProps}/>
@@ -744,11 +820,11 @@ function App() {
         onConfirmReset={resetConfig}
         onCloseDatasourcePrompt={closeDatasourcePrompt}
         onDatasourcePromptFile={handleDatasourcePromptFile}
-        t={t}
         jsonOverlayRef={jsonOverlayRef}
         jsonTextareaRef={jsonTextareaRef}
       />
     </div>
+    </I18nContext.Provider>
   )
 }
 export default App

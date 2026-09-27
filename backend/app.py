@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import base64
 import io
 import sys
 import zipfile
@@ -15,6 +16,7 @@ from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 import uvicorn
 
@@ -28,10 +30,12 @@ FRONTEND_INDEX_PATH = FRONTEND_DIR / 'index.html'
 if __package__ in (None, ''):
     sys.path.insert(0, str(PROJECT_DIR))
     from backend import import_data as import_data_module
-    from backend.plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
+    from backend.import_data import teable as teable_api
+    from backend.plot_renderer import PlotRenderError, RequestDataSource, describe_exception, get_render_status, render_plot_image
 else:
     from . import import_data as import_data_module
-    from .plot_renderer import PlotRenderError, RequestDataSource, render_plot_image
+    from .import_data import teable as teable_api
+    from .plot_renderer import PlotRenderError, RequestDataSource, describe_exception, get_render_status, render_plot_image
 
 app = FastAPI(title='Ashby Backend API')
 
@@ -40,6 +44,10 @@ class RenderPlotRequest(BaseModel):
     config: dict[str, Any]
     dataframe_index: int = 0
     frame_index: int = 0
+    # When true, a successful render is returned as JSON with the base64 image and the plot log.
+    include_log: bool = False
+    # Optional id chosen by the client to poll /api/render-status/{request_id} while it renders.
+    request_id: str | None = None
 
 
 class DownloadPlotItem(BaseModel):
@@ -53,13 +61,14 @@ class DownloadPlotsRequest(BaseModel):
 
 
 def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
-    dataframes = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None)
-    sheet_names = list(dataframes.keys())
+    # Only the selected sheet is parsed; the other sheets are just listed by name.
+    workbook = pd.ExcelFile(io.BytesIO(file_bytes), engine=import_data_module.EXCEL_ENGINE)
+    sheet_names = [str(name) for name in workbook.sheet_names]
     if not sheet_names:
         return [], {}, []
 
     index = min(max(sheet_index, 0), len(sheet_names) - 1)
-    selected = dataframes[sheet_names[index]]
+    selected = workbook.parse(workbook.sheet_names[index])
 
     columns = [str(column).strip() for column in selected.columns if str(column).strip()]
 
@@ -79,45 +88,44 @@ def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[li
     return columns, keywords_by_column, sheet_names
 
 
+TEABLE_KEYWORD_RECORD_LIMIT = 5000
+
+
 def _extract_columns_and_keywords_from_teable(
     teable_url: str,
     api_key: str,
     verify_tls: bool = True,
 ) -> tuple[list[str], dict[str, list[str]]]:
-    headers = {
-        'Authorization': api_key,
-        'Accept': 'application/json',
-    }
-    try:
-        response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30, verify=verify_tls)
-    except requests.exceptions.SSLError:
-        if verify_tls is False:
-            raise
-        response = requests.get(teable_url, params={'take': 200, 'skip': 0}, headers=headers, timeout=30, verify=False)
-    response.raise_for_status()
-    payload = response.json() if response.content else {}
-    records = payload.get('records', []) if isinstance(payload, dict) else []
+    # Columns come from the table's field list: records omit empty cells, so reading them from
+    # records would miss columns that happen to be empty in the fetched rows.
+    columns = teable_api.fetch_field_names(teable_url, api_key, verify_tls=verify_tls)
+    records = teable_api.fetch_records(teable_url, api_key, verify_tls=verify_tls, max_records=TEABLE_KEYWORD_RECORD_LIMIT)
 
-    columns: list[str] = []
-    keywords_by_column: dict[str, set[str]] = {}
-    for record in records:
-        fields = record.get('fields', {}) if isinstance(record, dict) else {}
+    # Keywords like in the Excel import: the distinct text values of each column.
+    keywords_by_column: dict[str, set[str]] = {column: set() for column in columns}
+    for fields in records:
         if not isinstance(fields, dict):
             continue
         for key, value in fields.items():
             column = str(key).strip()
-            if not column:
-                continue
-            if column not in columns:
-                columns.append(column)
-            if isinstance(value, (str, int, float, bool)):
-                keywords_by_column.setdefault(column, set()).add(str(value))
+            if column in keywords_by_column and isinstance(value, str) and value.strip():
+                keywords_by_column[column].add(value.strip())
 
     normalized_keywords = {
-        column: sorted(list(values))[:200]
+        column: sorted(values, key=lambda entry: entry.lower())
         for column, values in keywords_by_column.items()
     }
-    return sorted(columns), normalized_keywords
+    return columns, normalized_keywords
+
+
+def _teable_import_response(teable_url: str, api_key: str, verify_tls: bool = True) -> JSONResponse:
+    try:
+        columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, api_key, verify_tls=verify_tls)
+    except teable_api.TeableError as error:
+        return JSONResponse({'success': False, 'message': str(error)}, status_code=400)
+    except requests.RequestException as error:
+        return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
+    return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
 
 
 def _encode_messages_header(messages: list[str]) -> str:
@@ -172,21 +180,40 @@ def health() -> JSONResponse:
     return JSONResponse({'status': 'ok'})
 
 
+@app.get('/api/render-status/{request_id}')
+def render_status(request_id: str) -> JSONResponse:
+    status = get_render_status(request_id)
+    if status is None:
+        return JSONResponse({'state': 'unknown'}, status_code=404)
+    return JSONResponse(status)
+
+
 @app.post('/api/render-plot')
 async def render_plot(request: Request) -> Response:
     try:
         payload_data, data_sources = await _parse_plot_request(request)
         payload = RenderPlotRequest(**payload_data)
-        rendered_plot = render_plot_image(
+        # In a worker thread, so the server keeps answering (status, health) while a plot renders.
+        rendered_plot = await run_in_threadpool(
+            render_plot_image,
             payload.config,
             dataframe_index=payload.dataframe_index,
             frame_index=payload.frame_index,
             data_sources=data_sources,
+            request_id=payload.request_id,
         )
     except PlotRenderError as exc:
-        return JSONResponse({'message': str(exc), 'messages': exc.messages}, status_code=400)
+        return JSONResponse({**exc.details, 'message': str(exc), 'messages': exc.messages}, status_code=400)
     except Exception as exc:
-        return JSONResponse({'message': str(exc), 'messages': []}, status_code=400)
+        return JSONResponse({**describe_exception(exc), 'messages': []}, status_code=400)
+
+    if payload.include_log:
+        return JSONResponse({
+            'image': base64.b64encode(rendered_plot.content).decode('ascii'),
+            'media_type': rendered_plot.media_type,
+            'messages': rendered_plot.messages,
+            'log': rendered_plot.log,
+        })
 
     response = Response(content=rendered_plot.content, media_type=rendered_plot.media_type)
     if rendered_plot.messages:
@@ -200,22 +227,28 @@ async def download_plots(request: Request) -> Response:
         payload_data, data_sources = await _parse_plot_request(request)
         payload = DownloadPlotsRequest(**payload_data)
     except Exception as exc:
-        return JSONResponse({'message': str(exc), 'messages': []}, status_code=400)
+        return JSONResponse({**describe_exception(exc), 'messages': []}, status_code=400)
 
     output = io.BytesIO()
     with zipfile.ZipFile(output, mode='w', compression=zipfile.ZIP_DEFLATED) as archive:
         for plot in payload.plots:
-            rendered_plot = render_plot_image(
-                payload.config,
-                dataframe_index=plot.dataframe_index,
-                frame_index=plot.frame_index,
-                data_sources=data_sources,
-            )
+            try:
+                rendered_plot = await run_in_threadpool(
+                    render_plot_image,
+                    payload.config,
+                    dataframe_index=plot.dataframe_index,
+                    frame_index=plot.frame_index,
+                    data_sources=data_sources,
+                )
+            except PlotRenderError as exc:
+                label = f'dataframe {plot.dataframe_index + 1}, frame {plot.frame_index + 1}'
+                return JSONResponse({**exc.details, 'message': f'{label}: {exc}', 'messages': exc.messages}, status_code=400)
             dataframe = payload.config.get('dataframes', [])[plot.dataframe_index]
             frame = dataframe.get('frames', [])[plot.frame_index] if isinstance(dataframe, dict) else {}
-            export_name = frame.get('export_file_name') if isinstance(frame, dict) else None
+            dataframe_name = (dataframe.get('name') if isinstance(dataframe, dict) else None) or f'Dataframe{plot.dataframe_index + 1}'
+            frame_name = (frame.get('name') if isinstance(frame, dict) else None) or f'Frame{plot.frame_index + 1}'
             extension = '.png' if rendered_plot.media_type == 'image/png' else '.svg'
-            filename_root = export_name or f'ashby-df{plot.dataframe_index + 1}-frame{plot.frame_index + 1}'
+            filename_root = f'{dataframe_name}_{frame_name}'
             archive.writestr(f'{filename_root}{extension}', rendered_plot.content)
 
     return Response(content=output.getvalue(), media_type='application/zip')
@@ -243,7 +276,7 @@ async def import_database(
             try:
                 columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name_json, int(import_sheet_json))
             except Exception as error:
-                return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+                return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
             return JSONResponse({
                 'success': True,
                 'columns': columns,
@@ -251,18 +284,14 @@ async def import_database(
                 'import_file_name': import_file_name_json,
                 'sheet_names': sheet_names,
             })
-        try:
-            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url_json, api_key_json, verify_tls=verify_tls_json)
-        except requests.RequestException as error:
-            return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
-        return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
+        return await run_in_threadpool(_teable_import_response, teable_url_json, api_key_json, verify_tls=verify_tls_json is not False)
 
     if file is None:
         if import_file_name:
             try:
                 columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name, import_sheet)
             except Exception as error:
-                return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+                return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
             return JSONResponse({
                 'success': True,
                 'columns': columns,
@@ -272,17 +301,13 @@ async def import_database(
             })
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
-        try:
-            columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, API_Key, verify_tls=True)
-        except requests.RequestException as error:
-            return JSONResponse({'success': False, 'message': f'Teable request failed: {error}'}, status_code=502)
-        return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
+        return await run_in_threadpool(_teable_import_response, teable_url, API_Key)
 
     file_bytes = await file.read()
     try:
         columns, keywords_by_column, sheet_names = _extract_metadata_from_xlsx(file_bytes, import_sheet)
     except Exception as error:
-        return JSONResponse({'success': False, 'message': f'Excel import failed: {error}'}, status_code=400)
+        return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
 
     return JSONResponse({
         'success': True,

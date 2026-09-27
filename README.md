@@ -54,7 +54,7 @@ npm run lint
 
 The repository includes two lightweight automated test suites:
 
-- Frontend contract tests that verify the React code still calls the backend render endpoint correctly and still displays the returned image.
+- Frontend tests (`tests/frontend/*.test.mjs`, Node's built-in test runner). `utils.test.mjs` imports the TypeScript modules directly and tests their behavior (config import/export round trips, tab sync, translations, …); `proxy.test.mjs` checks the component wiring to the backend. `register-ts.mjs` registers a small loader that transpiles `.ts` files for these tests. The frontend tests do not need the backend.
 - Backend API integration tests that hit the running FastAPI server over HTTP.
 
 ### Before running tests
@@ -75,7 +75,7 @@ The backend tests assume this default URL unless you override it:
 npm test
 ```
 
-### Run only the frontend proxy tests
+### Run only the frontend tests
 
 ```powershell
 npm run test:frontend
@@ -97,6 +97,9 @@ npm run test:backend
 - Frontend preview still turns the backend response blob into an `<img>`.
 - Frontend preview still reads and displays plot messages returned by the backend.
 - App state still keeps uploaded Excel files in browser memory and passes request-scoped datasource files into `PlotPage`.
+- Config export → import round trips keep every setting (also for the files in `examples/`).
+- Tab sync only exchanges configs between tabs of the same workspace.
+- Every UI language defines every translation key.
 
 ## Reference
 

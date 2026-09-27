@@ -1,10 +1,9 @@
-import json
 import io
 from pathlib import Path
 
 import pandas as pd
-import requests
 
+from . import teable
 from .filter import filter_data
 
 
@@ -12,6 +11,15 @@ import os
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 MATERIAL_PROPERTIES_DIR = Path(os.environ.get('ASHBY_MATERIAL_PROPERTIES_DIR', BACKEND_DIR / 'material_properties'))
+
+# python-calamine (Rust) reads .xlsx about 6–13x faster than openpyxl and returns the same data.
+# This matters for workbooks whose sheet dimension claims far more rows than they contain.
+# openpyxl stays the fallback when python-calamine is not installed.
+try:
+    import python_calamine  # noqa: F401
+    EXCEL_ENGINE = 'calamine'
+except ImportError:
+    EXCEL_ENGINE = 'openpyxl'
 
 
 def _resolve_import_file_path(import_file_name: str) -> Path:
@@ -64,7 +72,7 @@ def import_data(dataframe, frame, Sorted_data, xlsx_file_bytes=None):
 
 def import_excel_metadata(import_file_name: str, import_sheet: int):
     file_path = _resolve_import_file_path(import_file_name)
-    xls = pd.ExcelFile(file_path)
+    xls = pd.ExcelFile(file_path, engine=EXCEL_ENGINE)
     sheet_names = xls.sheet_names
 
     index = min(max(import_sheet, 0), len(sheet_names) - 1)
@@ -92,60 +100,10 @@ def import_excel_metadata(import_file_name: str, import_sheet: int):
 
 def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     wanted_fields = collums_list(axes, layers)
-
-    params = {
-        "take": 1000,
-        "skip": 0,
-        "filter": json.dumps(filter),
-        "fields": wanted_fields
-    }
-
-    headers = {
-        "Authorization": api_key,
-        "Accept": "application/json"
-    }
-
-
-    try:
-        status = requests.head(teable_url, headers=headers, verify=verify_tls, timeout=30)
-    except requests.exceptions.SSLError:
-        if verify_tls is False:
-            raise
-        print("WARNING: TLS certificate verification failed for Teable. Retrying with verify=False.")
-        verify_tls = False
-        status = requests.head(teable_url, headers=headers, verify=verify_tls, timeout=30)
-
-    if status.status_code == 200:
-        data = []
-        print("importing...")
-        while True:
-            try:
-                response = requests.get(teable_url, params=params, headers=headers, verify=verify_tls, timeout=30).json()
-            except requests.exceptions.SSLError:
-                if verify_tls is False:
-                    raise
-                print("WARNING: TLS certificate verification failed for Teable GET request. Retrying with verify=False.")
-                verify_tls = False
-                response = requests.get(teable_url, params=params, headers=headers, verify=verify_tls, timeout=30).json()
-
-            records = [rec["fields"] for rec in response["records"]]
-
-            if not records:
-                break
-
-            params["skip"] += params["take"] 
-
-            data.extend(records)
-        dataframe = pd.DataFrame(data, columns=wanted_fields)        # & raise error if _low or layer column not found
-
-        # print(dataframe)
-        print(f"data received successfully  (Total of {len(data)} points)")  
-  
-        return dataframe
-    elif status.status_code == 403:
-        raise PermissionError("ERROR 403 - Teable API: kein Zugriffsrecht. Bitte API Key & URL prüfen")
-    else:
-        raise Exception(f"unknown Teable error {status.status_code}: {status.text}")
+    records = teable.fetch_records(teable_url, api_key, verify_tls=verify_tls, filter_clause=filter or None)
+    dataframe = pd.DataFrame(records, columns=wanted_fields)        # & raise error if _low or layer column not found
+    print(f"data received successfully  (Total of {len(records)} points)")
+    return dataframe
 
 def collums_list(axes, layers):  # returns a list of all columns that should be requested via API
     wanted_fields = []
@@ -166,7 +124,8 @@ def import_excel(import_file_name, import_sheet, filter_clause=None):
     file_path = _resolve_import_file_path(import_file_name)
     data = pd.read_excel(
         file_path,
-        sheet_name = import_sheet
+        sheet_name = import_sheet,
+        engine = EXCEL_ENGINE,
     )
 
     if filter_clause:
@@ -179,7 +138,8 @@ def import_excel(import_file_name, import_sheet, filter_clause=None):
 def import_excel_bytes(file_bytes, import_sheet, filter_clause=None):
     data = pd.read_excel(
         io.BytesIO(file_bytes),
-        sheet_name = import_sheet
+        sheet_name = import_sheet,
+        engine = EXCEL_ENGINE,
     )
 
     if filter_clause:

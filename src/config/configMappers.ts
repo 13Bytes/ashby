@@ -7,6 +7,7 @@ import {
   type PlotConfig,
   createDefaultPlotConfig,
 } from './defaultPlotConfig'
+import { ensureUiKeys } from '../utils/appState'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
@@ -141,7 +142,9 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
         fontSize: coerceOptionalNumber(annotation.fontSize ?? annotation.font_size),
         text: text
           ? {
-            name: typeof text.name === 'string' ? text.name : '',
+            name: typeof text.name === 'string'
+              ? text.name
+              : isRecord(text.name) ? coerceStringRecord(text.name) : '',
             relPos: coerceNumberPair(text.relPos ?? text.rel_pos, [0, 0]),
             color: typeof text.color === 'string' ? text.color : '#111827',
             fontSize: coerceOptionalNumber(text.fontSize ?? text.font_size),
@@ -178,10 +181,29 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
     })
     : structuredClone(fallback)
 
+type AreaRange = [number | null, number | null]
+
+// Accepts [min, max] and the documented legacy form [[min, max]]; non-numbers become null (open).
+const coerceAreaRange = (value: unknown): AreaRange | undefined => {
+  const pair = Array.isArray(value) && value.length === 1 && Array.isArray(value[0]) ? value[0] : value
+  if (!Array.isArray(pair) || pair.length !== 2) return undefined
+  const bound = (entry: unknown) => (typeof entry === 'number' && Number.isFinite(entry) ? entry : null)
+  return [bound(pair[0]), bound(pair[1])]
+}
+
+const normalizeAreaAxes = (value: unknown): Record<string, AreaRange> | undefined =>
+  isRecord(value)
+    ? Object.fromEntries(
+      Object.entries(value)
+        .map(([axis, range]) => [axis, coerceAreaRange(range)] as const)
+        .filter((entry): entry is readonly [string, AreaRange] => entry[1] !== undefined),
+    )
+    : undefined
+
 const normalizeColoredAreas = (value: unknown): FrameConfig['coloredAreas'] =>
   Array.isArray(value)
     ? value.filter(isRecord).map((area) => ({
-      axes: isRecord(area.axes) ? area.axes as FrameConfig['coloredAreas'][number]['axes'] : undefined,
+      axes: normalizeAreaAxes(area.axes),
       x: Array.isArray(area.x) ? area.x.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
       y: Array.isArray(area.y) ? area.y.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
       color: typeof area.color === 'string' ? area.color : '#ef4444',
@@ -270,7 +292,6 @@ const normalizeFrame = (
     darkMode: coerceOptionalBool(partial.darkMode ?? partial.dark_mode),
     legendAbove: coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
-    exportFileName: asOptionalString(partial.exportFileName ?? partial.export_file_name),
     xQuantity:
       typeof (partial.xQuantity ?? partial.x_quantity) === 'string'
         ? String(partial.xQuantity ?? partial.x_quantity)
@@ -461,11 +482,12 @@ const normalizeDataframe = (
   }
 }
 
+/** Converts any supported config shape into the editor model. Without input it returns the default config. */
 export function normalizePlotConfig(input?: unknown): PlotConfig {
   const fallback = createDefaultPlotConfig()
 
   if (!isRecord(input)) {
-    return fallback
+    return ensureUiKeys(fallback)
   }
 
   const rootSource = Array.isArray(input.dataframes) ? input : { ...input, dataframes: [input] }
@@ -487,7 +509,7 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
   const createAllDataframesSource =
     input.createAllDataframes ?? input.create_all_dataframes
 
-  return {
+  return ensureUiKeys({
     ...fallback,
     version: coerceNumber(input.version, fallback.version),
     createAllDataframes:
@@ -500,5 +522,5 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
           : fallback.createAllDataframes,
     dataframes,
     _extensions: extensions,
-  }
+  })
 }

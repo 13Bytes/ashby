@@ -156,10 +156,13 @@ export const getSourceMode = (dataframe: DataframeConfig, availableDatasets: str
           : 'file'
 
 let nextUiKey = 0
+// Keys are persisted with the config (sessionStorage, tab sync), so a plain counter would collide
+// with stored keys after a reload. The per-page-load prefix keeps newly created keys unique.
+const uiKeySessionPrefix = Math.random().toString(36).slice(2, 8)
 
 type UiKeyOwner = { _extensions: Record<string, unknown> }
 
-export const createUiKey = (prefix: string): string => `${prefix}-${nextUiKey += 1}`
+export const createUiKey = (prefix: string): string => `${prefix}-${uiKeySessionPrefix}-${nextUiKey += 1}`
 
 export const getUiKey = (owner: UiKeyOwner, prefix: string): string => {
   const existing = owner._extensions.uiKey
@@ -171,4 +174,21 @@ export const getUiKey = (owner: UiKeyOwner, prefix: string): string => {
 
 export const refreshUiKey = (owner: UiKeyOwner, prefix: string): void => {
   owner._extensions.uiKey = createUiKey(prefix)
+}
+
+/**
+ * Gives every dataframe and frame a unique UI key up front, so rendering never has to mutate the
+ * config. Duplicates (e.g. a block copy-pasted in the JSON editor) get a fresh key.
+ */
+export const ensureUiKeys = (config: PlotConfig): PlotConfig => {
+  const seen = new Set<string>()
+  const ensure = (owner: UiKeyOwner, prefix: string) => {
+    if (seen.has(getUiKey(owner, prefix))) refreshUiKey(owner, prefix)
+    seen.add(getUiKey(owner, prefix))
+  }
+  for (const dataframe of config.dataframes) {
+    ensure(dataframe, 'dataframe')
+    dataframe.frames.forEach((frame) => ensure(frame, 'frame'))
+  }
+  return config
 }

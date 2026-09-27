@@ -4,33 +4,37 @@ import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
+import { useI18n } from '../uiTranslations'
+import { populateMaterialColorsForDataframe } from '../utils/configEditing'
+import { SectionHeading } from './AppControls'
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
 
 type Props = {
-  t: (key: string) => string
   activeDataframe: DataframeConfig
   customMaterialNames: Record<string, string>
   setCustomMaterialNames: Dispatch<SetStateAction<Record<string, string>>>
+  includedLayerKeywords: string[]
   materialKeywordOptions: string[]
   patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   setShowGenerateColorsConfirm: (value: boolean) => void
 }
 
 export function MaterialColorsSection({
-  t,
   activeDataframe,
   customMaterialNames,
   setCustomMaterialNames,
+  includedLayerKeywords,
   materialKeywordOptions,
   patchActiveDataframe,
   setShowGenerateColorsConfirm,
 }: Props) {
+  const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
       <div className="sm:col-span-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h3 className="m-0 text-m font-semibold text-violet-500">{t('materialColors')}</h3>
+          <SectionHeading title={t('materialColors')} jsonPath="material_colors" />
           <Button
             type="button"
             variant="outline"
@@ -47,10 +51,19 @@ export function MaterialColorsSection({
           >
             + {t('color')}
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title={t('populateColorsHint')}
+            onClick={() => patchActiveDataframe((df) => populateMaterialColorsForDataframe(df, includedLayerKeywords))}
+          >
+            {t('populateColors')}
+          </Button>
         </div>
 
         <Button type="button" variant="outline" size="sm" onClick={() => setShowGenerateColorsConfirm(true)}>
-          Generate colors
+          {t('generateColors')}
         </Button>
       </div>
 
@@ -102,14 +115,14 @@ export function MaterialColorsSection({
                       {keyword}
                     </option>
                   ))}
-                  <option value={CUSTOM_SELECT_VALUE}>Custom…</option>
+                  <option value={CUSTOM_SELECT_VALUE}>{t('custom')}</option>
                 </Select>
               )}
 
               {customMaterialNames[material] !== undefined ? (
                 <Input
                   value={customMaterialNames[material]}
-                  placeholder="Enter custom material name"
+                  placeholder={t('customMaterialName')}
                   onChange={(event) => setCustomMaterialNames((current) => ({ ...current, [material]: event.target.value }))}
                   onBlur={() => {
                     patchActiveDataframe((df) => {
@@ -146,7 +159,7 @@ export function MaterialColorsSection({
                       return { ...df, materialColors: rest }
                     })
                   }
-                  aria-label={`Remove ${material}`}
+                  aria-label={t('removeNamed', { name: material })}
                 >
                   ✕
                 </button>

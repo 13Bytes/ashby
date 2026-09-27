@@ -4,6 +4,7 @@ python-multipart
 numpy
 pandas
 openpyxl
+python-calamine
 matplotlib
 scikit-learn
 scipy

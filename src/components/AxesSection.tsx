@@ -3,17 +3,17 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../config/defaultPlotConfig'
-import type { UILanguage } from '../uiTranslations'
+import { useI18n } from '../uiTranslations'
 import type { MultiOption } from '../utils/appState'
-import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton } from './AppControls'
+import { DuplicateIconButton, Field, MultiSelectInput, RemoveIconButton, SectionHeading } from './AppControls'
 
 type Props = {
-  t: (key: string) => string
-  uiLanguage: UILanguage
   activeDataframe: DataframeConfig
   patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   hoveredRemoveGroup: string | null
   setHoveredRemoveGroup: (value: string | null) => void
+  hoveredDuplicateGroup: string | null
+  setHoveredDuplicateGroup: (value: string | null) => void
   addAxis: () => void
   removeAxis: (index: number) => void
   updateAxis: (index: number, updater: (axis: AxisConfig) => AxisConfig) => void
@@ -23,12 +23,12 @@ type Props = {
 }
 
 export function AxesSection({
-  t,
-  uiLanguage,
   activeDataframe,
   patchActiveDataframe,
   hoveredRemoveGroup,
   setHoveredRemoveGroup,
+  hoveredDuplicateGroup,
+  setHoveredDuplicateGroup,
   addAxis,
   removeAxis,
   updateAxis,
@@ -36,12 +36,13 @@ export function AxesSection({
   expandedAxisColumns,
   setExpandedAxisColumns,
 }: Props) {
+  const { t } = useI18n()
   return (
     <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
       <div className="flex items-center gap-2">
-        <h3 className="m-0 text-m font-semibold text-violet-500">{t('axes')}</h3>
+        <SectionHeading title={t('axes')} jsonPath="axes" />
         <Button variant="outline" size="sm" onClick={addAxis}>
-          + Axes
+          + {t('axis')}
         </Button>
       </div>
 
@@ -51,10 +52,13 @@ export function AxesSection({
           className={`relative grid gap-3 rounded-lg border bg-zinc-50 p-2 pr-15 dark:bg-zinc-900 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] ${
             hoveredRemoveGroup === `axis-${axisIndex}`
               ? 'border-red-500'
-              : 'border-zinc-300 dark:border-zinc-700'
+              : hoveredDuplicateGroup === `axis-${axisIndex}`
+                ? 'border-blue-500'
+                : 'border-zinc-300 dark:border-zinc-700'
           }`}
         >
           <DuplicateIconButton
+            onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `axis-${axisIndex}` : null)}
             onClick={() => patchActiveDataframe((df) => ({
               ...df,
               axes: [
@@ -69,15 +73,16 @@ export function AxesSection({
             onClick={() => removeAxis(axisIndex)}
           />
 
-          <div className="grid gap-2">
-            <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Name`} jsonPath={`axes[${axisIndex}].name`}>
+          {/* self-start: the fields stay compact when the column list next to them is expanded */}
+          <div className="grid content-start gap-2 self-start">
+            <Field label={t('axisName', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].name`}>
               <Input
                 value={axis.name}
                 onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))}
               />
             </Field>
 
-            <Field language={uiLanguage} label={`Axis ${axisIndex + 1} Mode`} jsonPath={`axes[${axisIndex}].mode`}>
+            <Field label={t('axisMode', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].mode`}>
               <Select
                 value={axis.mode}
                 onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}
@@ -90,8 +95,7 @@ export function AxesSection({
               </Select>
             </Field>
 
-            <div className="grid gap-2">
-              <label className="font-medium text-zinc-900 dark:text-zinc-100">Axis {axisIndex + 1} Label</label>
+            <Field label={t('axisLabel', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].labels`}>
               {activeDataframe.plotLanguages.map((lang) => (
                 <div key={`axis-${axisIndex}-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
                   <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
@@ -106,11 +110,12 @@ export function AxesSection({
                   />
                 </div>
               ))}
-            </div>
+            </Field>
           </div>
 
           <MultiSelectInput
-            title={`Axis ${axisIndex + 1} Columns`}
+            title={t('axisColumns', { n: axisIndex + 1 })}
+            jsonPath={`axes[${axisIndex}].columns`}
             value={axis.columns}
             options={availableAxisColumns}
             expanded={expandedAxisColumns[axisIndex] === true}
