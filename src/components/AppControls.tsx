@@ -243,9 +243,9 @@ export function SectionHeading({ title, jsonPath, className }: { title: string; 
 }
 
 /** Titled group inside a section; `level="default"` hides the whole group in Simple mode. */
-export function SettingsGroup({ title, level, actions, children, className }: { title?: ReactNode; level?: SettingLevel; actions?: ReactNode; children: ReactNode; className?: string }) {
+export function SettingsGroup({ title, level, actions, children, className, anchor }: { title?: ReactNode; level?: SettingLevel; actions?: ReactNode; children: ReactNode; className?: string; anchor?: string }) {
   return (
-    <div className={cn('grid gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800', className)} data-level={level}>
+    <div className={cn('grid gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800', className)} data-level={level} data-anchor={anchor}>
       {title || actions ? (
         <div className="flex flex-wrap items-center gap-2">
           {title ? <h4 className="m-0 font-mono text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{title}</h4> : null}

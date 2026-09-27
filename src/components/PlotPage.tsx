@@ -272,7 +272,15 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const [isBatchMode, setIsBatchMode] = useState(false)
   const [batchFailures, setBatchFailures] = useState<BatchFailure[]>([])
   const [renderProgress, setRenderProgress] = useState<RenderProgressState | null>(null)
+  /** The preview is shown as a large overlay instead of in the side panel. */
+  const [expanded, setExpanded] = useState(false)
   const [showExport, setShowExport] = useState(false)
+  useEffect(() => {
+    if (!expanded || showExport) return
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setExpanded(false) }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [expanded, showExport])
   const panelRef = useRef<HTMLDivElement | null>(null)
   const latestPreviewRequestRef = useRef(0)
   const handledPlotActionNonceRef = useRef<number | null>(null)
@@ -596,7 +604,12 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const includedCount = includedPlots().length
 
   return (
-    <div ref={panelRef} className="flex min-h-0 min-w-0 flex-col gap-3 overflow-auto bg-zinc-50 px-4 pb-4 text-left dark:bg-zinc-950 [&>*]:shrink-0">
+    <>
+    {expanded ? <div aria-hidden="true" className="fixed inset-0 z-40 bg-black/40" onClick={() => setExpanded(false)} /> : null}
+    <div
+      ref={panelRef}
+      className={`flex min-h-0 min-w-0 flex-col gap-3 overflow-auto bg-zinc-50 px-4 pb-4 text-left dark:bg-zinc-950 [&>*]:shrink-0 ${expanded ? 'fixed inset-3 z-40 rounded-xl border border-zinc-300 shadow-2xl sm:inset-6 dark:border-zinc-700' : ''}`}
+    >
       <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mr-auto grid min-w-0">
           <span className="text-[11px] text-zinc-500">{t('preview')} · <span className="font-mono uppercase">{activeDataframe?.language}</span></span>
@@ -606,6 +619,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         <Button type="button" variant="outline" size="sm" onClick={() => void fetchPlot()} disabled={loading || !canRender} title={t('refreshPreview')} aria-label={t('refreshPreview')}>
           ↻
         </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setExpanded((current) => !current)} aria-pressed={expanded} title={expanded ? t('shrinkPreview') : t('expandPreview')} aria-label={expanded ? t('shrinkPreview') : t('expandPreview')}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+            {expanded
+              ? <path d="M6.5 2.5v4h-4M9.5 13.5v-4h4M6.5 6.5 2 2M9.5 9.5 14 14" />
+              : <path d="M10 2.5h3.5V6M6 13.5H2.5V10M13.5 2.5 9 7M2.5 13.5 7 9" />}
+          </svg>
+        </Button>
         <Button type="button" size="sm" onClick={() => setShowExport(true)}>{t('exportButton')}</Button>
       </div>
 
@@ -613,7 +633,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         <div className="grid gap-1 rounded-lg border border-orange-400 bg-orange-50 px-3 py-2 text-sm text-orange-800 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200">
           <strong>{t('missingCount', { count: missing.length })}</strong>
           {missing.map((entry) => (
-            <button key={`${entry.section}-${entry.setting}`} type="button" className="w-fit text-left underline underline-offset-2" onClick={() => onJump(entry.section, entry.setting)}>
+            <button key={`${entry.section}-${entry.setting}`} type="button" className="w-fit text-left underline underline-offset-2" onClick={() => { setExpanded(false); onJump(entry.section, entry.setting) }}>
               {t(entry.setting)} →
             </button>
           ))}
@@ -636,7 +656,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       ) : null}
 
       <section className={`grid min-h-48 place-items-center overflow-hidden rounded-lg border border-zinc-200 p-2 dark:border-zinc-800 ${plotBackgroundClassName(activeDataframeIndex, activeFrameIndex)}`}>
-        {imageUrl && !isBatchMode && canRender ? <img src={imageUrl} alt={t('renderedPlotAlt')} className="block h-auto max-w-full" /> : (
+        {imageUrl && !isBatchMode && canRender ? <img src={imageUrl} alt={t('renderedPlotAlt')} className={`block max-w-full ${expanded ? 'max-h-[calc(100svh-11rem)] w-auto' : 'h-auto'}`} /> : (
           <span className="p-6 text-center text-sm text-zinc-500">{canRender ? (loading ? t('renderingShort') : t('nothingRendered')) : t('cannotRender')}</span>
         )}
       </section>
@@ -699,7 +719,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
               <dt className="font-semibold">{t('copyright')}</dt>
               <dd className="m-0">{activeDataframe.copyright ? t('on') : t('off')}</dd>
             </dl>
-            <button type="button" className="w-fit text-xs font-semibold text-sky-700 underline-offset-2 hover:underline dark:text-sky-300" onClick={() => { setShowExport(false); onJump('output') }}>
+            <button type="button" className="w-fit text-xs font-semibold text-sky-700 underline-offset-2 hover:underline dark:text-sky-300" onClick={() => { setShowExport(false); setExpanded(false); onJump('textLook', 'output') }}>
               {t('changeInOutput')} →
             </button>
             <div className="flex flex-wrap justify-end gap-2">
@@ -713,5 +733,6 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         </div>
       ) : null}
     </div>
+    </>
   )
 }

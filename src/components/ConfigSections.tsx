@@ -1,13 +1,15 @@
 import type { ComponentProps } from 'react'
 import type { SettingsSectionId } from '../config/settingsSections'
+import { useI18n } from '../uiTranslations'
+import { dataframeLabel } from '../utils/appState'
 import { AdvancedJsonSection } from './AdvancedJsonSection'
 import { AnnotationsSection } from './AnnotationsSection'
+import { ScopeTag } from './AppControls'
 import { AxesSection } from './AxesSection'
 import { ColoredAreasSection } from './ColoredAreasSection'
 import { DataSection } from './DataSection'
 import { FrameSection } from './FrameSection'
 import { GuidelinesSection } from './GuidelinesSection'
-import { ImageOutputSection } from './ImageOutputSection'
 import { LayersSection } from './LayersSection'
 import { MaterialColorsSection } from './MaterialColorsSection'
 import { SettingsSection } from './SettingsSection'
@@ -18,7 +20,6 @@ type Props =
   & ComponentProps<typeof TextLookSection>
   & ComponentProps<typeof AxesSection>
   & ComponentProps<typeof MaterialColorsSection>
-  & ComponentProps<typeof ImageOutputSection>
   & ComponentProps<typeof FrameSection>
   & ComponentProps<typeof LayersSection>
   & ComponentProps<typeof ColoredAreasSection>
@@ -26,29 +27,46 @@ type Props =
   & ComponentProps<typeof AnnotationsSection>
   & ComponentProps<typeof AdvancedJsonSection>
   & {
-    activeSection: SettingsSectionId
     shownDefaults: ReadonlySet<SettingsSectionId>
     onToggleDefaults: (id: SettingsSectionId) => void
   }
 
-/** Renders every settings section; only the active one is visible. Each section picks the props it needs from the shared bag. */
+/**
+ * Renders all settings sections below each other, the shared dataset sections first, then the
+ * sections of the active plot. Each section picks the props it needs from the shared bag.
+ */
 export function ConfigSections(props: Props) {
-  const { activeSection, shownDefaults, onToggleDefaults } = props
-  const section = (id: SettingsSectionId) => ({ id, active: activeSection === id, showDefaults: shownDefaults.has(id), onToggleDefaults })
+  const { shownDefaults, onToggleDefaults, activeDataframe, activeDataframeIndex, activeFrame } = props
+  const { t } = useI18n()
+  const section = (id: SettingsSectionId) => ({ id, showDefaults: shownDefaults.has(id), onToggleDefaults })
+  const divider = <hr className="my-3 border-zinc-200 dark:border-zinc-800" />
+  const scopeBanner = (scope: 'dataset' | 'plot', name: string) => (
+    <div className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 ${scope === 'dataset' ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'mt-8 border-violet-500 bg-violet-50 dark:bg-violet-950/40'}`}>
+      <ScopeTag scope={scope}>{t(scope === 'dataset' ? 'datasetShared' : 'plotOnly')}</ScopeTag>
+      <strong className="min-w-0 truncate text-sm">{name}</strong>
+    </div>
+  )
   return (
     <>
+      {scopeBanner('dataset', dataframeLabel(activeDataframe, activeDataframeIndex))}
       <SettingsSection {...section('data')}><DataSection {...props} /></SettingsSection>
+      {divider}
       <SettingsSection {...section('textLook')}><TextLookSection {...props} /></SettingsSection>
+      {divider}
       <SettingsSection {...section('axisDefs')}><AxesSection {...props} /></SettingsSection>
+      {divider}
       <SettingsSection {...section('materials')}><MaterialColorsSection {...props} /></SettingsSection>
-      <SettingsSection {...section('output')}><ImageOutputSection {...props} /></SettingsSection>
+      {scopeBanner('plot', activeFrame.name || 'Frame')}
       <SettingsSection {...section('titleAxes')}><FrameSection {...props} /></SettingsSection>
+      {divider}
       <SettingsSection {...section('hulls')}><LayersSection {...props} /></SettingsSection>
+      {divider}
       <SettingsSection {...section('extras')}>
         <ColoredAreasSection {...props} />
         <GuidelinesSection {...props} />
         <AnnotationsSection {...props} />
       </SettingsSection>
+      {divider}
       <SettingsSection {...section('json')}><AdvancedJsonSection {...props} /></SettingsSection>
     </>
   )

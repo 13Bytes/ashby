@@ -16,7 +16,7 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
   const isPng = activeDataframe.fileformat === 'png'
   return (
     <div className="grid gap-4 @lg:grid-cols-3">
-      <Field label={t('fileFormat')} jsonPath="dataframes[i].resolution" level="default" changed={activeDataframe.fileformat !== DEFAULT_DATAFRAME.fileformat}>
+      <Field label={t('fileFormat')} jsonPath="dataframes[i].fileformat" level="default" changed={activeDataframe.fileformat !== DEFAULT_DATAFRAME.fileformat}>
         <Segmented<'svg' | 'png'>
           ariaLabel={t('fileFormat')}
           value={activeDataframe.fileformat}

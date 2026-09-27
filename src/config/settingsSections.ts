@@ -7,7 +7,6 @@ export const SETTINGS_SECTIONS = [
   { id: 'textLook', scope: 'dataset', titleKey: 'secTextLook', introKey: 'introTextLook' },
   { id: 'axisDefs', scope: 'dataset', titleKey: 'secAxisDefs', introKey: 'introAxisDefs' },
   { id: 'materials', scope: 'dataset', titleKey: 'secMaterials', introKey: 'introMaterials' },
-  { id: 'output', scope: 'dataset', titleKey: 'secOutput', introKey: 'introOutput' },
   { id: 'titleAxes', scope: 'plot', titleKey: 'secTitleAxes', introKey: 'introTitleAxes' },
   { id: 'hulls', scope: 'plot', titleKey: 'secHulls', introKey: 'introHulls' },
   { id: 'extras', scope: 'plot', titleKey: 'secExtras', introKey: 'introExtras' },

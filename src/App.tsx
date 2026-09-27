@@ -21,7 +21,7 @@ import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFil
 import { createConfigSync, type ConfigSync } from './utils/tabSync'
 import { BackendError, fetchBackend, isForeignServerResponse, toErrorDetails } from './utils/backendErrors'
 import { addLogEntry } from './utils/debugLog'
-import { SETTINGS_SECTIONS, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
+import { SETTINGS_SECTIONS, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
 import { getDataframeMissing, getFrameMissing } from './utils/settingsStatus'
 import { SettingsContext } from './utils/settingsContext'
 import { SettingsNav, type SectionStatus } from './components/SettingsNav'
@@ -118,6 +118,7 @@ function App() {
   const [previewWidth, setPreviewWidth] = useState(() => readStored(PREVIEW_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_PREVIEW_WIDTH))
   const [autoRefresh, setAutoRefresh] = useState(() => readStored(AUTO_REFRESH_STORAGE_KEY, (value) => value !== 'false'))
   const editorRef = useRef<HTMLElement | null>(null)
+  const pinnedSectionRef = useRef<SettingsSectionId | null>(null)
   const workRef = useRef<HTMLDivElement | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
@@ -780,13 +781,14 @@ function App() {
   /** Opens a section, shows the field (its defaults, a collapsed item) and highlights it. */
   const revealSetting = useCallback((section: SettingsSectionId, element: HTMLElement) => {
     setActiveSection(section)
+    pinnedSectionRef.current = section
     if (element.closest('[data-level="default"]')) {
       setShownDefaults((current) => (current.has(section) ? current : new Set([...current, section])))
     }
     element.dispatchEvent(new CustomEvent('settings-reveal', { bubbles: true }))
     // After React has shown the section and the field.
     window.setTimeout(() => {
-      element.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      element.scrollIntoView({ block: 'center' })
       element.classList.remove('setting-flash')
       void element.offsetWidth
       element.classList.add('setting-flash')
@@ -795,13 +797,51 @@ function App() {
   }, [])
   const goTo = useCallback((section: SettingsSectionId, anchor?: string) => {
     setActiveSection(section)
-    editorRef.current?.scrollTo({ top: 0 })
-    if (!anchor) return
+    // Keep the clicked section highlighted even if the column cannot scroll it to the top (the last ones).
+    pinnedSectionRef.current = section
+    if (!anchor) {
+      editorRef.current?.querySelector(`[data-section-id="${section}"]`)?.scrollIntoView({ block: 'start' })
+      return
+    }
     const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`[data-section-id="${section}"] [data-anchor="${anchor}"]`) ?? [])]
     // Prefer the field that is visible in the current mode (e.g. the Simple-mode shortcut).
-    const target = candidates.find((element) => element.getClientRects().length > 0 || element.closest('[data-section-id]')?.hasAttribute('hidden')) ?? candidates[0]
+    const target = candidates.find((element) => element.getClientRects().length > 0) ?? candidates[0]
     if (target) revealSetting(section, target)
   }, [revealSetting])
+  // The sidebar follows the scroll position: the active section is the last one whose top has
+  // passed the upper quarter of the editor column.
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor) return
+    let frame = 0
+    const update = () => {
+      frame = 0
+      if (pinnedSectionRef.current) return
+      const line = editor.getBoundingClientRect().top + editor.clientHeight / 4
+      let current: SettingsSectionId | null = null
+      for (const element of editor.querySelectorAll<HTMLElement>('[data-section-id]')) {
+        const id = element.dataset.sectionId ?? ''
+        if (!isSettingsSectionId(id)) continue
+        if (current === null || element.getBoundingClientRect().top <= line) current = id
+      }
+      if (editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 2) {
+        const sections = editor.querySelectorAll<HTMLElement>('[data-section-id]')
+        const last = sections[sections.length - 1]?.dataset.sectionId ?? ''
+        if (isSettingsSectionId(last)) current = last
+      }
+      if (current) setActiveSection(current)
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
+    // A scroll by the user (not by a jump from the sidebar) releases the pinned section.
+    const release = () => { pinnedSectionRef.current = null }
+    editor.addEventListener('scroll', onScroll, { passive: true })
+    for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) editor.addEventListener(type, release, { passive: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      editor.removeEventListener('scroll', onScroll)
+      for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const) editor.removeEventListener(type, release)
+    }
+  }, [])
   const settingsContext = useMemo(() => ({ mode: settingsMode, goTo }), [settingsMode, goTo])
   const selectPlot = (dataframeIndex: number, frameIndex: number) => {
     if (dataframeIndex !== activeDataframeIndex) setExpandedAxisColumns({})
@@ -890,7 +930,6 @@ function App() {
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
     onResetConfig: () => setShowResetConfirm(true),
-    activeSection,
     shownDefaults,
     onToggleDefaults: toggleSectionDefaults,
   }

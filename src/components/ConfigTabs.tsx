@@ -150,7 +150,7 @@ export function ConfigTabs(props: Props) {
         return (
           <div
             key={getUiKey(df, 'dataframe')}
-            className={`flex shrink-0 items-stretch overflow-hidden rounded-lg border bg-white transition-shadow dark:bg-zinc-950 ${dataframeDropTarget ? 'border-violet-500 shadow-[0_0_0_3px_rgb(139_92_246/0.25)]' : shared ? 'border-sky-500 shadow-[0_0_0_3px_rgb(14_165_233/0.2)]' : isActiveDataframe ? 'border-sky-500 dark:border-sky-600' : 'border-zinc-300 dark:border-zinc-700'} ${drag?.kind === 'dataframe' && drag.dataframe === dataframeIndex ? 'opacity-50' : ''}`}
+            className={`flex shrink-0 items-stretch rounded-lg p-px transition-shadow ${dataframeDropTarget ? 'bg-violet-500 text-white shadow-[0_0_0_3px_rgb(139_92_246/0.25)]' : isActiveDataframe ? `bg-sky-600 text-white dark:bg-sky-700 ${shared ? 'shadow-[0_0_0_3px_rgb(14_165_233/0.25)]' : ''}` : 'bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200'} ${drag?.kind === 'dataframe' && drag.dataframe === dataframeIndex ? 'opacity-50' : ''}`}
             onDragOver={(event: DragEvent<HTMLDivElement>) => {
               if (drag?.kind === 'frame') {
                 // Anywhere else on the group (name, gaps, "+"): behind the last plot.
@@ -169,7 +169,7 @@ export function ConfigTabs(props: Props) {
               endDrag()
             }}
           >
-            {/* Thick left edge of the group: include checkbox and dataset name; also the drag handle. */}
+            {/* Thick left edge of the group's frame: include checkbox and dataset name; also the drag handle. */}
             <div
               draggable={!renamingDataframe}
               onDragStart={(event) => {
@@ -177,7 +177,7 @@ export function ConfigTabs(props: Props) {
                 setDrag({ kind: 'dataframe', dataframe: dataframeIndex })
               }}
               onDragEnd={endDrag}
-              className={`group flex shrink-0 cursor-grab items-center gap-1.5 pl-2 pr-1.5 active:cursor-grabbing ${isActiveDataframe ? 'bg-sky-600 text-white dark:bg-sky-700' : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'}`}
+              className="group flex shrink-0 cursor-grab items-center gap-1.5 pl-2 pr-2 active:cursor-grabbing"
             >
               <input
                 type="checkbox"
@@ -205,7 +205,7 @@ export function ConfigTabs(props: Props) {
                     {dataframeName}
                   </button>
                   {dataframeMissing > 0 ? (
-                    <MissingBadge count={dataframeMissing} title={t('missingCount', { count: dataframeMissing })} ringClassName={isActiveDataframe ? 'ring-sky-600 dark:ring-sky-700' : 'ring-zinc-200 dark:ring-zinc-800'} />
+                    <MissingBadge count={dataframeMissing} title={t('missingCount', { count: dataframeMissing })} ringClassName={isActiveDataframe ? 'ring-sky-600 dark:ring-sky-700' : 'ring-zinc-300 dark:ring-zinc-700'} />
                   ) : null}
                 </span>
               )}
@@ -215,7 +215,7 @@ export function ConfigTabs(props: Props) {
               </span>
             </div>
 
-            <div className="flex items-center gap-0.5 py-0.5 pl-1.5 pr-1">
+            <div className="flex items-center gap-0.5 rounded-[7px] bg-white py-0.5 pl-1 pr-1 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
               {df.frames.map((frame, frameIndex) => {
                 const active = isActiveDataframe && frameIndex === activeFrameIndex
                 const frameName = frame.name || `Frame ${frameIndex + 1}`
@@ -235,10 +235,9 @@ export function ConfigTabs(props: Props) {
                       dragOverFrames(event, dataframeIndex, frameIndex + (event.clientX > rect.left + rect.width / 2 ? 1 : 0))
                     }}
                     onDragEnd={endDrag}
-                    className={`group relative flex h-8 cursor-grab items-center gap-1 rounded-md pl-2 pr-0.5 text-xs active:cursor-grabbing ${drag?.kind === 'frame' && drag.dataframe === dataframeIndex && drag.frame === frameIndex ? 'opacity-50' : ''} ${active ? (shared ? 'bg-sky-100 text-sky-950 dark:bg-sky-900/50 dark:text-sky-50' : 'bg-violet-100 text-violet-950 dark:bg-violet-900/40 dark:text-violet-50') : shared ? 'bg-sky-50 dark:bg-sky-950/40' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                    className={`group relative flex h-8 cursor-grab items-center gap-1 rounded-md pl-2 pr-0.5 text-xs active:cursor-grabbing ${drag?.kind === 'frame' && drag.dataframe === dataframeIndex && drag.frame === frameIndex ? 'opacity-50' : ''} ${active ? (shared ? 'bg-sky-200 text-sky-950 dark:bg-sky-800/70 dark:text-sky-50' : 'bg-violet-200 text-violet-950 dark:bg-violet-800/60 dark:text-violet-50') : shared ? 'bg-sky-50 dark:bg-sky-950/40' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
                   >
                     {drop?.dataframe === dataframeIndex && drop.index === frameIndex ? dropLine : null}
-                    {active ? <span aria-hidden="true" className={`absolute inset-x-2 -bottom-0.5 h-0.5 rounded ${shared ? 'bg-sky-500' : 'bg-violet-600'}`} /> : null}
                     <input
                       type="checkbox"
                       className="h-3.5 w-3.5 accent-violet-600"
@@ -269,7 +268,7 @@ export function ConfigTabs(props: Props) {
                           {frameName}
                         </button>
                         {missing > 0 ? (
-                          <MissingBadge count={missing} title={t('missingCount', { count: missing })} ringClassName={active ? (shared ? 'ring-sky-100 dark:ring-sky-900' : 'ring-violet-100 dark:ring-violet-950') : 'ring-white dark:ring-zinc-950'} />
+                          <MissingBadge count={missing} title={t('missingCount', { count: missing })} ringClassName={active ? (shared ? 'ring-sky-200 dark:ring-sky-800' : 'ring-violet-200 dark:ring-violet-800') : 'ring-white dark:ring-zinc-950'} />
                         ) : null}
                       </span>
                     )}

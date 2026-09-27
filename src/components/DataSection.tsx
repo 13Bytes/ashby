@@ -66,7 +66,7 @@ export function DataSection({
   }
 
   const sheetField = (
-    <Field label={t('importSheet')} jsonPath="import_sheet" level="default" changed={activeDataframe.importSheet !== 0}>
+    <Field label={t('importSheet')} jsonPath="import_sheet" level="default" changed={activeDataframe.importSheet !== 0} selfClassName="w-44">
       {availableSheets.length > 0 ? (
         <Select
           value={activeDataframe.importSheet}
@@ -75,7 +75,7 @@ export function DataSection({
           {availableSheets.map((sheet, index) => <option key={index} value={index}>{sheet}</option>)}
         </Select>
       ) : (
-        <Input type="number" value={activeDataframe.importSheet} onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: numberValue(event.target.valueAsNumber, current.importSheet) }))} />
+        <Input type="number" min={0} step={1} value={activeDataframe.importSheet} onChange={(event) => patchActiveDataframe((current) => ({ ...current, importSheet: Math.max(0, Math.round(numberValue(event.target.valueAsNumber, current.importSheet))) }))} />
       )}
     </Field>
   )
@@ -131,24 +131,29 @@ export function DataSection({
                     <Input type="password" autoComplete="off" value={activeDataframe.apiKey ?? ''} placeholder="teable_…" onChange={(event) => patchActiveDataframe((current) => ({ ...current, apiKey: event.target.value || undefined }))} />
                   </Field>
                 </>
-              ) : sourceMode === 'dataset' ? (
-                <Field label={t('datasetName')} jsonPath="import_file_name" level="required" missing={!activeDataframe.importFileName}>
-                  <Select
-                    value={selectedDataset}
-                    onChange={(event) => patchActiveDataframe((current) => ({ ...current, importFileName: event.target.value || undefined }))}
-                    disabled={availableDatasets.length === 0}
-                  >
-                    {availableDatasets.length === 0 ? <option value="">{t('noDatasets')}</option> : null}
-                    {availableDatasets.map((dataset) => <option key={dataset} value={dataset}>{dataset}</option>)}
-                  </Select>
-                </Field>
               ) : (
-                <Field label={t('excelFile')} jsonPath="import_file_name" level="required" missing={sourceMissing}>
-                  <div className="flex h-9 items-center truncate rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
-                    {activeDataframe.importFileName ? <strong className="truncate">{activeDataframe.importFileName}</strong> : <span className="text-zinc-400">{t('noFileSelected')}</span>}
-                  </div>
-                  <input ref={uploadInputRef} type="file" accept=".xlsx" className="hidden" onChange={(event) => { void handleSpreadsheetSelection(event) }} />
-                </Field>
+                <div className="flex flex-wrap gap-3">
+                  {sourceMode === 'dataset' ? (
+                    <Field label={t('datasetName')} jsonPath="import_file_name" level="required" missing={!activeDataframe.importFileName} selfClassName="min-w-48 flex-1">
+                      <Select
+                        value={selectedDataset}
+                        onChange={(event) => patchActiveDataframe((current) => ({ ...current, importFileName: event.target.value || undefined }))}
+                        disabled={availableDatasets.length === 0}
+                      >
+                        {availableDatasets.length === 0 ? <option value="">{t('noDatasets')}</option> : null}
+                        {availableDatasets.map((dataset) => <option key={dataset} value={dataset}>{dataset}</option>)}
+                      </Select>
+                    </Field>
+                  ) : (
+                    <Field label={t('excelFile')} jsonPath="import_file_name" level="required" missing={sourceMissing} selfClassName="min-w-48 flex-1">
+                      <div className="flex h-9 items-center truncate rounded-md border border-zinc-300 bg-white px-3 text-sm dark:border-zinc-700 dark:bg-zinc-950">
+                        {activeDataframe.importFileName ? <strong className="truncate">{activeDataframe.importFileName}</strong> : <span className="text-zinc-400">{t('noFileSelected')}</span>}
+                      </div>
+                      <input ref={uploadInputRef} type="file" accept=".xlsx" className="hidden" onChange={(event) => { void handleSpreadsheetSelection(event) }} />
+                    </Field>
+                  )}
+                  {sourceMode === 'dataset' || activeDataframe.importFileName ? sheetField : null}
+                </div>
               )}
             </div>
             <Button
@@ -168,8 +173,6 @@ export function DataSection({
             </strong>
           </p>
         </div>
-
-        {sourceMode !== 'teable' && (sourceMode === 'dataset' || activeDataframe.importFileName) ? <div className="max-w-xs">{sheetField}</div> : null}
       </div>
     </>
   )

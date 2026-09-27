@@ -408,7 +408,7 @@ const normalizeDataframe = (
     apiKey,
     teableUrl,
     importFileName,
-    importSheet: coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet),
+    importSheet: Math.max(0, Math.round(coerceNumber(partial.importSheet ?? partial.import_sheet, fallback.importSheet))),
     aspectRatio:
       legacyImageWidth > 0 && legacyImageHeight > 0
         ? [legacyImageWidth, legacyImageHeight]

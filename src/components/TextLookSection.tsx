@@ -5,6 +5,7 @@ import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '..
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { Field, SettingsGroup, Toggle } from './AppControls'
+import { ImageOutputSection } from './ImageOutputSection'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -21,7 +22,7 @@ type Props = {
 
 type FontKey = 'fontSize' | 'titleSize' | 'legendTitleSize' | 'legendLabelSize' | 'axisLabelSize' | 'tickSize'
 
-/** Plot languages, the look of the plot and its fonts; shared by all frames of the dataframe. */
+/** Plot languages, the look of the plot, its fonts and the image file; shared by all frames of the dataframe. */
 export function TextLookSection({
   activeDataframe,
   patchActiveDataframe,
@@ -156,6 +157,10 @@ export function TextLookSection({
           {fontNumber('axisLabelSize', t('axisLabelSize'), 'font.axis_label_size')}
           {fontNumber('tickSize', t('tickSize'), 'font.tick_size')}
         </div>
+      </SettingsGroup>
+
+      <SettingsGroup title={t('secOutput')} level="default" anchor="output">
+        <ImageOutputSection activeDataframe={activeDataframe} patchActiveDataframe={patchActiveDataframe} />
       </SettingsGroup>
     </>
   )
