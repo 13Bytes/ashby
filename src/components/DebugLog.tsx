@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../uiTranslations'
 import type { BackendErrorDetails } from '../utils/backendErrors'
 import { downloadBlob } from '../utils/configIo'
-import { clearLog, formatLogEntry, formatLogTime, markLogSeen, useDebugLog, type DebugLogEntry, type LogLevel } from '../utils/debugLog'
+import { clearLog, formatLogEntry, formatLogTime, useDebugLog, type DebugLogEntry, type LogLevel } from '../utils/debugLog'
 import { Alert } from './ui/alert'
 import { Button } from './ui/button'
 
@@ -110,29 +110,18 @@ function LogEntryItem({ entry }: { entry: DebugLogEntry }) {
   )
 }
 
-/** Red counter badge, e.g. for new errors in the log. */
-export function CountBadge({ count, label, className }: { count: number; label: string; className?: string }) {
-  if (count <= 0) return null
-  return (
-    <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold leading-none text-white ${className ?? ''}`} aria-label={label} title={label}>
-      {count}
-    </span>
-  )
-}
-
-/** Log of all backend interactions (renders, imports, downloads); opening it marks errors as seen. */
+/** Log of all backend interactions (renders, imports, downloads). */
 export function DebugLogDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const logState = useDebugLog()
 
   useEffect(() => {
-    markLogSeen()
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose, logState.entries.length])
+  }, [onClose])
 
   const downloadLog = () => {
     const text = logState.entries.map(formatLogEntry).join('\n\n' + '-'.repeat(80) + '\n\n')

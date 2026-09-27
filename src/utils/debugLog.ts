@@ -21,11 +21,11 @@ export interface DebugLogEntry {
   durationMs?: number
 }
 
-type LogState = { entries: DebugLogEntry[]; lastSeenId: number }
+type LogState = { entries: DebugLogEntry[] }
 
 const MAX_ENTRIES = 100
 let nextId = 0
-let state: LogState = { entries: [], lastSeenId: 0 }
+let state: LogState = { entries: [] }
 const listeners = new Set<() => void>()
 
 const setState = (next: LogState) => {
@@ -35,15 +35,11 @@ const setState = (next: LogState) => {
 
 export function addLogEntry(entry: Omit<DebugLogEntry, 'id' | 'time'>): void {
   nextId += 1
-  setState({ ...state, entries: [{ ...entry, id: nextId, time: Date.now() }, ...state.entries].slice(0, MAX_ENTRIES) })
+  setState({ entries: [{ ...entry, id: nextId, time: Date.now() }, ...state.entries].slice(0, MAX_ENTRIES) })
 }
 
 export function clearLog(): void {
-  setState({ entries: [], lastSeenId: nextId })
-}
-
-export function markLogSeen(): void {
-  if (state.lastSeenId !== nextId) setState({ ...state, lastSeenId: nextId })
+  setState({ entries: [] })
 }
 
 export const getLogState = (): LogState => state
@@ -56,10 +52,6 @@ export function subscribeLog(listener: () => void): () => void {
 export function useDebugLog(): LogState {
   return useSyncExternalStore(subscribeLog, getLogState)
 }
-
-/** Errors added since the log was last opened. */
-export const countUnseenErrors = ({ entries, lastSeenId }: LogState): number =>
-  entries.filter((entry) => entry.id > lastSeenId && entry.level === 'error').length
 
 const pad = (value: number) => String(value).padStart(2, '0')
 export const formatLogTime = (time: number): string => {

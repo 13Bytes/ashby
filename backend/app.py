@@ -58,13 +58,14 @@ class DownloadPlotsRequest(BaseModel):
 
 
 def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
-    dataframes = pd.read_excel(io.BytesIO(file_bytes), sheet_name=None)
-    sheet_names = list(dataframes.keys())
+    # Only the selected sheet is parsed; the other sheets are just listed by name.
+    workbook = pd.ExcelFile(io.BytesIO(file_bytes), engine=import_data_module.EXCEL_ENGINE)
+    sheet_names = [str(name) for name in workbook.sheet_names]
     if not sheet_names:
         return [], {}, []
 
     index = min(max(sheet_index, 0), len(sheet_names) - 1)
-    selected = dataframes[sheet_names[index]]
+    selected = workbook.parse(workbook.sheet_names[index])
 
     columns = [str(column).strip() for column in selected.columns if str(column).strip()]
 

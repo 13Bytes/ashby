@@ -28,7 +28,7 @@ import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
 import { createConfigSync, getWorkspaceId } from '../../src/utils/tabSync.ts'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails } from '../../src/utils/backendErrors.ts'
-import { addLogEntry, clearLog, countUnseenErrors, formatLogEntry, getLogState, markLogSeen } from '../../src/utils/debugLog.ts'
+import { addLogEntry, clearLog, formatLogEntry, getLogState } from '../../src/utils/debugLog.ts'
 import { parseUIThemePreference, resolveUITheme } from '../../src/utils/uiTheme.ts'
 import { getFieldHelp, parseUILanguage, translate, UI_LABELS } from '../../src/uiTranslations.ts'
 
@@ -374,14 +374,11 @@ test('frontend errors keep their stack as traceback', () => {
   assert.equal(toErrorDetails('odd', 'fallback').message, 'fallback')
 })
 
-test('the debug log counts unseen errors and formats entries as text', () => {
+test('the debug log keeps the newest entry first and formats entries as text', () => {
   clearLog()
   addLogEntry({ level: 'info', source: 'render', title: 'Plot 1' })
   addLogEntry({ level: 'error', source: 'render', title: 'Plot 2', message: 'KeyError', location: 'plot.py:1', log: 'output' })
-  assert.equal(getLogState().entries[0].title, 'Plot 2')
-  assert.equal(countUnseenErrors(getLogState()), 1)
-  markLogSeen()
-  assert.equal(countUnseenErrors(getLogState()), 0)
+  assert.deepEqual(getLogState().entries.map((entry) => entry.title), ['Plot 2', 'Plot 1'])
 
   const text = formatLogEntry(getLogState().entries[0])
   assert.match(text, /ERROR render: Plot 2/)
