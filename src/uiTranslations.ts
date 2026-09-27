@@ -160,6 +160,8 @@ const en = {
   materialColors: 'Material colors',
   color: 'Color',
   generateColors: 'Generate colors',
+  populateColors: 'Populate colors',
+  populateColorsHint: 'Add a color entry for every keyword that is whitelisted, or not blacklisted, in any layer of this dataframe.',
   customMaterialName: 'Enter custom material name',
 
   // axes
@@ -430,6 +432,8 @@ const de: Record<LabelKey, string> = {
   materialColors: 'Materialfarben',
   color: 'Farbe',
   generateColors: 'Farben erzeugen',
+  populateColors: 'Farben ergänzen',
+  populateColorsHint: 'Fügt für jedes Stichwort, das in irgendeiner Ebene dieses Datenrahmens auf der Whitelist steht oder nicht auf der Blacklist steht, einen Farbeintrag hinzu.',
   customMaterialName: 'Eigenen Materialnamen eingeben',
 
   axes: 'Achsen',

@@ -5,6 +5,7 @@ import { Select } from './ui/select'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
 import { useI18n } from '../uiTranslations'
+import { populateMaterialColorsForDataframe } from '../utils/configEditing'
 import { SectionHeading } from './AppControls'
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -13,6 +14,7 @@ type Props = {
   activeDataframe: DataframeConfig
   customMaterialNames: Record<string, string>
   setCustomMaterialNames: Dispatch<SetStateAction<Record<string, string>>>
+  includedLayerKeywords: string[]
   materialKeywordOptions: string[]
   patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   setShowGenerateColorsConfirm: (value: boolean) => void
@@ -22,6 +24,7 @@ export function MaterialColorsSection({
   activeDataframe,
   customMaterialNames,
   setCustomMaterialNames,
+  includedLayerKeywords,
   materialKeywordOptions,
   patchActiveDataframe,
   setShowGenerateColorsConfirm,
@@ -47,6 +50,15 @@ export function MaterialColorsSection({
             }
           >
             + {t('color')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            title={t('populateColorsHint')}
+            onClick={() => patchActiveDataframe((df) => populateMaterialColorsForDataframe(df, includedLayerKeywords))}
+          >
+            {t('populateColors')}
           </Button>
         </div>
 
