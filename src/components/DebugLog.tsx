@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useI18n } from '../uiTranslations'
 import type { BackendErrorDetails } from '../utils/backendErrors'
 import { downloadBlob } from '../utils/configIo'
-import { clearLog, countUnseenErrors, formatLogEntry, formatLogTime, markLogSeen, useDebugLog, type DebugLogEntry, type LogLevel } from '../utils/debugLog'
+import { clearLog, formatLogEntry, formatLogTime, markLogSeen, useDebugLog, type DebugLogEntry, type LogLevel } from '../utils/debugLog'
 import { Alert } from './ui/alert'
 import { Button } from './ui/button'
 
@@ -110,22 +110,29 @@ function LogEntryItem({ entry }: { entry: DebugLogEntry }) {
   )
 }
 
-/** Header button that opens the log of all backend interactions; shows the number of new errors. */
-export function DebugLogButton() {
+/** Red counter badge, e.g. for new errors in the log. */
+export function CountBadge({ count, label, className }: { count: number; label: string; className?: string }) {
+  if (count <= 0) return null
+  return (
+    <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold leading-none text-white ${className ?? ''}`} aria-label={label} title={label}>
+      {count}
+    </span>
+  )
+}
+
+/** Log of all backend interactions (renders, imports, downloads); opening it marks errors as seen. */
+export function DebugLogDialog({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   const logState = useDebugLog()
-  const [open, setOpen] = useState(false)
-  const unseenErrors = countUnseenErrors(logState)
 
   useEffect(() => {
-    if (!open) return
     markLogSeen()
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, logState.entries.length])
+  }, [onClose, logState.entries.length])
 
   const downloadLog = () => {
     const text = logState.entries.map(formatLogEntry).join('\n\n' + '-'.repeat(80) + '\n\n')
@@ -133,17 +140,7 @@ export function DebugLogButton() {
   }
 
   return (
-    <>
-      <Button type="button" variant="outline" className="relative" onClick={() => setOpen(true)} title={t('openLog')}>
-        {t('log')}
-        {unseenErrors > 0 ? (
-          <span className="absolute -right-2 -top-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold text-white" aria-label={t('logUnseenErrors', { count: unseenErrors })}>
-            {unseenErrors}
-          </span>
-        ) : null}
-      </Button>
-      {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6" onClick={onClose}>
           <div
             role="dialog"
             aria-modal="true"
@@ -156,7 +153,7 @@ export function DebugLogButton() {
               <div className="flex items-center gap-2">
                 <Button type="button" size="sm" variant="outline" onClick={downloadLog} disabled={logState.entries.length === 0}>{t('downloadLog')}</Button>
                 <Button type="button" size="sm" variant="outline" onClick={clearLog} disabled={logState.entries.length === 0}>{t('clearLog')}</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>{t('close')}</Button>
+                <Button type="button" size="sm" variant="outline" onClick={onClose}>{t('close')}</Button>
               </div>
             </div>
             <div className="grid gap-2 overflow-auto p-4">
@@ -165,7 +162,5 @@ export function DebugLogButton() {
             </div>
           </div>
         </div>
-      ) : null}
-    </>
   )
 }

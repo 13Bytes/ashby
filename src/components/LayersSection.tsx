@@ -46,7 +46,7 @@ export function LayersSection({ activeFrame, materialColors, hoveredRemoveGroup,
         <div key={layerIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-2 ${hoveredRemoveGroup === `layer-${layerIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `layer-${layerIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
           <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: [...f.layers.slice(0, layerIndex + 1), structuredClone(f.layers[layerIndex]), ...f.layers.slice(layerIndex + 1)] }))} />
           <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `layer-${layerIndex}` : null)} onClick={() => patchActiveFrame((f) => ({ ...f, layers: f.layers.filter((_, i) => i !== layerIndex) }))} />
-          <div className="grid gap-3">
+          <div className="grid content-start gap-3 self-start">
             <Field label={t('layerName', { n: layerIndex + 1 })} jsonPath={`layers[${layerIndex}].name`}>
               <Select value={layer.name ?? ''} onChange={(e) => patchActiveFrame((f) => ({ ...f, layers: f.layers.map((x, i) => i === layerIndex ? { ...x, name: e.target.value } : x) }))}>
                 <option value="">{t('selectColumn')}</option>

@@ -145,19 +145,16 @@ export function MultiSelectInput({
     expandedRef.current = expanded
   }, [expanded])
   const [overflowsWhenCollapsed, setOverflowsWhenCollapsed] = useState(false)
-  const [fitHeight, setFitHeight] = useState<number | undefined>(undefined)
   const normalizedSearch = searchTerm.trim().toLowerCase()
   const visibleOptions = normalizedSearch.length === 0
     ? options
     : options.filter((option) => option.label.toLowerCase().includes(normalizedSearch) || option.value.toLowerCase().includes(normalizedSearch))
 
-  // Tracks whether the list overflows its collapsed height (to show the expand toggle at all)
-  // and how tall it would need to be to fit every entry (so "expand" fits content, not a guess).
+  // Tracks whether the collapsed list overflows, to show the expand arrow only when it helps.
   useEffect(() => {
     const el = listRef.current
     if (!el) return
     const measure = () => {
-      setFitHeight(el.scrollHeight)
       if (!expandedRef.current) {
         setOverflowsWhenCollapsed(el.scrollHeight > el.clientHeight + 1)
       }
@@ -166,10 +163,14 @@ export function MultiSelectInput({
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [visibleOptions.length])
+  }, [visibleOptions.length, expanded])
 
+  // Collapsed, the content is positioned absolutely: the field then takes the height of its grid
+  // row (set by the neighbouring fields) instead of stretching the row to the full list, and the
+  // list scrolls inside. Expanded, it is back in the flow and shows every entry.
   return (
-    <div className="relative flex h-full flex-col gap-2">
+    <div className={`relative ${expanded ? '' : 'h-full min-h-40'}`}>
+    <div className={`flex flex-col gap-2 ${expanded ? '' : 'absolute inset-0'}`}>
       <div className="flex flex-wrap items-center gap-2 shrink-0">
         {jsonPath ? <FieldLabel label={title} jsonPath={jsonPath} as="span" /> : <span className="font-medium text-zinc-900 dark:text-zinc-100">{title}</span>}
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -246,10 +247,10 @@ export function MultiSelectInput({
           </button>
         </div>
       </div>
+      <div className="relative min-h-0 flex-1">
       <div
         ref={listRef}
-        style={expanded && fitHeight ? { minHeight: fitHeight } : undefined}
-        className={`min-h-0 flex-1 overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900 ${expanded ? '' : 'min-h-28'}`}
+        className={`overflow-auto rounded-md border border-zinc-300 bg-white px-2 py-1 [scrollbar-width:thin] dark:border-zinc-700 dark:bg-zinc-900 ${expanded ? 'pb-8' : 'h-full'}`}
       >
         {visibleOptions.length > 0 ? (
           visibleOptions.map((option) => {
@@ -277,26 +278,22 @@ export function MultiSelectInput({
         )}
       </div>
       {onToggleExpanded && (expanded || overflowsWhenCollapsed) ? (
+        // Chevron in the bottom right corner of the list, left of its (thin) scrollbar.
         <button
           type="button"
           aria-label={expanded ? t('collapse') : t('expand')}
+          aria-expanded={expanded}
           title={expanded ? t('collapse') : t('expand')}
           onClick={onToggleExpanded}
-          className="absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-md bg-white/80 text-zinc-500 hover:text-violet-600 dark:bg-zinc-900/80 dark:text-zinc-400 dark:hover:text-violet-300"
+          className="absolute bottom-1.5 right-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-violet-400 hover:text-violet-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-violet-300"
         >
-          <svg
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-          >
-            <path d="M5 8l5 5 5-5" />
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
+            <path d="M5.5 7.5l4.5 4.5 4.5-4.5" />
           </svg>
         </button>
       ) : null}
+      </div>
+    </div>
     </div>
   )
 }

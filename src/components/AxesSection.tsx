@@ -73,7 +73,8 @@ export function AxesSection({
             onClick={() => removeAxis(axisIndex)}
           />
 
-          <div className="grid gap-2">
+          {/* self-start: the fields stay compact when the column list next to them is expanded */}
+          <div className="grid content-start gap-2 self-start">
             <Field label={t('axisName', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].name`}>
               <Input
                 value={axis.name}

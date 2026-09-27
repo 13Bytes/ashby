@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type RefObject } from 'react'
 import type { PlotConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { exportConfig } from '../utils/configIo'
 import { Button } from './ui/button'
-import { DebugLogButton } from './DebugLog'
+import { CountBadge, DebugLogDialog } from './DebugLog'
+import { countUnseenErrors, useDebugLog } from '../utils/debugLog'
 
 type Props = {
   activePage: 'config' | 'plot'
@@ -40,6 +41,9 @@ export function AppHeader({
 }: Props) {
   const { t } = useI18n()
   const [openMenu, setOpenMenu] = useState<OpenMenu>(null)
+  const [showLog, setShowLog] = useState(false)
+  const unseenErrors = countUnseenErrors(useDebugLog())
+  const closeLog = useCallback(() => setShowLog(false), [])
   const menusRef = useRef<HTMLDivElement | null>(null)
 
   // Close the open dropdown on a click outside the menus or on Escape.
@@ -111,20 +115,25 @@ export function AppHeader({
             ) : null}
           </div>
 
-          <DebugLogButton />
           <div className="relative">
-            <Button type="button" variant="outline" aria-haspopup="menu" aria-expanded={openMenu === 'more'} onClick={() => toggleMenu('more')}>
+            <Button type="button" variant="outline" className="relative" aria-haspopup="menu" aria-expanded={openMenu === 'more'} onClick={() => toggleMenu('more')}>
               {t('more')} <span className="ml-2 text-xs" aria-hidden="true">▼</span>
+              <CountBadge count={unseenErrors} label={t('logUnseenErrors', { count: unseenErrors })} className="absolute -right-2 -top-2" />
             </Button>
             {openMenu === 'more' ? (
               <div className={menuClassName} role="menu">
                 <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowSettings(true))}>{t('settings')}</Button>
+                <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => runMenuAction(() => setShowLog(true))} title={t('openLog')}>
+                  {t('log')}
+                  <CountBadge count={unseenErrors} label={t('logUnseenErrors', { count: unseenErrors })} />
+                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => runMenuAction(() => setShowAbout(true))}>{t('about')}</Button>
               </div>
             ) : null}
           </div>
         </div>
       </div>
+      {showLog ? <DebugLogDialog onClose={closeLog} /> : null}
     </header>
   )
 }
