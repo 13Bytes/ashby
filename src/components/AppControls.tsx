@@ -230,18 +230,6 @@ export function LanguageFields({
   )
 }
 
-/** Section heading with the help text for the whole section. */
-export function SectionHeading({ title, jsonPath, className }: { title: string; jsonPath?: string; className?: string }) {
-  const { language } = useI18n()
-  const help = jsonPath ? getFieldHelp(language, jsonPath) : undefined
-  return (
-    <h3 className={`m-0 flex items-center gap-2 text-m font-semibold text-violet-500 ${className ?? ''}`}>
-      {title}
-      {help ? <InfoTooltip label={title} text={help} /> : null}
-    </h3>
-  )
-}
-
 /** Titled group inside a section; `level="default"` hides the whole group in Simple mode. */
 export function SettingsGroup({ title, level, actions, children, className, anchor }: { title?: ReactNode; level?: SettingLevel; actions?: ReactNode; children: ReactNode; className?: string; anchor?: string }) {
   return (

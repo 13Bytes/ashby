@@ -6,6 +6,7 @@ import test from 'node:test'
 
 import { normalizePlotConfig } from '../../src/config/configMappers.ts'
 import {
+  byDataframeIndex,
   dataframeLabel,
   duplicateFrameInDataframe,
   getSelectedIndices,
@@ -200,4 +201,11 @@ test('size fields only take numbers greater than 0', () => {
   assert.equal(positiveValue(-3, 18), 18)
   assert.equal(positiveValue(0, 18), 18)
   assert.equal(positiveValue(Number.NaN, 18), 18)
+})
+
+test('per-dataframe state follows its dataframe when dataframes are reordered or removed', () => {
+  const files = { 'df-a': 'a.xlsx', 'df-c': 'c.xlsx' }
+  assert.deepEqual(byDataframeIndex(['df-a', 'df-b', 'df-c'], files), { 0: 'a.xlsx', 2: 'c.xlsx' })
+  assert.deepEqual(byDataframeIndex(['df-c', 'df-a'], files), { 0: 'c.xlsx', 1: 'a.xlsx' })
+  assert.deepEqual(byDataframeIndex(['df-b'], files), {})
 })

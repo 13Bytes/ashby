@@ -11,17 +11,10 @@ const en = {
   // app shell
   config: 'Config',
   plot: 'Plot',
-  applicationView: 'Application view',
-  generatePlot: 'Generate plot',
-  choosePlotAction: 'Choose plot action',
-  generateCurrentPlot: 'Generate current plot',
-  generateAllPlots: 'Generate all plots',
-  configActions: 'Config actions',
   importConfig: 'Import config',
   exportConfig: 'Export config',
   json: 'JSON',
   resetConfig: 'Reset config',
-  more: 'More',
   settings: 'Settings',
   about: 'About',
   close: 'Close',
@@ -84,8 +77,6 @@ const en = {
   // tabs
   dataframe: 'Dataframe',
   frame: 'Frame',
-  includeDataframe: 'Include this dataframe when generating all plots.',
-  includeFrame: 'Include this frame when generating all plots.',
   addDataframe: 'Add dataframe',
   addFrame: 'Add frame',
   duplicateDataframe: 'Duplicate dataframe',
@@ -97,7 +88,6 @@ const en = {
   // shared controls
   fieldHelp: 'Help: {label}',
   search: 'Search',
-  hideSearch: 'Hide search',
   searchOptions: 'Search options…',
   clearSearch: 'Clear search',
   whitelist: 'Whitelist',
@@ -120,7 +110,6 @@ const en = {
   add: 'Add',
 
   // dataframe section
-  globalDataframe: 'Dataframe',
   aspectRatio: 'Aspect ratio',
   resolution: 'File format & resolution',
   DarkMode: 'Dark mode',
@@ -146,7 +135,6 @@ const en = {
   datasetName: 'Dataset',
   noDatasets: 'No datasets available',
   importSheet: 'Import sheet',
-  uploadXlsx: 'Upload .xlsx',
   noFileSelected: 'No file selected',
   uploadAndImport: 'Upload & import',
   importDatabase: 'Import database',
@@ -209,7 +197,6 @@ const en = {
   // colored areas
   coloredAreas: 'Colored areas',
   area: 'Area',
-  axisRangesJson: 'Axis ranges JSON',
   areaType: 'Area type',
   areaTypeAxes: 'Axis ranges',
   areaTypePolygon: 'Polygon',
@@ -264,7 +251,6 @@ const en = {
   arrowFaceColor: 'Arrow face color',
 
   // advanced
-  advancedJsonFields: 'Advanced JSON fields',
   filter: 'Filter',
   highlightedHulls: 'Highlighted hulls',
 
@@ -296,8 +282,6 @@ const en = {
   jsonInvalidDetails: 'Invalid JSON in popup editor: {error}',
 
   // plot page
-  plotPreviewTitle: 'Backend plot preview',
-  plotPreviewText: 'Showing dataframe {df}, frame {frame}. The selected dataframe/frame config is rendered by the Python backend.',
   refreshPreview: 'Refresh preview',
   expandPreview: 'Enlarge preview',
   shrinkPreview: 'Back to the side panel',
@@ -413,7 +397,6 @@ const en = {
   noColumn: 'No column selected',
   displayArea: 'Display area',
   noItems: 'None in this plot yet.',
-  annotationDefaults: 'Annotation defaults',
   preview: 'Preview',
   upToDate: 'Up to date',
   renderingShort: 'Rendering…',
@@ -450,17 +433,10 @@ export type LabelKey = keyof typeof en
 const de: Record<LabelKey, string> = {
   config: 'Konfiguration',
   plot: 'Plot',
-  applicationView: 'Ansicht',
-  generatePlot: 'Plot erstellen',
-  choosePlotAction: 'Plot-Aktion wählen',
-  generateCurrentPlot: 'Aktuellen Plot erstellen',
-  generateAllPlots: 'Alle Plots erstellen',
-  configActions: 'Konfiguration',
   importConfig: 'Konfiguration importieren',
   exportConfig: 'Konfiguration exportieren',
   json: 'JSON',
   resetConfig: 'Konfiguration zurücksetzen',
-  more: 'Mehr',
   settings: 'Einstellungen',
   about: 'Über',
   close: 'Schließen',
@@ -518,8 +494,6 @@ const de: Record<LabelKey, string> = {
 
   dataframe: 'Datenrahmen',
   frame: 'Frame',
-  includeDataframe: 'Diesen Datenrahmen beim Erstellen aller Plots einbeziehen.',
-  includeFrame: 'Diesen Frame beim Erstellen aller Plots einbeziehen.',
   addDataframe: 'Datenrahmen hinzufügen',
   addFrame: 'Frame hinzufügen',
   duplicateDataframe: 'Datenrahmen duplizieren',
@@ -530,7 +504,6 @@ const de: Record<LabelKey, string> = {
 
   fieldHelp: 'Hilfe: {label}',
   search: 'Suchen',
-  hideSearch: 'Suche ausblenden',
   searchOptions: 'Optionen durchsuchen…',
   clearSearch: 'Suche leeren',
   whitelist: 'Whitelist',
@@ -552,7 +525,6 @@ const de: Record<LabelKey, string> = {
   none: 'Keine',
   add: 'Hinzufügen',
 
-  globalDataframe: 'Datenrahmen',
   aspectRatio: 'Seitenverhältnis',
   resolution: 'Dateiformat & Auflösung',
   DarkMode: 'Dunkelmodus',
@@ -578,7 +550,6 @@ const de: Record<LabelKey, string> = {
   datasetName: 'Dataset',
   noDatasets: 'Keine Datasets verfügbar',
   importSheet: 'Importblatt',
-  uploadXlsx: '.xlsx hochladen',
   noFileSelected: 'Keine Datei ausgewählt',
   uploadAndImport: 'Hochladen & importieren',
   importDatabase: 'Datenbank importieren',
@@ -636,7 +607,6 @@ const de: Record<LabelKey, string> = {
 
   coloredAreas: 'Gefärbte Bereiche',
   area: 'Bereich',
-  axisRangesJson: 'Achsenbereiche (JSON)',
   areaType: 'Flächentyp',
   areaTypeAxes: 'Achsenbereiche',
   areaTypePolygon: 'Polygon',
@@ -688,7 +658,6 @@ const de: Record<LabelKey, string> = {
   arrowLineWidth: 'Pfeil-Linienbreite',
   arrowFaceColor: 'Pfeilfarbe',
 
-  advancedJsonFields: 'Erweiterte JSON-Felder',
   filter: 'Filter',
   highlightedHulls: 'Hervorgehobene Hüllen',
 
@@ -717,8 +686,6 @@ const de: Record<LabelKey, string> = {
   backendForeign: 'An der Backend-Adresse antwortet ein anderes Programm statt des Ashby-Backends. Beende es (z. B. eine Portweiterleitung im Editor) oder starte das Backend auf einem anderen Port.',
   invalidConfigFileDetails: 'Ungültige Konfigurationsdatei: {error}',
   jsonInvalidDetails: 'Ungültiges JSON im Editor: {error}',
-  plotPreviewTitle: 'Backend-Plot-Vorschau',
-  plotPreviewText: 'Zeigt Datenrahmen {df}, Frame {frame}. Die gewählte Konfiguration wird vom Python-Backend gerendert.',
   refreshPreview: 'Vorschau aktualisieren',
   expandPreview: 'Vorschau vergrößern',
   shrinkPreview: 'Zurück in die Seitenleiste',
@@ -834,7 +801,6 @@ const de: Record<LabelKey, string> = {
   noColumn: 'Keine Spalte gewählt',
   displayArea: 'Anzeigebereich',
   noItems: 'In diesem Plot noch keine.',
-  annotationDefaults: 'Standardwerte für Annotationen',
   preview: 'Vorschau',
   upToDate: 'Aktuell',
   renderingShort: 'Rendert…',

@@ -72,6 +72,11 @@ test('App keeps datasource import results per dataframe', async () => {
 
   assert.match(source, /importedSources\[activeDataframeKey\]/)
   assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames \}/)
+  // Excel files and import status stay with their dataframe when dataframes are reordered or removed.
+  assert.match(source, /\[selectedDataframeKey\]: cachedFile/)
+  assert.match(source, /\[selectedDataframeKey\]: \{ imported: true, source: selectedSourceMode \}/)
+  assert.match(source, /byDataframeIndex\(dataframeKeys, datasourceFilesByKey\)/)
+  assert.doesNotMatch(source, /\[activeDataframeIndex\]: cachedFile/)
 })
 
 test('App syncs the config with tabs of the same workspace', async () => {

@@ -207,6 +207,15 @@ export const ensureUiKeys = (config: PlotConfig): PlotConfig => {
   return config
 }
 
+/** Re-keys per-dataframe state stored by UI key to the current dataframe positions. */
+export const byDataframeIndex = <T,>(dataframeKeys: string[], byKey: Record<string, T>): Record<number, T> => {
+  const result: Record<number, T> = {}
+  dataframeKeys.forEach((key, index) => {
+    if (key in byKey) result[index] = byKey[key]
+  })
+  return result
+}
+
 /** Where a plot is: its dataframe and its position among the dataframe's frames. */
 export type FramePosition = { dataframeIndex: number; frameIndex: number }
 

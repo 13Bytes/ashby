@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { downloadBlob, toExternalConfig } from '../utils/configIo'
 import type { PlotConfig } from '../config/defaultPlotConfig'
 import { Alert } from './ui/alert'
@@ -531,7 +531,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
 
   // Auto-refresh: re-render after the active dataframe's config stops changing for a moment.
   // Selection changes are handled by the effect above.
-  const configKey = activeDataframe ? JSON.stringify(activeDataframe) : ''
+  // Memoized: the dataframe object only changes when one of its settings does.
+  const configKey = useMemo(() => (activeDataframe ? JSON.stringify(activeDataframe) : ''), [activeDataframe])
   const selectionKey = `${activeDataframeIndex}:${activeFrameIndex}`
   const lastConfigRef = useRef({ configKey, selectionKey })
   useEffect(() => {

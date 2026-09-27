@@ -20,12 +20,23 @@ export function usePlotConfigActions({
   setPlotConfig,
   setShowGenerateColorsConfirm,
 }: Params) {
+// A patch that returns its input unchanged keeps the config object, so nothing re-renders or syncs.
 const patchDataframe = (index: number, patch: (current: DataframeConfig) => DataframeConfig) => {
-  setPlotConfig((current) => ({ ...current, dataframes: current.dataframes.map((df, i) => (i === index ? patch(df) : df)) }))
+  setPlotConfig((current) => {
+    const dataframe = current.dataframes[index]
+    if (!dataframe) return current
+    const next = patch(dataframe)
+    return next === dataframe ? current : { ...current, dataframes: current.dataframes.map((df, i) => (i === index ? next : df)) }
+  })
 }
 const patchActiveDataframe = (patch: (current: DataframeConfig) => DataframeConfig) => patchDataframe(activeDataframeIndex, patch)
 const patchActiveFrame = (patch: (current: FrameConfig) => FrameConfig) => {
-  patchActiveDataframe((df) => ({ ...df, frames: df.frames.map((frame, i) => (i === activeFrameIndex ? patch(frame) : frame)) }))
+  patchActiveDataframe((df) => {
+    const frame = df.frames[activeFrameIndex]
+    if (!frame) return df
+    const next = patch(frame)
+    return next === frame ? df : { ...df, frames: df.frames.map((entry, i) => (i === activeFrameIndex ? next : entry)) }
+  })
 }
 const toggleDataframeGeneration = (index: number, enabled: boolean) => {
   setPlotConfig((current) => ({ ...current, createAllDataframes: toggleIndexSelection(current.dataframes.length, current.createAllDataframes, index, enabled) }))

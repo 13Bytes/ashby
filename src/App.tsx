@@ -13,7 +13,7 @@ import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
 import { Segmented, Toggle } from './components/AppControls'
-import { dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
+import { byDataframeIndex, dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
@@ -44,6 +44,9 @@ const DEFAULT_PREVIEW_WIDTH = 460
 const MIN_PREVIEW_WIDTH = 280
 /** Width kept for the settings list and the editor when the preview is dragged wider. */
 const MIN_EDITOR_AREA_WIDTH = 240 + 440
+
+/** Identifies what an import of a dataframe read, to skip importing the same source again. */
+const sourceSignature = (sourceMode: SourceMode, fileName: string | undefined, sheet: number) => `${sourceMode}:${fileName ?? ''}:${sheet}`
 
 const readStored = <T,>(key: string, parse: (value: string | null) => T): T => {
   try {
@@ -102,8 +105,8 @@ function App() {
   const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const jsonOverlayRef = useRef<HTMLPreElement | null>(null)
   const jsonJumpOffsetRef = useRef(-1)
-  const datasetAutoImportRef = useRef<string | null>(null)
-  const fileAutoImportRef = useRef<string | null>(null)
+  /** Per dataframe UI key: the source (mode, file, sheet) of its last import, so it is not imported again. */
+  const importedSignaturesRef = useRef(new Map<string, string>())
   const [plotLanguageDraft, setPlotLanguageDraft] = useState('')
   const [uiLanguage, setUiLanguage] = useState<UILanguage>(readStoredUILanguage)
   const [uiTheme, setUiTheme] = useState<UIThemePreference>(() => readStoredUITheme())
@@ -116,7 +119,9 @@ function App() {
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
   const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
-  const [importedDatabaseStatus, setImportedDatabaseStatus] = useState<Record<number, { imported: boolean; source: SourceMode }>>({})
+  // Datasource state is kept per dataframe UI key, so it stays with its dataframe when dataframes
+  // are reordered, moved or removed; the index-keyed views below are derived from it.
+  const [importedStatusByKey, setImportedStatusByKey] = useState<Record<string, { imported: boolean; source: SourceMode }>>({})
   const [plotActionNonce, setPlotActionNonce] = useState(0)
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
@@ -124,8 +129,8 @@ function App() {
   /** Another program answers at the backend address instead of the Ashby backend. */
   const [backendForeign, setBackendForeign] = useState(false)
   const [availableDatasets, setAvailableDatasets] = useState<string[] | null>(null)
-  const [datasourceFilesByDataframe, setDatasourceFilesByDataframe] = useState<Record<number, File>>({})
-  const [datasourcePrompt, setDatasourcePrompt] = useState<{ dataframeIndex: number; filename: string } | null>(null)
+  const [datasourceFilesByKey, setDatasourceFilesByKey] = useState<Record<string, File>>({})
+  const [datasourcePrompt, setDatasourcePrompt] = useState<{ dataframeIndex: number; dataframeKey: string; filename: string } | null>(null)
   const [dismissedDatasourcePrompts, setDismissedDatasourcePrompts] = useState<Record<string, boolean>>({})
   const [settingsMode, setSettingsMode] = useState<SettingsMode>(() => readStored(SETTINGS_MODE_STORAGE_KEY, (value) => (value === 'all' ? 'all' : 'simple')))
   const [activeSection, setActiveSection] = useState<SettingsSectionId>('data')
@@ -135,6 +140,7 @@ function App() {
   /** All settings sections in one scrollable column instead of one section at a time. */
   const [scrollSections, setScrollSections] = useState(() => readStored(SCROLL_SECTIONS_STORAGE_KEY, (value) => value === 'true'))
   const editorRef = useRef<HTMLElement | null>(null)
+  const datasetsLoadRef = useRef<'idle' | 'loading' | 'loaded' | 'failed'>('idle')
   const pinnedSectionRef = useRef<SettingsSectionId | null>(null)
   const workRef = useRef<HTMLDivElement | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
@@ -147,6 +153,9 @@ function App() {
   /** Plot selection from the URL of a duplicated tab, applied once the config of the other tabs arrives. */
   const pendingSelectionRef = useRef<{ dataframe: number; frame: number } | null>(null)
   const activeDataframeKey = getUiKey(activeDataframe, 'dataframe')
+  const dataframeKeys = useMemo(() => plotConfig.dataframes.map((dataframe) => getUiKey(dataframe, 'dataframe')), [plotConfig.dataframes])
+  const datasourceFilesByDataframe = useMemo(() => byDataframeIndex(dataframeKeys, datasourceFilesByKey), [dataframeKeys, datasourceFilesByKey])
+  const importedDatabaseStatus = useMemo(() => byDataframeIndex(dataframeKeys, importedStatusByKey), [dataframeKeys, importedStatusByKey])
   const activeImportedSource = importedSources[activeDataframeKey]
   const availableColumns = useMemo(() => activeImportedSource?.columns ?? [], [activeImportedSource])
   const availableKeywordsByColumn = activeImportedSource?.keywordsByColumn ?? EMPTY_KEYWORDS
@@ -388,27 +397,24 @@ function App() {
       window.clearInterval(interval)
     }
   }, [])
+  // The dataset catalog; loaded again once the backend becomes available if the first try failed.
+  // One request at a time: a request in flight is not cancelled when the backend status changes.
   useEffect(() => {
-    let active = true
+    if (backendAvailable === false || datasetsLoadRef.current === 'loading' || datasetsLoadRef.current === 'loaded') return
+    datasetsLoadRef.current = 'loading'
     const loadDatasets = async () => {
       try {
         const response = await fetch('/api/import-database/datasets', { cache: 'no-store' })
         const payload = await response.json().catch(() => ({})) as { datasets?: unknown }
-        if (active) {
-          setAvailableDatasets(Array.isArray(payload.datasets) ? payload.datasets.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [])
-        }
+        datasetsLoadRef.current = response.ok ? 'loaded' : 'failed'
+        setAvailableDatasets(Array.isArray(payload.datasets) ? payload.datasets.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [])
       } catch {
-        if (active) {
-          setAvailableDatasets([])
-        }
+        datasetsLoadRef.current = 'failed'
+        setAvailableDatasets((current) => current ?? [])
       }
     }
-
     void loadDatasets()
-    return () => {
-      active = false
-    }
-  }, [])
+  }, [backendAvailable])
   useEffect(() => {
     let cancelled = false
 
@@ -416,16 +422,17 @@ function App() {
       for (const { dataframe, dataframeIndex } of missingDatasourceDataframes) {
         const filename = dataframe.importFileName?.trim()
         if (!filename) continue
+        const dataframeKey = getUiKey(dataframe, 'dataframe')
 
         try {
           const cachedFile = await getCachedDatasourceFile(filename)
           if (cancelled) return
 
           if (cachedFile) {
-            setDatasourceFilesByDataframe((current) => current[dataframeIndex]?.name === cachedFile.name ? current : { ...current, [dataframeIndex]: cachedFile })
-            setImportedDatabaseStatus((current) => ({
+            setDatasourceFilesByKey((current) => current[dataframeKey]?.name === cachedFile.name ? current : { ...current, [dataframeKey]: cachedFile })
+            setImportedStatusByKey((current) => ({
               ...current,
-              [dataframeIndex]: { imported: true, source: 'file' },
+              [dataframeKey]: { imported: true, source: 'file' },
             }))
             continue
           }
@@ -434,9 +441,9 @@ function App() {
         }
 
         if (cancelled) return
-        const promptKey = `${dataframeIndex}:${filename}`
+        const promptKey = `${dataframeKey}:${filename}`
         if (!dismissedDatasourcePrompts[promptKey]) {
-          setDatasourcePrompt((current) => current ?? { dataframeIndex, filename })
+          setDatasourcePrompt((current) => current ?? { dataframeIndex, dataframeKey, filename })
           return
         }
       }
@@ -527,15 +534,15 @@ function App() {
           await cacheDatasourceFile(cachedFile, filename)
           setDismissedDatasourcePrompts((current) => {
             const next = { ...current }
-            delete next[`${activeDataframeIndex}:${cachedFile.name}`]
+            delete next[`${selectedDataframeKey}:${cachedFile.name}`]
             return next
           })
         } catch {
           cachingFailed = true
         }
-        setDatasourceFilesByDataframe((current) => ({
+        setDatasourceFilesByKey((current) => ({
           ...current,
-          [activeDataframeIndex]: cachedFile,
+          [selectedDataframeKey]: cachedFile,
         }))
       }
       const axisBases = getAxisBasesFromColumns(columns)
@@ -569,14 +576,15 @@ function App() {
           })),
         })),
       }))
-      setImportedDatabaseStatus((current) => ({
+      setImportedStatusByKey((current) => ({
         ...current,
-        [activeDataframeIndex]: { imported: true, source: selectedSourceMode },
+        [selectedDataframeKey]: { imported: true, source: selectedSourceMode },
       }))
       setImportedSources((current) => ({
         ...current,
         [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames },
       }))
+      importedSignaturesRef.current.set(selectedDataframeKey, sourceSignature(selectedSourceMode, payload.import_file_name ?? file?.name ?? selectedDataframe.importFileName, selectedDataframe.importSheet))
       const messageParts = [
         columns.length > 0 ? t('importSuccessColumns', { source: sourceLabel, count: columns.length }) : t('importSuccess', { source: sourceLabel }),
         payload.message ?? '',
@@ -594,31 +602,20 @@ function App() {
       setImportInProgress(false)
     }
   }
+  // Imports the source of the active dataframe automatically (a provided dataset, or an Excel file
+  // restored from browser storage), once per source.
   useEffect(() => {
     if (availableDatasets === null) return
     const sourceMode = getSourceMode(activeDataframe, availableDatasets)
-    
-    if (sourceMode === 'dataset') {
-      if (!activeDataframe.importFileName) return
-      const key = `${activeDataframeIndex}:${activeDataframe.importFileName}:${activeDataframe.importSheet}`
-      if (key === datasetAutoImportRef.current) return
-      datasetAutoImportRef.current = key
-      void importDatabase()
-    } else if (sourceMode === 'file') {
-      if (!activeDataframe.importFileName) return
-      const cachedFile = datasourceFilesByDataframe[activeDataframeIndex]
-      if (!cachedFile || cachedFile.name !== activeDataframe.importFileName) return
-      
-      const key = `${activeDataframeIndex}:${activeDataframe.importFileName}:${activeDataframe.importSheet}`
-      if (key === fileAutoImportRef.current) return
-      fileAutoImportRef.current = key
-      void importDatabase(cachedFile)
-    } else {
-      datasetAutoImportRef.current = null
-      fileAutoImportRef.current = null
-    }
+    if (sourceMode === 'teable' || !activeDataframe.importFileName) return
+    const signature = sourceSignature(sourceMode, activeDataframe.importFileName, activeDataframe.importSheet)
+    if (importedSignaturesRef.current.get(activeDataframeKey) === signature) return
+    const cachedFile = datasourceFilesByDataframe[activeDataframeIndex]
+    if (sourceMode === 'file' && cachedFile?.name !== activeDataframe.importFileName) return
+    importedSignaturesRef.current.set(activeDataframeKey, signature)
+    void importDatabase(sourceMode === 'file' ? cachedFile : undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDataframeIndex, activeDataframe.importFileName, activeDataframe.importSheet, activeDataframe._extensions.source_mode, availableDatasets, datasourceFilesByDataframe])
+  }, [activeDataframeKey, activeDataframe.importFileName, activeDataframe.importSheet, activeDataframe._extensions.source_mode, availableDatasets, datasourceFilesByDataframe])
   const updateLanguages = (next: string[]) => {
     const sanitized = normalizePlotLanguages(activeDataframe.plotLanguages, next)
     patchActiveDataframe((df) => ({
@@ -676,12 +673,13 @@ function App() {
         }),
       }
       setPlotConfig(normalizedWithLanguages)
-      setDatasourceFilesByDataframe({})
+      setDatasourceFilesByKey({})
       setDatasourcePrompt(null)
       setDismissedDatasourcePrompts({})
-      setImportedDatabaseStatus({})
+      setImportedStatusByKey({})
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setImportedSources({})
+      importedSignaturesRef.current.clear()
       setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
     } catch (error) {
       const details = toErrorDetails(error, t('invalidConfigFile'))
@@ -704,7 +702,7 @@ function App() {
     if (datasourcePrompt) {
       setDismissedDatasourcePrompts((current) => ({
         ...current,
-        [`${datasourcePrompt.dataframeIndex}:${datasourcePrompt.filename}`]: true,
+        [`${datasourcePrompt.dataframeKey}:${datasourcePrompt.filename}`]: true,
       }))
     }
     setDatasourcePrompt(null)
@@ -717,17 +715,17 @@ function App() {
 
     try {
       const cachedFile = await cacheDatasourceFile(file, prompt.filename)
-      setDatasourceFilesByDataframe((current) => ({
+      setDatasourceFilesByKey((current) => ({
         ...current,
-        [prompt.dataframeIndex]: cachedFile,
+        [prompt.dataframeKey]: cachedFile,
       }))
-      setImportedDatabaseStatus((current) => ({
+      setImportedStatusByKey((current) => ({
         ...current,
-        [prompt.dataframeIndex]: { imported: true, source: 'file' },
+        [prompt.dataframeKey]: { imported: true, source: 'file' },
       }))
       setDismissedDatasourcePrompts((current) => {
         const next = { ...current }
-        delete next[`${prompt.dataframeIndex}:${prompt.filename}`]
+        delete next[`${prompt.dataframeKey}:${prompt.filename}`]
         return next
       })
       setDatasourcePrompt(null)
@@ -778,8 +776,8 @@ function App() {
   const clearStoredDatasourceFiles = async () => {
     try {
       await clearCachedDatasourceFiles()
-      setDatasourceFilesByDataframe({})
-      setImportedDatabaseStatus({})
+      setDatasourceFilesByKey({})
+      setImportedStatusByKey({})
       setDatasourcePrompt(null)
       setDismissedDatasourcePrompts({})
       setAlert({ tone: 'success', message: t('storedFilesCleared') })
@@ -797,10 +795,11 @@ function App() {
     setActiveDataframeIndex(0)
     setActiveFrameIndex(0)
     setImportedSources({})
-    setDatasourceFilesByDataframe({})
+    importedSignaturesRef.current.clear()
+    setDatasourceFilesByKey({})
     setDatasourcePrompt(null)
     setDismissedDatasourcePrompts({})
-    setImportedDatabaseStatus({})
+    setImportedStatusByKey({})
     setShowResetConfirm(false)
   }
   // Settings navigation: modes, sections, jumping to fields, required settings.
