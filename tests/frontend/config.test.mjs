@@ -12,6 +12,7 @@ import { isHiddenInMode } from '../../src/config/settingsSections.ts'
 import { createTranslator } from '../../src/uiTranslations.ts'
 import { formatAspectRatio, isSameAspectRatio, parseAspectRatio, parsePositiveInteger } from '../../src/utils/appState.ts'
 import { toExternalConfig } from '../../src/utils/configIo.ts'
+import { attributionHeaders } from '../../src/utils/attributionKey.ts'
 import { describeFormatWarning, parseFormatWarnings } from '../../src/utils/excelFormat.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
@@ -65,9 +66,20 @@ test('guideline label direction and annotation settings survive import and expor
   assert.equal(frame.annotations[1].marker.edgecolors, 'red')
 })
 
-test('copyright text and watermark file are kept', () => {
-  const dataframe = toExternalConfig(normalizePlotConfig({ dataframes: [{ copyright: '© Lab', watermark: 'logo.png' }] })).dataframes[0]
-  assert.deepEqual([dataframe.copyright, dataframe.watermark], ['© Lab', 'logo.png'])
+test('copyright and watermark are on/off; a custom text or file from older configs means on', () => {
+  const switches = (dataframe) => {
+    const { copyright, watermark } = toExternalConfig(normalizePlotConfig({ dataframes: [dataframe] })).dataframes[0]
+    return [copyright, watermark]
+  }
+  assert.deepEqual(switches({ copyright: '© Lab', watermark: 'logo.png' }), [true, true])
+  assert.deepEqual(switches({ copyright: false, watermark: null }), [false, false])
+  // New datasets: copyright notice on, watermark off.
+  assert.deepEqual(switches({}), [true, false])
+})
+
+test('render requests send the attribution key only while one is stored', () => {
+  assert.deepEqual(attributionHeaders(null), {})
+  assert.deepEqual(attributionHeaders('secret'), { 'X-Ashby-Attribution-Key': 'secret' })
 })
 
 test('aspect ratio and resolution presets parse typed values', () => {

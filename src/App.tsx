@@ -8,6 +8,8 @@ import { exportConfig, findExternalFrameOffset, parseImportedConfig, toExternalC
 import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
 import { AppPopouts, SettingsRow } from './components/layout/AppPopouts'
+import { AttributionKeySetting } from './components/layout/AttributionKeySetting'
+import { checkAttributionKey, readAttributionKey, setAttributionKey } from './utils/attributionKey'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
 import { AppHeader } from './components/layout/AppHeader'
 import { OverviewPage } from './components/overview/OverviewPage'
@@ -384,6 +386,13 @@ function App() {
     params.delete(VIEW_URL_PARAM)
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
   }, [activeDataframeIndex, activeFrameIndex, workspaceId])
+  // A key kept from an earlier visit may no longer be the server's: forget it, so the editor shows
+  // what the server will draw.
+  useEffect(() => {
+    const key = readAttributionKey()
+    if (!key) return
+    checkAttributionKey(key).then((valid) => { if (!valid) setAttributionKey(null) }).catch(() => {})
+  }, [])
   useEffect(() => {
     let active = true
     const checkBackendAvailability = async () => {
@@ -1043,6 +1052,9 @@ function App() {
             writeStored(SCROLL_SECTIONS_STORAGE_KEY, String(next))
           }}
         />
+      </SettingsRow>
+      <SettingsRow label={t('attributionKey')} hint={t('attributionKeyHint')}>
+        <AttributionKeySetting />
       </SettingsRow>
       <SettingsRow label={t('localDataFiles')}>
         <Button type="button" variant="outline" size="sm" onClick={() => { void clearStoredDatasourceFiles() }}>

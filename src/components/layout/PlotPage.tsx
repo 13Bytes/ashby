@@ -7,6 +7,7 @@ import { Button } from '../ui/button'
 import { useI18n, type Translate } from '../../uiTranslations'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails, type BackendErrorDetails } from '../../utils/backendErrors'
 import { addLogEntry } from '../../utils/debugLog'
+import { attributionHeaders, useAttributionUnlocked } from '../../utils/attributionKey'
 import { getCachedDatasourceFile, readDatasourceWithFallback } from '../../utils/datasourceStorage'
 import { ErrorDetails } from './DebugLog'
 import type { SettingsSectionId } from '../../config/settingsSections'
@@ -114,7 +115,7 @@ async function buildPlotRequest(
   if (datasourceIndices.length === 0) {
     return {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...attributionHeaders() },
       body: JSON.stringify(payload),
     }
   }
@@ -137,6 +138,7 @@ async function buildPlotRequest(
 
   return {
     method: 'POST',
+    headers: attributionHeaders(),
     body: form,
   }
 }
@@ -254,6 +256,7 @@ type PreviewStatus = 'idle' | 'loading' | 'ok' | 'error' | 'stale'
  */
 export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets, missing, onJump, autoRefresh, onAutoRefreshChange }: Props) {
   const { t } = useI18n()
+  const attributionUnlocked = useAttributionUnlocked()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const imageBlobRef = useRef<Blob | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
@@ -532,8 +535,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
 
   // Auto-refresh: re-render after the active dataframe's config stops changing for a moment.
   // Selection changes are handled by the effect above.
-  // Memoized: the dataframe object only changes when one of its settings does.
-  const configKey = useMemo(() => (activeDataframe ? JSON.stringify(activeDataframe) : ''), [activeDataframe])
+  // Memoized: the dataframe object only changes when one of its settings does. Entering or dropping
+  // the attribution key changes what the server draws, so it counts as a change too.
+  const configKey = useMemo(() => (activeDataframe ? `${attributionUnlocked}:${JSON.stringify(activeDataframe)}` : ''), [activeDataframe, attributionUnlocked])
   const selectionKey = `${activeDataframeIndex}:${activeFrameIndex}`
   const lastConfigRef = useRef({ configKey, selectionKey })
   useEffect(() => {
@@ -707,10 +711,14 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
               <dd className="m-0 font-mono uppercase">{activeDataframe.language}</dd>
               <dt className="font-semibold">{t('background')}</dt>
               <dd className="m-0">{activeDataframe.transparent ? t('bgTransparent') : activeDataframe.darkMode ? t('bgDark') : t('bgWhite')}</dd>
-              <dt className="font-semibold">{t('watermark')}</dt>
-              <dd className="m-0">{activeDataframe.watermark ? t('on') : t('off')}</dd>
-              <dt className="font-semibold">{t('copyright')}</dt>
-              <dd className="m-0">{activeDataframe.copyright ? t('on') : t('off')}</dd>
+              {attributionUnlocked && (
+                <>
+                  <dt className="font-semibold">{t('watermark')}</dt>
+                  <dd className="m-0">{activeDataframe.watermark ? t('on') : t('off')}</dd>
+                  <dt className="font-semibold">{t('copyright')}</dt>
+                  <dd className="m-0">{activeDataframe.copyright ? t('on') : t('off')}</dd>
+                </>
+              )}
             </dl>
             <button type="button" className="w-fit text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300" onClick={() => { setShowExport(false); setExpanded(false); onJump('textLook', 'output') }}>
               {t('changeInOutput')} →

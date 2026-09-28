@@ -41,8 +41,10 @@
         "language":"",                      // [str] {"en"} language for axis-label & Legend Headline
         "dark_mode":false,                  // font color, black or white: {true}
         "transparent":true,                 // decide weather background should be transparent [bool]
-        "copyright":"",                     // copyright text to be displayed vertivaly at the bottom right corner [str][true][false] {false}
-        "watermark":"",                     // path to watermark [str][true][false]
+        "copyright":true,                   // standard RPS copyright notice, vertically at the bottom right [true][false] {true}
+        "watermark":false,                  // RPS logo, light or dark version matching dark_mode [true][false] {false}
+                                            //   on a server both need the attribution key (env ASHBY_ATTRIBUTION_KEY, sent as header X-Ashby-Attribution-Key);
+                                            //   without it plots carry "created using ashby.aerospace-lab.de" and no watermark
     
     
     

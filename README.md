@@ -215,3 +215,4 @@ python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
 | --- | --- | --- |
 | `PORT` | `8000` | Port of the Docker container's server. |
 | `ASHBY_MATERIAL_PROPERTIES_DIR` | `backend/material_properties` | Folder with the provided Excel datasets. |
+| `ASHBY_ATTRIBUTION_KEY` | unset | Key that unlocks the copyright and watermark switches in the editor (settings dialog). Without it, rendered plots carry "created using ashby.aerospace-lab.de" and no watermark. Unset: nobody can unlock them. Use a long random value, e.g. `openssl rand -base64 24`. |

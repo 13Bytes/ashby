@@ -230,12 +230,12 @@ test('backend-format nested objects are imported into the editor model', () => {
 test('dataframe settings survive export and import', () => {
   const config = createDefaultPlotConfig()
   const [dataframe] = config.dataframes
-  Object.assign(dataframe, { transparent: true, watermark: 'logo.png', copyright: false, fileformat: 'png', resolution: 250 })
+  Object.assign(dataframe, { transparent: true, watermark: true, copyright: false, fileformat: 'png', resolution: 250 })
   dataframe.frames[0].axisMargin = { left: 1, right: 0.1, bottom: 0.12, top: 5, absolute: ['left', 'top'], plotAxes: ['tens', 'hdt'] }
 
   const [imported] = roundTrip(config).dataframes
   assert.equal(imported.transparent, true)
-  assert.equal(imported.watermark, 'logo.png')
+  assert.equal(imported.watermark, true)
   assert.equal(imported.copyright, false)
   assert.equal(imported.fileformat, 'png')
   assert.equal(imported.resolution, 250)
