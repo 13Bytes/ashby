@@ -1,5 +1,6 @@
 import {
   AXIS_MODES,
+  CONFIG_VERSION,
   FONT_STYLES,
   PLOT_ALGORITHMS,
   type DataframeConfig,
@@ -126,6 +127,7 @@ const normalizeGuidelines = (value: unknown): FrameConfig['guidelines'] =>
           ? guideline.label
           : isRecord(guideline.label) ? coerceStringRecord(guideline.label) : '',
         labelAbove: coerceBool(guideline.labelAbove ?? guideline.label_above, true),
+        labelRotated: coerceBool(guideline.labelRotated ?? guideline.label_rotated, true),
         labelPadding: coerceNumber(guideline.labelPadding ?? guideline.label_padding, 6),
       }
     })
@@ -184,7 +186,8 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
               : 'o',
             sizeFactor: coerceNumber(marker.sizeFactor ?? marker.size_factor, 1),
             linewidths: coerceNumber(marker.linewidths, 0),
-            edgecolors: typeof marker.edgecolors === 'string' ? marker.edgecolors : 'black',
+            // The backend reads `edgecolors`; the config documentation calls it `edgecolor`.
+            edgecolors: typeof (marker.edgecolors ?? marker.edgecolor) === 'string' ? String(marker.edgecolors ?? marker.edgecolor) : 'black',
           }
           : undefined,
         arrow: arrow
@@ -309,7 +312,10 @@ const normalizeFrame = (
       )
       : fallback.title,
     darkMode: coerceOptionalBool(partial.darkMode ?? partial.dark_mode),
-    legendAbove: coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
+    // null: no legend
+    legendAbove: (partial.legendAbove ?? partial.legend_above) === null
+      ? null
+      : coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
     xQuantity:
       typeof (partial.xQuantity ?? partial.x_quantity) === 'string'
@@ -501,7 +507,14 @@ const normalizeDataframe = (
   }
 }
 
-/** Converts any supported config shape into the editor model. Without input it returns the default config. */
+/** The `version` of an imported config, or undefined if it has none (a number) at the top level. */
+export const getConfigVersion = (input: unknown): number | undefined =>
+  isRecord(input) ? coerceOptionalNumber(input.version) : undefined
+
+/**
+ * Converts any supported config shape into the editor model. Without input it returns the default
+ * config. The model is always in the current format, so its version is CONFIG_VERSION.
+ */
 export function normalizePlotConfig(input?: unknown): PlotConfig {
   const fallback = createDefaultPlotConfig()
 
@@ -530,7 +543,7 @@ export function normalizePlotConfig(input?: unknown): PlotConfig {
 
   return ensureUiKeys({
     ...fallback,
-    version: coerceNumber(input.version, fallback.version),
+    version: CONFIG_VERSION,
     createAllDataframes:
       createAllDataframesSource === true
         ? true

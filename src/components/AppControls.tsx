@@ -70,6 +70,18 @@ export function InfoTooltip({ label, text, jsonPath }: { label: string; text: st
   )
 }
 
+/** Shows `note` in a tooltip bubble while `children` are hovered or focused. */
+export function HoverNote({ note, children, className }: { note: ReactNode; children: ReactNode; className?: string }) {
+  const tooltipId = useId()
+  const { anchorRef, position, updateAlignment } = useTooltipAlignment()
+  return (
+    <span ref={anchorRef} aria-describedby={tooltipId} className={cn('group relative flex', className)} onPointerEnter={updateAlignment} onFocus={updateAlignment}>
+      {children}
+      <TooltipBubble id={tooltipId} position={position}>{note}</TooltipBubble>
+    </span>
+  )
+}
+
 /** How much attention a setting needs: must be set, worth a look, or fine at its default. */
 export type SettingLevel = 'required' | 'check' | 'default'
 
@@ -288,6 +300,63 @@ export function Segmented<T extends string>({ options, value, onChange, classNam
           {option.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Common values as one-click presets, plus a field for any other value: it shows a grey "custom"
+ * while a preset is selected and the value otherwise. Text that does not parse is marked and not applied.
+ */
+export function PresetInput<T>({ presets, value, isSame, format, parse, onChange, ariaLabel, disabled }: {
+  presets: Array<{ value: T; label: string }>
+  value: T
+  isSame: (a: T, b: T) => boolean
+  format: (value: T) => string
+  /** undefined for text that is not a valid value */
+  parse: (text: string) => T | undefined
+  onChange: (next: T) => void
+  ariaLabel: string
+  disabled?: boolean
+}) {
+  const { t } = useI18n()
+  const [draft, setDraft] = useState<string | null>(null)
+  const isPreset = presets.some((preset) => isSame(preset.value, value))
+  const invalid = draft !== null && draft.trim() !== '' && parse(draft) === undefined
+  const selectedClassName = 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100'
+  return (
+    <div role="group" aria-label={ariaLabel} className={cn('inline-flex h-9 w-fit max-w-full items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', disabled && 'pointer-events-none opacity-50')}>
+      {presets.map((preset) => {
+        const selected = isSame(preset.value, value) && draft === null
+        return (
+          <button
+            key={preset.label}
+            type="button"
+            aria-pressed={selected}
+            disabled={disabled}
+            onClick={() => { setDraft(null); onChange(preset.value) }}
+            className={`flex items-center whitespace-nowrap rounded px-2.5 text-xs tabular-nums transition-colors ${selected ? selectedClassName : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          >
+            {preset.label}
+          </button>
+        )
+      })}
+      <input
+        type="text"
+        inputMode="decimal"
+        aria-label={`${ariaLabel}: ${t('customPreset')}`}
+        aria-invalid={invalid}
+        disabled={disabled}
+        placeholder={t('customPreset')}
+        value={draft ?? (isPreset ? '' : format(value))}
+        onChange={(event) => {
+          setDraft(event.target.value)
+          const parsed = parse(event.target.value)
+          if (parsed !== undefined) onChange(parsed)
+        }}
+        onBlur={() => setDraft(null)}
+        className={`w-20 min-w-0 rounded px-2 text-xs tabular-nums outline-none placeholder:text-zinc-400 focus-visible:ring-1 focus-visible:ring-violet-400 dark:placeholder:text-zinc-500 ${invalid ? 'bg-white text-red-600 ring-1 ring-red-500 dark:bg-zinc-800' : !isPreset || draft !== null ? selectedClassName : 'bg-transparent text-zinc-900 dark:text-zinc-100'}`}
+      />
     </div>
   )
 }

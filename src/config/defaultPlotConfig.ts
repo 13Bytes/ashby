@@ -6,6 +6,13 @@ export type AxisMode = (typeof AXIS_MODES)[number]
 
 export const FONT_STYLES = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monospace'] as const
 
+/**
+ * Config format version this app reads and writes. Raise it together with CURRENT_VERSION in
+ * backend/import_data/import_json.py (a frontend test checks that both match) when the format
+ * changes. Importing a config of another version shows a warning.
+ */
+export const CONFIG_VERSION = 5
+
 export type UnknownConfigBucket = Record<string, unknown>
 
 export interface PlotConfig {
@@ -53,7 +60,9 @@ export interface FrameConfig {
   name?: string
   legendFlag: boolean
   title: Record<string, string>
+  /** Overrides the dataframe's dark mode for this frame. */
   darkMode?: boolean
+  /** Legend above the plot (true), to its right (false) or no legend (null). */
   legendAbove: boolean | null
   language: string
   xQuantity?: string
@@ -99,6 +108,8 @@ export interface GuidelineConfig {
   /** Plain string or per-language labels (see PLACEHOLDER_LABEL in the backend docs). */
   label: string | Record<string, string>
   labelAbove: boolean
+  /** Label along the line (true) or horizontal (false). */
+  labelRotated: boolean
   labelPadding: number
 }
 
@@ -156,7 +167,7 @@ export interface AxisConfig {
 
 export function createDefaultPlotConfig(): PlotConfig {
   return {
-    version: 0,
+    version: CONFIG_VERSION,
     createAllDataframes: true,
     dataframes: [
       {

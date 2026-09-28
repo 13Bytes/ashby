@@ -128,14 +128,6 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                 )}
               </div>
               <div className="grid gap-4 @lg:grid-cols-3">
-                <Field label={t('marker')} jsonPath={`annotations[${annotationIndex}].marker`} level="check">
-                  <Toggle checked={Boolean(annotation.marker)} label={t('marker')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, marker: on ? { ...DEFAULT_ANNOTATION_MARKER } : undefined }))} />
-                </Field>
-                <Field label={t('arrow')} jsonPath={`annotations[${annotationIndex}].arrow`} level="check">
-                  <Toggle checked={Boolean(annotation.arrow)} label={t('arrow')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, arrow: on ? { ...DEFAULT_ANNOTATION_ARROW } : undefined }))} />
-                </Field>
-              </div>
-              <div className="grid gap-4 @lg:grid-cols-3">
                 <Field label={t('textOffsetX')} jsonPath={`annotations[${annotationIndex}].text.rel_pos[0]`} level="default" changed={(annotation.text?.relPos?.[0] ?? 0) !== 0}>
                   <Input type="number" value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[0] ?? 0), annotation.text?.relPos?.[1] ?? 0] })} />
                 </Field>
@@ -144,6 +136,24 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                 </Field>
                 <Field label={t('textColor')} jsonPath={`annotations[${annotationIndex}].text.color`} level="default" changed={(annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color) !== DEFAULT_ANNOTATION_TEXT.color}>
                   <ColorOrMaterialInput materialColors={materialColors} value={annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color} onChange={(color) => patchText(annotationIndex, { color })} />
+                </Field>
+                <Field label={t('fontSize')} jsonPath={`annotations[${annotationIndex}].text.font_size`} level="default" changed={annotation.text?.fontSize !== undefined}>
+                  {/* Empty: the default font size below. */}
+                  <Input
+                    type="number"
+                    min={1}
+                    value={annotation.text?.fontSize ?? ''}
+                    placeholder={String(defaults?.fontSize ?? DEFAULT_ANNOTATION_SETTINGS.fontSize)}
+                    onChange={(e) => patchText(annotationIndex, { fontSize: Number.isFinite(e.target.valueAsNumber) && e.target.valueAsNumber > 0 ? e.target.valueAsNumber : undefined })}
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-4 @lg:grid-cols-3">
+                <Field label={t('marker')} jsonPath={`annotations[${annotationIndex}].marker`} level="check">
+                  <Toggle checked={Boolean(annotation.marker)} label={t('marker')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, marker: on ? { ...DEFAULT_ANNOTATION_MARKER } : undefined }))} />
+                </Field>
+                <Field label={t('arrow')} jsonPath={`annotations[${annotationIndex}].arrow`} level="check">
+                  <Toggle checked={Boolean(annotation.arrow)} label={t('arrow')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, arrow: on ? { ...DEFAULT_ANNOTATION_ARROW } : undefined }))} />
                 </Field>
               </div>
 

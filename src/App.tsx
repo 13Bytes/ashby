@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import { PlotPage } from './components/PlotPage'
 import { Alert } from './components/ui/alert'
 import { Button } from './components/ui/button'
-import { normalizePlotConfig } from './config/configMappers'
-import type { PlotConfig } from './config/defaultPlotConfig'
+import { getConfigVersion, normalizePlotConfig } from './config/configMappers'
+import { CONFIG_VERSION, type PlotConfig } from './config/defaultPlotConfig'
 import { exportConfig, findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
@@ -21,19 +21,21 @@ import { cacheDatasourceFile, clearCachedDatasourceFiles, getCachedDatasourceFil
 import { createConfigSync, getUrlWorkspaceId, getWorkspaceId, WORKSPACE_URL_PARAM, type ConfigSync } from './utils/tabSync'
 import { BackendError, fetchBackend, isForeignServerResponse, toErrorDetails } from './utils/backendErrors'
 import { addLogEntry } from './utils/debugLog'
-import { SETTINGS_SECTIONS, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
+import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
 import { getDataframeMissing, getFrameMissing } from './utils/settingsStatus'
 import { SettingsContext } from './utils/settingsContext'
 import { SettingsNav, type SectionStatus } from './components/SettingsNav'
 import { cn } from './lib/utils'
+import { describeFormatWarning, parseFormatWarnings, type ExcelFormatWarning } from './utils/excelFormat'
 
-type AlertTone = 'success' | 'error'; interface AlertState { tone: AlertTone; message: string }
+type AlertTone = 'success' | 'warning' | 'error'; interface AlertState { tone: AlertTone; message: string }
 type PlotAction = 'preview-current' | 'create-all'
 
-type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[] }
+type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown }
 /** What the last datasource import of a dataframe returned; kept per dataframe (by UI key). */
-type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[] }
+type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[] }
 const EMPTY_KEYWORDS: Record<string, string[]> = {}
+const EMPTY_FORMAT_WARNINGS: ExcelFormatWarning[] = []
 
 const CONFIG_STORAGE_KEY = 'ashby-plot-config'
 const SETTINGS_MODE_STORAGE_KEY = 'ashby-settings-mode'
@@ -370,7 +372,8 @@ function App() {
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
   }, [activeDataframeIndex, activeFrameIndex, workspaceId])
   useEffect(() => {
-    if (!alert) return
+    // Warnings stay until they are closed.
+    if (!alert || alert.tone === 'warning') return
     const timeout = window.setTimeout(() => setAlert(null), 15000)
     return () => window.clearTimeout(timeout)
   }, [alert])
@@ -525,6 +528,7 @@ function App() {
       const columns = parseColumnsFromImportResult(payload.columns)
       const keywordsByColumn = payload.keywords_by_column ?? {}
       const sheetNames = payload.sheet_names ?? []
+      const formatWarnings = parseFormatWarnings(payload.format_warnings)
       let cachingFailed = false
       if (file) {
         const filename = payload.import_file_name ?? file.name
@@ -582,7 +586,7 @@ function App() {
       }))
       setImportedSources((current) => ({
         ...current,
-        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames },
+        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames, formatWarnings },
       }))
       importedSignaturesRef.current.set(selectedDataframeKey, sourceSignature(selectedSourceMode, payload.import_file_name ?? file?.name ?? selectedDataframe.importFileName, selectedDataframe.importSheet))
       const messageParts = [
@@ -591,9 +595,19 @@ function App() {
         unknownColumns.size > 0 ? t('unavailableColumnsRemoved', { columns: [...unknownColumns].sort((a, b) => a.localeCompare(b)).join(', ') }) : '',
         cachingFailed ? t('datasourceNotCached') : '',
       ]
+      // Formatting problems of the sheet do not stop the import; they are listed in the Data section.
+      if (formatWarnings.length > 0) messageParts.push(t('formatWarningsImported', { source: sourceLabel, count: formatWarnings.length }))
       const successMessage = messageParts.filter(Boolean).join(' ')
-      setAlert({ tone: 'success', message: successMessage })
-      addLogEntry({ level: unknownColumns.size > 0 || cachingFailed ? 'warning' : 'info', source: 'import', title: logTitle, message: successMessage, status: response.status, durationMs: Math.round(performance.now() - startedAt) })
+      setAlert({ tone: formatWarnings.length > 0 ? 'warning' : 'success', message: successMessage })
+      addLogEntry({
+        level: unknownColumns.size > 0 || cachingFailed || formatWarnings.length > 0 ? 'warning' : 'info',
+        source: 'import',
+        title: logTitle,
+        message: successMessage,
+        messages: formatWarnings.map((warning) => describeFormatWarning(warning, t)),
+        status: response.status,
+        durationMs: Math.round(performance.now() - startedAt),
+      })
     } catch (error) {
       const details = toErrorDetails(error, t('importFailedGeneric'))
       addLogEntry({ level: 'error', source: 'import', title: logTitle, ...details, durationMs: Math.round(performance.now() - startedAt) })
@@ -659,7 +673,9 @@ function App() {
     const file = event.target.files?.[0]
     if (!file) return
     try {
-      const normalized = normalizePlotConfig(parseImportedConfig(await file.text(), true))
+      const imported = parseImportedConfig(await file.text(), true)
+      const importedVersion = getConfigVersion(imported)
+      const normalized = normalizePlotConfig(imported)
       const detectedLanguages = getConfigLanguages(normalized)
       const normalizedWithLanguages: PlotConfig = {
         ...normalized,
@@ -680,7 +696,16 @@ function App() {
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setImportedSources({})
       importedSignaturesRef.current.clear()
-      setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
+      // Another format version is imported anyway (unknown settings are kept as they are), with a warning.
+      if (importedVersion === CONFIG_VERSION) {
+        setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
+      } else {
+        const message = importedVersion === undefined
+          ? t('configVersionMissing', { name: file.name, current: CONFIG_VERSION })
+          : t('configVersionMismatch', { name: file.name, version: importedVersion, current: CONFIG_VERSION })
+        setAlert({ tone: 'warning', message })
+        addLogEntry({ level: 'warning', source: 'config', title: file.name, message })
+      }
     } catch (error) {
       const details = toErrorDetails(error, t('invalidConfigFile'))
       addLogEntry({ level: 'error', source: 'config', title: file.name, ...details })
@@ -803,10 +828,12 @@ function App() {
     setShowResetConfirm(false)
   }
   // Settings navigation: modes, sections, jumping to fields, required settings.
-  const changeSettingsMode = (mode: SettingsMode) => {
+  const changeSettingsMode = useCallback((mode: SettingsMode) => {
     setSettingsMode(mode)
     writeStored(SETTINGS_MODE_STORAGE_KEY, mode)
-  }
+    // A section that Simple mode hides cannot stay open.
+    setActiveSection((current) => (isHiddenInMode(current, mode) ? 'data' : current))
+  }, [])
   const toggleSectionDefaults = (id: SettingsSectionId) =>
     setShownDefaults((current) => {
       const next = new Set(current)
@@ -816,6 +843,8 @@ function App() {
     })
   /** Opens a section, shows the field (its defaults, a collapsed item) and highlights it. */
   const revealSetting = useCallback((section: SettingsSectionId, element: HTMLElement) => {
+    // Jumping to a setting of a section that Simple mode hides (search, links) switches to All settings.
+    if (isHiddenInMode(section, settingsMode)) changeSettingsMode('all')
     setActiveSection(section)
     pinnedSectionRef.current = section
     if (element.closest('[data-level="default"]')) {
@@ -830,8 +859,9 @@ function App() {
       element.classList.add('setting-flash')
       element.addEventListener('animationend', () => element.classList.remove('setting-flash'), { once: true })
     }, 50)
-  }, [])
+  }, [settingsMode, changeSettingsMode])
   const goTo = useCallback((section: SettingsSectionId, anchor?: string) => {
+    if (isHiddenInMode(section, settingsMode)) changeSettingsMode('all')
     setActiveSection(section)
     // Keep the clicked section highlighted even if the column cannot scroll it to the top (the last ones).
     pinnedSectionRef.current = section
@@ -845,7 +875,7 @@ function App() {
     // (A field of a section that is still hidden has no layout yet.)
     const target = candidates.find((element) => element.getClientRects().length > 0 || element.closest('[data-section-id]')?.hasAttribute('hidden')) ?? candidates[0]
     if (target) revealSetting(section, target)
-  }, [revealSetting, scrollSections])
+  }, [revealSetting, scrollSections, settingsMode, changeSettingsMode])
   // In the scrolling column the sidebar follows the scroll position: the active section is the last one whose top has
   // passed the upper quarter of the editor column.
   useEffect(() => {
@@ -857,13 +887,14 @@ function App() {
       if (pinnedSectionRef.current) return
       const line = editor.getBoundingClientRect().top + editor.clientHeight / 4
       let current: SettingsSectionId | null = null
-      for (const element of editor.querySelectorAll<HTMLElement>('[data-section-id]')) {
+      // Sections hidden in Simple mode have no position.
+      for (const element of editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')) {
         const id = element.dataset.sectionId ?? ''
         if (!isSettingsSectionId(id)) continue
         if (current === null || element.getBoundingClientRect().top <= line) current = id
       }
       if (editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 2) {
-        const sections = editor.querySelectorAll<HTMLElement>('[data-section-id]')
+        const sections = editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')
         const last = sections[sections.length - 1]?.dataset.sectionId ?? ''
         if (isSettingsSectionId(last)) current = last
       }
@@ -963,7 +994,7 @@ function App() {
       setPlotActionNonce((current) => current + 1)
     },
   }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
     sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
@@ -1031,7 +1062,7 @@ function App() {
       <ConfigTabs {...tabProps} />
       {alert ? (
         <div className="px-4 pt-3">
-          <Alert variant={alert.tone === 'success' ? 'success' : 'destructive'} className="flex items-center justify-between gap-3">
+          <Alert variant={alert.tone === 'error' ? 'destructive' : alert.tone} className="flex items-center justify-between gap-3">
             <span>{alert.message}</span>
             <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label={t('closeNotification')}>✕</button>
           </Alert>

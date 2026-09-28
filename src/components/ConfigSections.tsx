@@ -1,7 +1,8 @@
 import type { ComponentProps } from 'react'
-import type { SettingsSectionId } from '../config/settingsSections'
+import { isHiddenInMode, type SettingsSectionId } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { dataframeLabel } from '../utils/appState'
+import { useSettings } from '../utils/settingsContext'
 import { AdvancedJsonSection } from './AdvancedJsonSection'
 import { AnnotationsSection } from './AnnotationsSection'
 import { ScopeTag } from './AppControls'
@@ -42,7 +43,13 @@ type Props =
 export function ConfigSections(props: Props) {
   const { activeSection, scrollSections, shownDefaults, onToggleDefaults, activeDataframe, activeDataframeIndex, activeFrame } = props
   const { t } = useI18n()
-  const section = (id: SettingsSectionId) => ({ id, hidden: !scrollSections && activeSection !== id, showDefaults: shownDefaults.has(id), onToggleDefaults })
+  const { mode } = useSettings()
+  const section = (id: SettingsSectionId) => ({
+    id,
+    hidden: isHiddenInMode(id, mode) || (!scrollSections && activeSection !== id),
+    showDefaults: shownDefaults.has(id),
+    onToggleDefaults,
+  })
   const divider = scrollSections ? <hr className="my-3 border-zinc-200 dark:border-zinc-800" /> : null
   const scopeBanner = (scope: 'dataset' | 'plot', name: string) => scrollSections && (
     <div className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 ${scope === 'dataset' ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'mt-8 border-violet-500 bg-violet-50 dark:bg-violet-950/40'}`}>
@@ -56,7 +63,7 @@ export function ConfigSections(props: Props) {
       <SettingsSection {...section('data')}><DataSection {...props} /></SettingsSection>
       {divider}
       <SettingsSection {...section('textLook')}><TextLookSection {...props} /></SettingsSection>
-      {divider}
+      {isHiddenInMode('textLook', mode) ? null : divider}
       <SettingsSection {...section('axisDefs')}><AxesSection {...props} /></SettingsSection>
       {divider}
       <SettingsSection {...section('materials')}><MaterialColorsSection {...props} /></SettingsSection>

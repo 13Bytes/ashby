@@ -1,7 +1,7 @@
 import { useState, type RefObject } from 'react'
-import { SETTINGS_SECTIONS, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from '../config/settingsSections'
+import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { LevelIcon, ScopeTag } from './AppControls'
+import { HoverNote, LevelIcon, ScopeTag } from './AppControls'
 
 /** Sidebar status of a section: missing required settings, or the number of items it holds. */
 export type SectionStatus = { missing: number; items?: number }
@@ -41,7 +41,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
         const key = `${sectionId}|${label}`
         if (seen.has(key)) continue
         seen.add(key)
-        next.push({ label, section: sectionId, element, hidden: mode === 'simple' && Boolean(element.closest('[data-level="default"]')) })
+        next.push({ label, section: sectionId, element, hidden: mode === 'simple' && (isHiddenInMode(sectionId, mode) || Boolean(element.closest('[data-level="default"]'))) })
         if (next.length >= 12) break
       }
     }
@@ -58,6 +58,23 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
     <ul className="m-0 grid list-none gap-px p-0">
       {SETTINGS_SECTIONS.filter((section) => section.scope === scope).map((section) => {
         const active = section.id === activeSection
+        if (isHiddenInMode(section.id, mode)) {
+          // Not clickable in Simple mode; hovering or focusing it explains why.
+          return (
+            <li key={section.id}>
+              <HoverNote note={t('sectionAllSettingsOnly', { section: t(section.titleKey) })}>
+                <span
+                  tabIndex={0}
+                  aria-disabled="true"
+                  className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:text-zinc-600"
+                >
+                  <span className="min-w-0">{t(section.titleKey)}</span>
+                  <span className="ml-auto shrink-0 rounded border border-dashed border-zinc-300 px-1 text-[10px] leading-4 dark:border-zinc-700">{t('allSettingsBadge')}</span>
+                </span>
+              </HoverNote>
+            </li>
+          )
+        }
         return (
           <li key={section.id}>
             <button

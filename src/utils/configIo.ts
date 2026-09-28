@@ -1,4 +1,4 @@
-import type { PlotConfig } from '../config/defaultPlotConfig'
+import { CONFIG_VERSION, type PlotConfig } from '../config/defaultPlotConfig'
 
 /** Removes // and /* *\/ comments from JSONC while leaving string contents (e.g. URLs) untouched. */
 export function stripJsonComments(text: string): string {
@@ -40,7 +40,8 @@ export function downloadBlob(blob: Blob, filename: string): void {
 
 export function toExternalConfig(config: PlotConfig): unknown {
   return {
-    version: config.version,
+    // The editor model is always in the current format, also after importing an older config.
+    version: CONFIG_VERSION,
     create_all_dataframes: config.createAllDataframes,
     _extensions: config._extensions,
     dataframes: config.dataframes.map((dataframe) => ({
@@ -74,10 +75,11 @@ export function toExternalConfig(config: PlotConfig): unknown {
       _extensions: dataframe._extensions,
       frames: dataframe.frames.map((frame) => ({
         name: frame.name ?? null,
-        legend_flag: frame.legendFlag,
+        // null: no legend, and no room kept for one right of the plot
+        legend_flag: frame.legendAbove === null ? null : frame.legendFlag,
         title: frame.title,
         ...(frame.darkMode === undefined ? {} : { dark_mode: frame.darkMode }),
-        legend_above: frame.legendAbove ?? false,
+        legend_above: frame.legendAbove,
         language: frame.language,
         x_quantity: frame.xQuantity,
         x_rel_quantity: frame.xRelQuantity ?? null,
@@ -127,6 +129,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
           font_color: guideline.fontColor,
           label: guideline.label,
           label_above: guideline.labelAbove,
+          label_rotated: guideline.labelRotated,
           label_padding: guideline.labelPadding,
         })),
         annotations: frame.annotations.map((annotation) => ({

@@ -19,6 +19,25 @@ export const numberValue = (value: number, fallback: number): number => (Number.
 /** A typed number that must be greater than 0 (sizes); anything else keeps `fallback`. */
 export const positiveValue = (value: number, fallback: number): number => (Number.isFinite(value) && value > 0 ? value : fallback)
 
+const parseDecimal = (text: string): number => Number(text.trim().replace(',', '.'))
+
+/** "16:9", "16/9", "16 x 9" or a single ratio such as "1.5"; undefined unless both parts are positive. */
+export const parseAspectRatio = (text: string): [number, number] | undefined => {
+  const parts = text.trim() === '' ? [] : text.split(/\s*[:/x×]\s*/i)
+  const numbers = parts.map(parseDecimal)
+  if (numbers.length === 1) numbers.push(1)
+  return numbers.length === 2 && numbers.every((value) => Number.isFinite(value) && value > 0) ? [numbers[0], numbers[1]] : undefined
+}
+export const formatAspectRatio = ([width, height]: [number, number]): string => `${width}:${height}`
+/** 6:4 and 3:2 are the same ratio. */
+export const isSameAspectRatio = (a: [number, number], b: [number, number]): boolean => Math.abs(a[0] * b[1] - a[1] * b[0]) < 1e-9 * Math.max(1, a[0] * b[1])
+
+/** A whole number greater than 0, e.g. a resolution in dpi. */
+export const parsePositiveInteger = (text: string): number | undefined => {
+  const value = parseDecimal(text)
+  return text.trim() !== '' && Number.isInteger(value) && value > 0 ? value : undefined
+}
+
 export const parseColumnsFromImportResult = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0).map((entry) => entry.trim()))]

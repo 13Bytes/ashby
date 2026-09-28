@@ -1,5 +1,5 @@
 import type { DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
-import { DEFAULT_MARGIN } from '../config/settingsSections'
+import { DEFAULT_FRAME, DEFAULT_MARGIN } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { useSettings } from '../utils/settingsContext'
@@ -14,6 +14,8 @@ type Props = {
   automaticDisplayAreaActive: boolean
 }
 
+type LegendPosition = 'right' | 'above' | 'none'
+type FrameDarkMode = 'dataset' | 'off' | 'on'
 type Margin = NonNullable<FrameConfig['automaticDisplayAreaMargin']>
 type Limits = NonNullable<FrameConfig['xLim']>
 
@@ -99,6 +101,29 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
           value={(lang) => activeFrame.title[lang] ?? ''}
           onChange={(lang, next) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: next } }))}
         />
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        <Field label={t('legendPosition')} jsonPath="frames[j].legend_above" level="default" changed={activeFrame.legendAbove !== DEFAULT_FRAME.legendAbove}>
+          <Segmented<LegendPosition>
+            ariaLabel={t('legendPosition')}
+            value={activeFrame.legendAbove === null ? 'none' : activeFrame.legendAbove ? 'above' : 'right'}
+            onChange={(next) => patchActiveFrame((c) => ({ ...c, legendAbove: next === 'none' ? null : next === 'above' }))}
+            options={[{ value: 'right', label: t('legendRight') }, { value: 'above', label: t('legendAbove') }, { value: 'none', label: t('legendNone') }]}
+          />
+        </Field>
+        <Field label={t('frameDarkMode')} jsonPath="frames[j].dark_mode" level="default" changed={activeFrame.darkMode !== undefined}>
+          <Segmented<FrameDarkMode>
+            ariaLabel={t('frameDarkMode')}
+            value={activeFrame.darkMode === undefined ? 'dataset' : activeFrame.darkMode ? 'on' : 'off'}
+            onChange={(next) => patchActiveFrame((c) => ({ ...c, darkMode: next === 'dataset' ? undefined : next === 'on' }))}
+            options={[
+              { value: 'dataset', label: t('asDataset', { value: activeDataframe.darkMode ? t('on') : t('off') }) },
+              { value: 'off', label: t('off') },
+              { value: 'on', label: t('on') },
+            ]}
+          />
+        </Field>
       </div>
 
       {axisBox('x')}

@@ -291,11 +291,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
 
   const plotLabel = (dataframeIndex: number, frameIndex: number) => t('plotLabel', { df: dataframeIndex + 1, frame: frameIndex + 1 })
 
-  // The area behind a plot follows the plot's own dark mode (frame setting, else dataframe), not the
-  // website theme, so light text of a dark (e.g. transparent) plot stays readable and vice versa.
-  const plotBackgroundClassName = (dataframeIndex: number, frameIndex: number) => {
+  // The panel follows the website theme. Only a transparent image gets a backing, matching the plot's
+  // own dark mode (frame setting, else dataframe), so its light or dark text stays readable; other
+  // images bring their own background.
+  const imageBackgroundClassName = (dataframeIndex: number, frameIndex: number) => {
     const dataframe = plotConfig.dataframes[dataframeIndex]
-    const isDark = dataframe?.frames[frameIndex]?.darkMode ?? dataframe?.darkMode ?? false
+    if (!dataframe?.transparent) return ''
+    const isDark = dataframe.frames[frameIndex]?.darkMode ?? dataframe.darkMode
     return isDark ? 'bg-zinc-950' : 'bg-white'
   }
 
@@ -649,8 +651,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         </Alert>
       ) : null}
 
-      <section className={`grid min-h-48 place-items-center overflow-hidden rounded-lg border border-zinc-200 p-2 dark:border-zinc-800 ${plotBackgroundClassName(activeDataframeIndex, activeFrameIndex)}`}>
-        {imageUrl && !isBatchMode && canRender ? <img src={imageUrl} alt={t('renderedPlotAlt')} className={`block max-w-full ${expanded ? 'max-h-[calc(100svh-11rem)] w-auto' : 'h-auto'}`} /> : (
+      <section className="grid min-h-48 place-items-center overflow-hidden rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900">
+        {imageUrl && !isBatchMode && canRender ? <img src={imageUrl} alt={t('renderedPlotAlt')} className={`block max-w-full rounded ${imageBackgroundClassName(activeDataframeIndex, activeFrameIndex)} ${expanded ? 'max-h-[calc(100svh-11rem)] w-auto' : 'h-auto'}`} /> : (
           <span className="p-6 text-center text-sm text-zinc-500">{canRender ? (loading ? t('renderingShort') : t('nothingRendered')) : t('cannotRender')}</span>
         )}
       </section>
@@ -688,9 +690,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
                   ⬇️ {t('downloadThis')}
                 </button>
               </div>
-              <div className={`rounded-md p-2 ${plotBackgroundClassName(entry.dataframeIndex, entry.frameIndex)}`}>
-                <img src={entry.url} alt={`${t('renderedPlotAlt')} (${plotLabel(entry.dataframeIndex, entry.frameIndex)})`} className="block h-auto max-w-full" />
-              </div>
+              <img src={entry.url} alt={`${t('renderedPlotAlt')} (${plotLabel(entry.dataframeIndex, entry.frameIndex)})`} className={`block h-auto max-w-full rounded-md ${imageBackgroundClassName(entry.dataframeIndex, entry.frameIndex)}`} />
             </article>
           ))}
         </div>

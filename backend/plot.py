@@ -17,6 +17,7 @@ except ImportError:
 
 
 CONFIG_NAME = "ashby-config-2026-08-03.json"
+DARK_BACKGROUND = '#121212'     # background of dark mode plots that are not transparent
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
@@ -55,7 +56,8 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
         # : General setup :
-        if frame.get('dark_mode', df_darkmode):
+        dark_mode = frame.get('dark_mode', df_darkmode)
+        if dark_mode:
             font_color = 'white'
         else:
             font_color = 'black'
@@ -68,6 +70,9 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
             # fig = mpl_fig.figure
             # ax = fig.add_subplot(1,1, 1)        # & no subplots
         fig, ax = plt.subplots(1,1, figsize=figure_size)
+        if dark_mode:       # without this a non-transparent dark plot gets white text on matplotlib's white background
+            fig.patch.set_facecolor(DARK_BACKGROUND)
+            ax.set_facecolor(DARK_BACKGROUND)
         if frame.get('legend_flag',True) != None:           # & ❗ ⇒  ui
             plt.subplots_adjust(left=0.09, right=0.86)
         
@@ -174,7 +179,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         if dataframe.get('copyright', False) != False:          # & ❗ ⇒  ui
             copyright(ax, text=dataframe.get('copyright', True), font_color=font_color)
         if dataframe.get('watermark', False) != False:           # & ❗ ⇒  ui
-            watermark(fig, dataframe.get('watermark',True), alpha=0.6, dark_mode=df_darkmode, pos=[0.72, 0.13], size=.13)
+            watermark(fig, dataframe.get('watermark',True), alpha=0.6, dark_mode=bool(dark_mode), pos=[0.72, 0.13], size=.13)
 
 
         # ~ add grid lines 

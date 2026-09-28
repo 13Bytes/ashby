@@ -156,7 +156,7 @@ test('field help exists in every language for the documented paths', () => {
 
 test('English labels use sentence case', () => {
   // Fragments that are embedded into other sentences start lowercase on purpose.
-  const embedded = new Set(['datasourceMissingItem', 'openBound'])
+  const embedded = new Set(['datasourceMissingItem', 'openBound', 'customPreset', 'fmtMissing', 'fmtMore'])
   const lowercase = Object.entries(UI_LABELS.en).filter(([key, text]) => !embedded.has(key) && /^[a-z]/.test(text))
   assert.deepEqual(lowercase, [])
 })

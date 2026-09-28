@@ -60,12 +60,13 @@ class DownloadPlotsRequest(BaseModel):
     plots: list[DownloadPlotItem]
 
 
-def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[list[str], dict[str, list[str]], list[str]]:
+def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[list[str], dict[str, list[str]], list[str], list[dict]]:
+    '''Columns, text values per column, sheet names and format warnings (see check_excel_format) of an uploaded workbook.'''
     # Only the selected sheet is parsed; the other sheets are just listed by name.
     workbook = pd.ExcelFile(io.BytesIO(file_bytes), engine=import_data_module.EXCEL_ENGINE)
     sheet_names = [str(name) for name in workbook.sheet_names]
     if not sheet_names:
-        return [], {}, []
+        return [], {}, [], [{'code': 'empty_sheet'}]
 
     index = min(max(sheet_index, 0), len(sheet_names) - 1)
     selected = workbook.parse(workbook.sheet_names[index])
@@ -85,7 +86,19 @@ def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[li
         }, key=lambda entry: entry.lower())
         keywords_by_column[column] = keywords
 
-    return columns, keywords_by_column, sheet_names
+    return columns, keywords_by_column, sheet_names, import_data_module.check_excel_format(selected)
+
+
+def _excel_import_response(metadata: tuple[list[str], dict[str, list[str]], list[str], list[dict]], import_file_name: str) -> JSONResponse:
+    columns, keywords_by_column, sheet_names, format_warnings = metadata
+    return JSONResponse({
+        'success': True,
+        'columns': columns,
+        'keywords_by_column': keywords_by_column,
+        'import_file_name': import_file_name,
+        'sheet_names': sheet_names,
+        'format_warnings': format_warnings,
+    })
 
 
 TEABLE_KEYWORD_RECORD_LIMIT = 5000
@@ -274,48 +287,30 @@ async def import_database(
             if not isinstance(import_file_name_json, str) or not import_file_name_json.strip():
                 return JSONResponse({'success': False, 'message': 'Missing teable_url, API_Key, or import_file_name.'}, status_code=400)
             try:
-                columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name_json, int(import_sheet_json))
+                metadata = import_data_module.import_excel_metadata(import_file_name_json, int(import_sheet_json))
             except Exception as error:
                 return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
-            return JSONResponse({
-                'success': True,
-                'columns': columns,
-                'keywords_by_column': keywords_by_column,
-                'import_file_name': import_file_name_json,
-                'sheet_names': sheet_names,
-            })
+            return _excel_import_response(metadata, import_file_name_json)
         return await run_in_threadpool(_teable_import_response, teable_url_json, api_key_json, verify_tls=verify_tls_json is not False)
 
     if file is None:
         if import_file_name:
             try:
-                columns, keywords_by_column, sheet_names = import_data_module.import_excel_metadata(import_file_name, import_sheet)
+                metadata = import_data_module.import_excel_metadata(import_file_name, import_sheet)
             except Exception as error:
                 return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
-            return JSONResponse({
-                'success': True,
-                'columns': columns,
-                'keywords_by_column': keywords_by_column,
-                'import_file_name': import_file_name,
-                'sheet_names': sheet_names,
-            })
+            return _excel_import_response(metadata, import_file_name)
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
         return await run_in_threadpool(_teable_import_response, teable_url, API_Key)
 
     file_bytes = await file.read()
     try:
-        columns, keywords_by_column, sheet_names = _extract_metadata_from_xlsx(file_bytes, import_sheet)
+        metadata = _extract_metadata_from_xlsx(file_bytes, import_sheet)
     except Exception as error:
         return JSONResponse({'success': False, 'message': f'Excel import failed: {type(error).__name__}: {error}'}, status_code=400)
 
-    return JSONResponse({
-        'success': True,
-        'columns': columns,
-        'keywords_by_column': keywords_by_column,
-        'import_file_name': file.filename or 'uploaded.xlsx',
-        'sheet_names': sheet_names,
-    })
+    return _excel_import_response(metadata, file.filename or 'uploaded.xlsx')
 
 
 if FRONTEND_ASSETS_DIR.is_dir() and FRONTEND_INDEX_PATH.is_file():

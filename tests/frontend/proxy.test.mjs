@@ -71,7 +71,7 @@ test('App keeps datasource import results per dataframe', async () => {
   const source = await readSource('App.tsx')
 
   assert.match(source, /importedSources\[activeDataframeKey\]/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames \}/)
+  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings \}/)
   // Excel files and import status stay with their dataframe when dataframes are reordered or removed.
   assert.match(source, /\[selectedDataframeKey\]: cachedFile/)
   assert.match(source, /\[selectedDataframeKey\]: \{ imported: true, source: selectedSourceMode \}/)
@@ -109,7 +109,7 @@ test('scrolling through all settings sections is a setting that is off by defaul
   assert.match(app, /readStored\(SCROLL_SECTIONS_STORAGE_KEY, \(value\) => value === 'true'\)/)
   assert.match(app, /label=\{t\('scrollSections'\)\}/)
   assert.match(app, /if \(!editor \|\| !scrollSections\) return/)
-  assert.match(sections, /hidden: !scrollSections && activeSection !== id/)
+  assert.match(sections, /hidden: isHiddenInMode\(id, mode\) \|\| \(!scrollSections && activeSection !== id\)/)
 })
 
 test('image output (with aspect ratio and dark mode) is a group of Text & look that the export dialog links to', async () => {

@@ -44,13 +44,12 @@ def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:fl
         else:
             label_angle = np.arctan(m)
 
-        if guideline.get('label_rotated', True) == True:
-            if guideline.get('label_above', True) == True:
-                label_normal_angle = label_angle + np.pi/2
-            else: 
-                label_normal_angle = label_angle - np.pi/2
+        label_rotated = guideline.get('label_rotated', True) == True
+        text_angle = label_angle if label_rotated else 0
+        if guideline.get('label_above', True) == True:
+            label_normal_angle = text_angle + np.pi/2
         else:
-            label_normal_angle = 0   # & test
+            label_normal_angle = text_angle - np.pi/2
 
         x_text = x + np.cos(label_normal_angle)*guideline.get('label_padding',6)
         y_text = y + np.sin(label_normal_angle)*guideline.get('label_padding',6)
@@ -62,7 +61,7 @@ def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:fl
                 Format_Storage.language_text(guideline.get('label',"")), 
                 color    = Format_Storage.get_color(guideline.get("font_color", font_color)),
                 fontsize = guideline.get('fontsize', 18),
-                rotation = np.rad2deg(label_angle), 
+                rotation = np.rad2deg(text_angle),
                 rotation_mode = 'anchor',
                 transform_rotates_text = True
             )
@@ -195,7 +194,7 @@ class marker:
                     y        = y,
                     s        = label,
                     color    = color,
-                    fontsize = self.font_size,
+                    fontsize = font_size,
                     ha       = "center"
                 )
             else:                        # ~ Arrow
@@ -204,7 +203,7 @@ class marker:
                     xy         = values,
                     xytext     = [x, y],
                     color      = color,
-                    fontsize   = self.font_size,
+                    fontsize   = font_size,
                     arrowprops = annotation['arrow'],
                     # kwargs   = {'ha': 'center'}
                 )

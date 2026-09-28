@@ -28,7 +28,7 @@ export const addLayerToFrame = (frame: FrameConfig): FrameConfig => ({
 
 export const addGuidelineToFrame = (frame: FrameConfig): FrameConfig => ({
   ...frame,
-  guidelines: [...frame.guidelines, { m: 1, lineProps: { linestyle: '--', color: 'aqua', linewidth: 4 }, fontsize: 18, fontColor: '', label: '', labelAbove: true, labelPadding: 6 }],
+  guidelines: [...frame.guidelines, { m: 1, lineProps: { linestyle: '--', color: 'aqua', linewidth: 4 }, fontsize: 18, fontColor: '', label: '', labelAbove: true, labelRotated: true, labelPadding: 6 }],
 })
 
 export const updateGuidelineInFrame = (frame: FrameConfig, guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig): FrameConfig => ({

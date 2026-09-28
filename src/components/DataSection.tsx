@@ -2,6 +2,7 @@ import type { ChangeEvent, RefObject } from 'react'
 import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { getSourceMode, numberValue, type SourceMode } from '../utils/appState'
+import { describeFormatWarning, type ExcelFormatWarning } from '../utils/excelFormat'
 import { Field, ScopeTag, Segmented } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -18,6 +19,8 @@ type Props = {
   activeDataframeIndex: number
   availableDatasets: string[]
   availableSheets: string[]
+  /** Formatting problems the backend found in the imported sheet. */
+  formatWarnings: ExcelFormatWarning[]
   sourceMissing: boolean
   onImportConfig: () => void
   onExportConfig: () => void
@@ -36,6 +39,7 @@ export function DataSection({
   activeDataframeIndex,
   availableDatasets,
   availableSheets,
+  formatWarnings,
   sourceMissing,
   onImportConfig,
   onExportConfig,
@@ -172,6 +176,14 @@ export function DataSection({
               {importInProgress ? t('importing') : importStatus?.imported ? t('importedFrom', { source: importStatus.source }) : t('notImported')}
             </strong>
           </p>
+          {formatWarnings.length > 0 && sourceMode !== 'teable' ? (
+            <div role="status" className="grid gap-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 @lg:ml-[4.75rem] dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+              <strong>{t('formatWarningsTitle')}</strong>
+              <ul className="m-0 grid list-disc gap-0.5 pl-4">
+                {formatWarnings.map((warning, index) => <li key={index}>{describeFormatWarning(warning, t)}</li>)}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
     </>
