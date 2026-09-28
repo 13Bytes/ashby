@@ -1,10 +1,14 @@
-import os
 import matplotlib.pyplot as plt
 from matplotlib import patches
 from PIL import Image
 import numpy as np
 from datetime import datetime
 from termcolor import cprint
+
+try:
+    from ..security import resolve_watermark_file
+except ImportError:     # plot.py started as a script from backend/
+    from security import resolve_watermark_file
 
 
 class format_storage():
@@ -124,6 +128,8 @@ class legend():
 
         for entry in self.legend.legend_handles: # edit copy
             entry.set_picker(True)
+        for text in self.legend.get_texts():    # entries are material names from the data: no $…$ math (costly to parse)
+            text.set_parse_math(False)
 
         plt.setp(self.legend.get_title(), color=font_color)  # legend title color
 
@@ -145,13 +151,7 @@ def watermark(fig:plt.subplot, file:str|bool, alpha:float, dark_mode:bool, pos:[
             file = 'RPS_darkmode.png'
     if not isinstance(file, str): return
 
-    logo =  os.path.join(
-            os.getcwd(),
-            'backend',
-            'media',
-            'watermarks',
-            file
-        )
+    logo = resolve_watermark_file(file)     # only images inside backend/media/watermarks
     # change alpha value
     img = Image.open(logo).convert("RGBA")
     r, g, b, a = img.split()

@@ -29,3 +29,9 @@ backend/production-frontend
 # Not needed to build or run the app
 tests
 mockups
+
+# Local configs and backups may contain Teable API keys: never bake them into the image
+backend/configs
+**/*.bk
+**/.env
+**/.env.*

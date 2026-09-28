@@ -19,8 +19,10 @@ import matplotlib
 
 matplotlib.use('Agg')
 logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+import matplotlib.pyplot as plt
 
 from . import plot
+from .security import MAX_QUEUED_RENDERS, redact_paths, sanitize_render_config
 
 
 @dataclass
@@ -54,7 +56,7 @@ MAX_LOG_CHARS = 100_000
 
 def clean_log(raw_output: str) -> str:
     """Captured plot output without color codes; very long logs keep their end."""
-    text = ANSI_ESCAPE_PATTERN.sub('', raw_output)
+    text = redact_paths(ANSI_ESCAPE_PATTERN.sub('', raw_output))
     if len(text) > MAX_LOG_CHARS:
         text = f'… (log truncated, showing the last {MAX_LOG_CHARS} characters)\n' + text[-MAX_LOG_CHARS:]
     return text
@@ -88,9 +90,9 @@ def describe_exception(exc: BaseException) -> dict[str, str]:
     own_frames = [frame for frame in frames if _is_backend_frame(frame)]
     return {
         'error_type': type(exc).__name__,
-        'message': f'{type(exc).__name__}: {exc}',
+        'message': redact_paths(f'{type(exc).__name__}: {exc}'),
         'location': _format_frame((own_frames or frames or [None])[-1]),
-        'traceback': ''.join(traceback.format_exception(exc)),
+        'traceback': redact_paths(''.join(traceback.format_exception(exc))),     # shown in the UI's debug view
     }
 
 
@@ -100,7 +102,13 @@ def describe_exception(exc: BaseException) -> dict[str, str]:
 # (read from the render thread's stack) and its latest output.
 
 _RENDER_LOCK = threading.Lock()
+_PENDING_LOCK = threading.Lock()
+_pending_renders = 0    # running + waiting renders
 THIS_FILE = Path(__file__).resolve()
+
+
+class RenderQueueFull(Exception):
+    """Too many renders are waiting; the client should retry later (HTTP 503)."""
 
 
 @dataclass
@@ -192,16 +200,27 @@ def render_plot_image(
     request_id: str | None = None,
 ) -> RenderedPlot:
     """Renders one frame. With a `request_id`, get_render_status() reports its progress."""
+    global _pending_renders
+    with _PENDING_LOCK:     # renders run one at a time: refuse instead of queueing without bound
+        if _pending_renders >= MAX_QUEUED_RENDERS:
+            raise RenderQueueFull('The server is busy rendering other plots. Please try again in a moment.')
+        _pending_renders += 1
+
     progress = _RenderProgress(started=time.monotonic(), output=StringIO())
     if request_id:
         _active_renders[request_id] = progress
     try:
         with _RENDER_LOCK:
             progress.thread_id = threading.get_ident()
-            return _render_plot_image(config, dataframe_index, frame_index, data_sources, progress.output)
+            try:
+                return _render_plot_image(config, dataframe_index, frame_index, data_sources, progress.output)
+            finally:
+                plt.close('all')    # a failed render must not leave its figure in memory
     finally:
         if request_id:
             _active_renders.pop(request_id, None)
+        with _PENDING_LOCK:
+            _pending_renders -= 1
 
 
 def _render_plot_image(
@@ -212,6 +231,7 @@ def _render_plot_image(
     plot_output: StringIO,
 ) -> RenderedPlot:
     dataframe, frame = _select_frame_config(config, dataframe_index, frame_index)
+    dataframe, frame = sanitize_render_config(dataframe, frame)
 
     resolution = dataframe.get('resolution', None)
     file_format = 'svg' if resolution in (None, 'svg') else 'png'

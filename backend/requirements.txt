@@ -4,6 +4,7 @@ python-multipart
 numpy
 pandas
 openpyxl
+defusedxml
 python-calamine
 matplotlib
 scikit-learn
