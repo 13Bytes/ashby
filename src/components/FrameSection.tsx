@@ -114,7 +114,7 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame }:
           aria-label={t('swapAxes')}
           title={t('swapAxes')}
           onClick={swapAxes}
-          className="flex h-7 items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 text-xs text-zinc-600 hover:border-violet-500 hover:text-violet-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-violet-400 dark:hover:text-violet-300"
+          className="flex h-7 items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 text-xs text-zinc-600 hover:border-brand-500 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-brand-400 dark:hover:text-brand-300"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
             <path d="M7 4v12m0 0l-3-3m3 3l3-3" />

@@ -1111,7 +1111,7 @@ function App() {
           }}
           className="group hidden cursor-col-resize touch-none place-items-center border-x border-zinc-200 bg-zinc-100 focus-visible:outline-none lg:grid dark:border-zinc-800 dark:bg-zinc-900"
         >
-          <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-violet-500 group-focus-visible:bg-violet-500 dark:bg-zinc-700" />
+          <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-brand-500 group-focus-visible:bg-brand-500 dark:bg-zinc-700" />
         </div>
         <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets}
           missing={activeMissing}

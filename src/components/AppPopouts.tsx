@@ -66,7 +66,7 @@ function DialogActions({ children, className }: { children: ReactNode; className
 
 function highlightedTokenClassName(mode: JsonTokenMode) {
   if (mode === 'string') return 'text-emerald-700 dark:text-emerald-400'
-  if (mode === 'number') return 'text-sky-700 dark:text-sky-400'
+  if (mode === 'number') return 'text-violet-700 dark:text-violet-400'
   if (mode === 'keyword') return 'text-fuchsia-700 dark:text-fuchsia-400'
   return undefined
 }

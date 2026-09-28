@@ -52,11 +52,11 @@ export function TextLookSection({
             {activeDataframe.plotLanguages.map((language) => {
               const selected = activeDataframe.language === language
               return (
-                <span key={language} className={`inline-flex h-7 items-stretch overflow-hidden rounded-full border text-xs leading-none ${selected ? 'border-violet-600' : 'border-zinc-300 dark:border-zinc-600'}`}>
+                <span key={language} className={`inline-flex h-7 items-stretch overflow-hidden rounded-full border text-xs leading-none ${selected ? 'border-brand-600' : 'border-zinc-300 dark:border-zinc-600'}`}>
                   <button
                     type="button"
                     aria-pressed={selected}
-                    className={`px-3 font-mono uppercase ${selected ? 'bg-violet-600 text-white hover:bg-violet-500' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
+                    className={`px-3 font-mono uppercase ${selected ? 'bg-brand-600 text-white hover:bg-brand-500' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
                     // Frames have their own `language` (no control of its own) that overrides the
                     // dataframe's; the plot language applies to every frame of the dataframe.
                     onClick={() => patchActiveDataframe((current) => ({ ...current, language, frames: current.frames.map((frame) => ({ ...frame, language })) }))}

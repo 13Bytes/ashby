@@ -66,7 +66,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
                 <span
                   tabIndex={0}
                   aria-disabled="true"
-                  className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:text-zinc-600"
+                  className="flex w-full cursor-not-allowed items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 dark:text-zinc-600"
                 >
                   <span className="min-w-0">{t(section.titleKey)}</span>
                   <span className="ml-auto shrink-0 rounded border border-dashed border-zinc-300 px-1 text-[10px] leading-4 dark:border-zinc-700">{t('allSettingsBadge')}</span>
@@ -83,8 +83,8 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
               onClick={() => onSelect(section.id)}
               className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] ${active
                 ? scope === 'dataset'
-                  ? 'bg-sky-100 font-semibold text-sky-900 dark:bg-sky-950 dark:text-sky-200'
-                  : 'bg-violet-100 font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200'
+                  ? 'bg-violet-100 font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200'
+                  : 'bg-brand-100 font-semibold text-brand-900 dark:bg-brand-950 dark:text-brand-200'
                 : 'text-zinc-700 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}
             >
               <span className="min-w-0">{t(section.titleKey)}</span>
@@ -105,7 +105,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
         onKeyDown={(event) => { if (event.key === 'Escape') search('') }}
         placeholder={t('findSetting')}
         aria-label={t('findSetting')}
-        className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+        className="h-8 w-full rounded-md border border-zinc-300 bg-white px-2.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
       />
       {normalized ? (
         <ul className="m-0 grid list-none gap-px p-0">
@@ -130,12 +130,12 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
         </ul>
       ) : (
         <>
-          <div className="grid gap-1 border-l-[3px] border-sky-500 pl-2.5">
+          <div className="grid gap-1 border-l-[3px] border-violet-500 pl-2.5">
             <ScopeTag scope="dataset">{t('datasetShared')}</ScopeTag>
             <strong className="truncate text-xs" title={dataframeName}>{dataframeName}</strong>
             {group('dataset')}
           </div>
-          <div className="grid gap-1 border-l-[3px] border-violet-500 pl-2.5">
+          <div className="grid gap-1 border-l-[3px] border-brand-500 pl-2.5">
             <ScopeTag scope="plot">{t('plotOnly')}</ScopeTag>
             <strong className="truncate text-xs" title={frameName}>{frameName}</strong>
             {group('plot')}

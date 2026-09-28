@@ -52,7 +52,7 @@ export function ConfigSections(props: Props) {
   })
   const divider = scrollSections ? <hr className="my-3 border-zinc-200 dark:border-zinc-800" /> : null
   const scopeBanner = (scope: 'dataset' | 'plot', name: string) => scrollSections && (
-    <div className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 ${scope === 'dataset' ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40' : 'mt-8 border-violet-500 bg-violet-50 dark:bg-violet-950/40'}`}>
+    <div className={`flex items-center gap-3 rounded-lg border-l-[3px] px-3 py-2 ${scope === 'dataset' ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/40' : 'mt-8 border-brand-500 bg-brand-50 dark:bg-brand-950/40'}`}>
       <ScopeTag scope={scope}>{t(scope === 'dataset' ? 'datasetShared' : 'plotOnly')}</ScopeTag>
       <strong className="min-w-0 truncate text-sm">{name}</strong>
     </div>

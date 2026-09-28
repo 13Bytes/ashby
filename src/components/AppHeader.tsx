@@ -48,7 +48,7 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="grid h-full w-9 place-items-center text-zinc-600 hover:bg-zinc-100 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-violet-300"
+      className="grid h-full w-9 place-items-center text-zinc-600 hover:bg-zinc-100 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-brand-300"
     >
       {children}
     </button>

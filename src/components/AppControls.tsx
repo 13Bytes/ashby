@@ -58,7 +58,7 @@ export function InfoTooltip({ label, text, jsonPath }: { label: string; text: st
         type="button"
         aria-label={t('fieldHelp', { label })}
         aria-describedby={tooltipId}
-        className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-zinc-400 text-[10px] font-semibold leading-none text-zinc-500 transition-colors hover:border-violet-500 hover:text-violet-600 focus-visible:border-violet-500 focus-visible:text-violet-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-violet-400 dark:hover:text-violet-300"
+        className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-zinc-400 text-[10px] font-semibold leading-none text-zinc-500 transition-colors hover:border-brand-500 hover:text-brand-600 focus-visible:border-brand-500 focus-visible:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-brand-400 dark:hover:text-brand-300"
       >
         ?
       </button>
@@ -112,7 +112,7 @@ export function LevelIcon({ level, missing, changed }: { level: SettingLevel; mi
     : level === 'check'
       ? 'h-4 w-4 text-zinc-500 ring-1 ring-inset ring-zinc-400 dark:text-zinc-400 dark:ring-zinc-600'
       : changed
-        ? 'm-0.5 h-3 w-3 bg-violet-500'
+        ? 'm-0.5 h-3 w-3 bg-brand-500'
         : 'm-0.5 h-3 w-3 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-600'
 
   return (
@@ -122,7 +122,7 @@ export function LevelIcon({ level, missing, changed }: { level: SettingLevel; mi
         role="img"
         aria-label={tip}
         aria-describedby={tooltipId}
-        className={`inline-flex shrink-0 cursor-help items-center justify-center rounded-full text-[10px] font-bold leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 ${iconClassName}`}
+        className={`inline-flex shrink-0 cursor-help items-center justify-center rounded-full text-[10px] font-bold leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 ${iconClassName}`}
       >
         {level === 'required' ? (missing ? '!' : missing === false ? '✓' : '*') : level === 'check' ? <EyeIcon /> : null}
       </span>
@@ -140,7 +140,7 @@ function WarningIcon({ text }: { text: string }) {
   const { anchorRef, position, updateAlignment } = useTooltipAlignment()
   return (
     <span ref={anchorRef} className="group relative inline-flex align-middle" onPointerEnter={updateAlignment} onFocus={updateAlignment}>
-      <span tabIndex={0} role="img" aria-label={text} aria-describedby={tooltipId} className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 dark:text-amber-400">
+      <span tabIndex={0} role="img" aria-label={text} aria-describedby={tooltipId} className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 dark:text-amber-400">
         <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
           <path d="M10 2.5 18.5 17.5h-17z" fill="currentColor" />
           <path d="M10 8v4.5M10 14.8v.2" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
@@ -362,9 +362,9 @@ export function SettingsGroup({ title, level, actions, children, className, anch
 /** Small uppercase tag naming who a setting affects. */
 export function ScopeTag({ scope, children }: { scope: 'dataset' | 'plot' | 'project'; children: ReactNode }) {
   const className = scope === 'dataset'
-    ? 'bg-sky-50 text-sky-800 ring-sky-300 dark:bg-sky-950/60 dark:text-sky-300 dark:ring-sky-800'
+    ? 'bg-violet-50 text-violet-800 ring-violet-300 dark:bg-violet-950/60 dark:text-violet-300 dark:ring-violet-800'
     : scope === 'plot'
-      ? 'bg-violet-50 text-violet-700 ring-violet-400 dark:bg-violet-950/60 dark:text-violet-300 dark:ring-violet-700'
+      ? 'bg-brand-50 text-brand-700 ring-brand-400 dark:bg-brand-950/60 dark:text-brand-300 dark:ring-brand-700'
       : 'bg-zinc-100 text-zinc-600 ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700'
   return <span className={`inline-flex w-fit items-center rounded px-1.5 font-mono text-[10px] font-medium uppercase leading-5 tracking-wider ring-1 ring-inset ${className}`}>{children}</span>
 }
@@ -379,7 +379,7 @@ export const LinkIcon = ({ className }: { className?: string }) => (
 /** Note that a plot setting depends on a shared dataset setting, with a link to it. */
 export function SharedHint({ text, linkLabel, onOpen }: { text: string; linkLabel: string; onOpen: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-800 dark:bg-sky-950/50 dark:text-sky-300">
+    <div className="flex flex-wrap items-center gap-2 rounded-md bg-violet-50 px-3 py-2 text-xs text-violet-800 dark:bg-violet-950/50 dark:text-violet-300">
       <LinkIcon />
       <span>{text}</span>
       <button type="button" className="font-semibold underline-offset-2 hover:underline" onClick={onOpen}>{linkLabel} →</button>
@@ -458,7 +458,7 @@ export function PresetInput<T>({ presets, value, isSame, format, parse, onChange
           if (parsed !== undefined) onChange(parsed)
         }}
         onBlur={() => setDraft(null)}
-        className={`w-20 min-w-0 rounded px-2 text-xs tabular-nums outline-none placeholder:text-zinc-400 focus-visible:ring-1 focus-visible:ring-violet-400 dark:placeholder:text-zinc-500 ${invalid ? 'bg-white text-red-600 ring-1 ring-red-500 dark:bg-zinc-800' : !isPreset || draft !== null ? selectedClassName : 'bg-transparent text-zinc-900 dark:text-zinc-100'}`}
+        className={`w-20 min-w-0 rounded px-2 text-xs tabular-nums outline-none placeholder:text-zinc-400 focus-visible:ring-1 focus-visible:ring-brand-400 dark:placeholder:text-zinc-500 ${invalid ? 'bg-white text-red-600 ring-1 ring-red-500 dark:bg-zinc-800' : !isPreset || draft !== null ? selectedClassName : 'bg-transparent text-zinc-900 dark:text-zinc-100'}`}
       />
     </div>
   )
@@ -476,7 +476,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
       onClick={() => onChange(!checked)}
       className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-zinc-300 bg-white px-2.5 text-xs shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
     >
-      <span className={`relative h-4 w-7 rounded-full transition-colors ${checked ? 'bg-violet-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}>
+      <span className={`relative h-4 w-7 rounded-full transition-colors ${checked ? 'bg-brand-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}>
         <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${checked ? 'left-3.5' : 'left-0.5'}`} />
       </span>
       <span className={checked ? 'font-semibold text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'}>{checked ? t('on') : t('off')}</span>
@@ -500,7 +500,7 @@ export function OpacitySlider({ value, onChange, ariaLabel }: { value: number; o
         aria-label={ariaLabel}
         value={value}
         onChange={(event) => onChange(clamp(event.target.valueAsNumber))}
-        className="h-5 min-w-0 flex-1 cursor-pointer accent-violet-600 dark:accent-violet-400"
+        className="h-5 min-w-0 flex-1 cursor-pointer accent-brand-600 dark:accent-brand-400"
       />
       <Input
         type="number"
@@ -610,7 +610,7 @@ export function MultiSelectInput({
             onKeyDown={(event) => { if (event.key === 'Escape') setSearchTerm('') }}
             placeholder={t('searchOptions')}
             aria-label={t('search')}
-            className="h-9 w-full rounded-md border border-zinc-300 bg-white pl-8 pr-7 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="h-9 w-full rounded-md border border-zinc-300 bg-white pl-8 pr-7 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
           {searchTerm ? (
             <button
@@ -638,7 +638,7 @@ export function MultiSelectInput({
           title={allSelected ? t('deselectAll') : t('selectAll')}
           onClick={() => onChange(allSelected ? [] : options.map((entry) => entry.value))}
           disabled={options.length === 0}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-zinc-500 hover:text-violet-600 disabled:pointer-events-none disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-violet-300"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-zinc-500 hover:text-brand-600 disabled:pointer-events-none disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-400 dark:hover:text-brand-300"
         >
           {allSelected ? (
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
@@ -665,7 +665,7 @@ export function MultiSelectInput({
               <label key={option.value} className="flex cursor-pointer items-center gap-2 py-1 text-sm">
                 <input
                   type="checkbox"
-                  className="accent-violet-600"
+                  className="accent-brand-600"
                   checked={selected.has(option.value)}
                   onChange={(event) =>
                     onChange(
@@ -692,7 +692,7 @@ export function MultiSelectInput({
           aria-expanded={expanded}
           title={expanded ? t('collapse') : t('expand')}
           onClick={onToggleExpanded}
-          className="absolute bottom-1.5 right-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-violet-400 hover:text-violet-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-violet-300"
+          className="absolute bottom-1.5 right-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-brand-400 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-brand-300"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
             <path d="M5.5 7.5l4.5 4.5 4.5-4.5" />
@@ -800,14 +800,14 @@ export function ItemCard({
   return (
     <div
       ref={rootRef}
-      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-violet-400 shadow-[0_0_0_3px_rgb(139_92_246/0.12)] dark:border-violet-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
+      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 shadow-[0_0_0_3px_rgb(139_92_246/0.12)] dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
     >
       <div className="flex min-w-0 items-center gap-1 pr-2">
         <button
           type="button"
           aria-expanded={open}
           onClick={() => onOpenChange(!open)}
-          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2 pl-3 pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-2 pl-3 pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400"
         >
           {icon ? <span aria-hidden="true" className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-zinc-100 text-xs dark:bg-zinc-800">{icon}</span> : null}
           <span className="flex min-w-0 flex-1 items-baseline gap-2.5 overflow-hidden">
@@ -815,7 +815,7 @@ export function ItemCard({
             {summary ? <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">{summary}</span> : null}
           </span>
           {badge}
-          <span title={open ? t('done') : t('edit')} className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${open ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : 'text-zinc-400'}`}>
+          <span title={open ? t('done') : t('edit')} className={`grid h-7 w-7 shrink-0 place-items-center rounded-md ${open ? 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300' : 'text-zinc-400'}`}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
               <path d="M12.8 3.7l3.5 3.5-9.1 9.1-4.1.6.6-4.1z" />
               <path d="M11.3 5.2l3.5 3.5" />

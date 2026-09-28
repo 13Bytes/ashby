@@ -99,7 +99,7 @@ export function DataSection({
         </div>
       </div>
 
-      <div className="grid gap-4 rounded-xl border border-sky-300 p-4 dark:border-sky-900">
+      <div className="grid gap-4 rounded-xl border border-violet-300 p-4 dark:border-violet-900">
         <div className="flex flex-wrap items-center gap-2">
           <ScopeTag scope="dataset">{t('datasetLabel')}</ScopeTag>
           <strong className="text-sm">{t('dataSource')}</strong>

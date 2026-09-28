@@ -47,7 +47,7 @@ export function ColorDot({ value, onChange, label, size = 'md', presets = [] }: 
         aria-haspopup="dialog"
         aria-expanded={position !== null}
         title={`${label}: ${hex}`}
-        className={`inline-block shrink-0 cursor-pointer rounded-full ring-1 ring-inset ring-black/15 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 dark:ring-white/20 ${position ? 'ring-2 ring-violet-500' : ''} ${size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'}`}
+        className={`inline-block shrink-0 cursor-pointer rounded-full ring-1 ring-inset ring-black/15 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:ring-white/20 ${position ? 'ring-2 ring-brand-500' : ''} ${size === 'sm' ? 'h-5 w-5' : 'h-7 w-7'}`}
         style={{ backgroundColor: hex }}
       />
       {position
@@ -181,7 +181,7 @@ function ColorPopover({ initial, label, presets, left, top, triggerRef, onChange
       onClick={() => pick(color)}
       title={color}
       aria-label={color}
-      className={`h-5 w-5 rounded-full ring-1 ring-inset ring-black/15 transition-transform hover:scale-115 dark:ring-white/20 ${color === hex ? 'outline-2 outline-offset-1 outline-violet-500' : ''}`}
+      className={`h-5 w-5 rounded-full ring-1 ring-inset ring-black/15 transition-transform hover:scale-115 dark:ring-white/20 ${color === hex ? 'outline-2 outline-offset-1 outline-brand-500' : ''}`}
       style={{ backgroundColor: color }}
     />
   )
@@ -201,7 +201,7 @@ function ColorPopover({ initial, label, presets, left, top, triggerRef, onChange
         aria-label={t('colorArea')}
         aria-valuetext={hex}
         onKeyDown={areaKeys}
-        className="relative h-36 cursor-crosshair touch-none rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+        className="relative h-36 cursor-crosshair touch-none rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         style={{ backgroundColor: `hsl(${hsv.h} 100% 50%)`, backgroundImage: 'linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent)' }}
       >
         <span
@@ -221,7 +221,7 @@ function ColorPopover({ initial, label, presets, left, top, triggerRef, onChange
           aria-valuemax={360}
           aria-valuenow={Math.round(hsv.h)}
           onKeyDown={hueKeys}
-          className="relative h-3 flex-1 cursor-pointer touch-none rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+          className="relative h-3 flex-1 cursor-pointer touch-none rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           style={{ backgroundImage: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }}
         >
           <span
@@ -241,7 +241,7 @@ function ColorPopover({ initial, label, presets, left, top, triggerRef, onChange
           }}
           spellCheck={false}
           aria-label={t('hexColor')}
-          className="h-8 min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 font-mono text-xs uppercase text-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+          className="h-8 min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 font-mono text-xs uppercase text-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
         />
         {eyeDropper ? (
           <button
@@ -251,7 +251,7 @@ function ColorPopover({ initial, label, presets, left, top, triggerRef, onChange
             onClick={() => {
               new eyeDropper().open().then((result) => pick(result.sRGBHex.toLowerCase())).catch(() => undefined)
             }}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-zinc-300 text-zinc-600 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-violet-300"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-zinc-300 text-zinc-600 hover:text-brand-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-brand-300"
           >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
               <path d="M13.5 3.5a2 2 0 0 1 2.8 2.8l-1.8 1.8.7.7-1.4 1.4-4.2-4.2 1.4-1.4.7.7z" />

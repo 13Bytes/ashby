@@ -117,7 +117,7 @@ export function MaterialColorsSection({
                     />
                   ) : (
                     <select
-                      className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent px-1 text-sm font-medium [field-sizing:content] hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:bg-zinc-950 dark:hover:bg-zinc-800"
+                      className="h-7 max-w-44 cursor-pointer appearance-none truncate rounded-md border-0 bg-transparent px-1 text-sm font-medium [field-sizing:content] hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 dark:bg-zinc-950 dark:hover:bg-zinc-800"
                       value={material}
                       aria-label={t('customMaterialName')}
                       onChange={(event) => {
@@ -135,7 +135,7 @@ export function MaterialColorsSection({
                     </select>
                   )}
                   <input
-                    className="h-7 w-[4.75rem] shrink-0 rounded-md border-0 bg-transparent px-1 font-mono text-xs text-zinc-500 hover:bg-zinc-100 focus-visible:bg-white focus-visible:text-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:focus-visible:bg-zinc-900 dark:focus-visible:text-zinc-100"
+                    className="h-7 w-[4.75rem] shrink-0 rounded-md border-0 bg-transparent px-1 font-mono text-xs text-zinc-500 hover:bg-zinc-100 focus-visible:bg-white focus-visible:text-zinc-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:focus-visible:bg-zinc-900 dark:focus-visible:text-zinc-100"
                     value={color}
                     aria-label={`${t('color')} ${material}`}
                     onChange={(event) => setColor(material, event.target.value)}

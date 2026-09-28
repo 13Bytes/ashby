@@ -227,7 +227,7 @@ function RenderProgressBox({ progress }: { progress: RenderProgressState }) {
   return (
     <div role="status" className="grid gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900">
       <div className="flex flex-wrap items-center gap-2">
-        <span aria-hidden="true" className="h-3 w-3 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+        <span aria-hidden="true" className="h-3 w-3 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />
         <strong>{t('renderingPlotLabel', { plot: progress.label })}</strong>
         <span className="tabular-nums text-zinc-500">{t('elapsedSeconds', { seconds: elapsedSeconds })}</span>
       </div>
@@ -657,7 +657,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       </section>
 
       <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-        <input type="checkbox" className="accent-violet-600" checked={autoRefresh} onChange={(event) => onAutoRefreshChange(event.target.checked)} />
+        <input type="checkbox" className="accent-brand-600" checked={autoRefresh} onChange={(event) => onAutoRefreshChange(event.target.checked)} />
         {t('autoRefresh')}
       </label>
 
@@ -700,7 +700,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           <div role="dialog" aria-modal="true" aria-labelledby="export-title" className="grid w-full max-w-md gap-4 rounded-xl border border-zinc-300 bg-white p-5 text-sm dark:border-zinc-700 dark:bg-zinc-900">
             <h3 id="export-title" className="m-0 text-base font-semibold">{t('exportTitle')}</h3>
             <p className="m-0 text-xs text-zinc-500">{t('exportSettingsOf', { name: dataframeLabel(activeDataframe, activeDataframeIndex) })}</p>
-            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-sky-50 px-3 py-2.5 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200">
+            <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-violet-50 px-3 py-2.5 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200">
               <dt className="font-semibold">{t('fileFormat')}</dt>
               <dd className="m-0">{activeDataframe.fileformat.toUpperCase()}{activeDataframe.fileformat === 'png' ? ` · ${activeDataframe.resolution} dpi` : ''}</dd>
               <dt className="font-semibold">{t('plotLanguage')}</dt>
@@ -712,7 +712,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
               <dt className="font-semibold">{t('copyright')}</dt>
               <dd className="m-0">{activeDataframe.copyright ? t('on') : t('off')}</dd>
             </dl>
-            <button type="button" className="w-fit text-xs font-semibold text-sky-700 underline-offset-2 hover:underline dark:text-sky-300" onClick={() => { setShowExport(false); setExpanded(false); onJump('textLook', 'output') }}>
+            <button type="button" className="w-fit text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300" onClick={() => { setShowExport(false); setExpanded(false); onJump('textLook', 'output') }}>
               {t('changeInOutput')} →
             </button>
             <div className="flex flex-wrap justify-end gap-2">
