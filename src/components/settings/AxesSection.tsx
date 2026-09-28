@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Select } from './ui/select'
-import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../config/defaultPlotConfig'
-import { useI18n } from '../uiTranslations'
-import type { MultiOption } from '../utils/appState'
-import { Field, ItemCard, LanguageFields, MultiSelectInput } from './AppControls'
-import { useOpenItems } from '../hooks/useOpenItems'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Select } from '../ui/select'
+import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../../config/defaultPlotConfig'
+import { useI18n } from '../../uiTranslations'
+import type { MultiOption } from '../../utils/appState'
+import { Field, ItemCard, LanguageFields, MultiSelectInput } from '../common/AppControls'
+import { useOpenItems } from '../../hooks/useOpenItems'
 
 type Props = {
   activeDataframe: DataframeConfig

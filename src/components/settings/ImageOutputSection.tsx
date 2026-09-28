@@ -1,9 +1,9 @@
-import type { DataframeConfig } from '../config/defaultPlotConfig'
-import { DEFAULT_DATAFRAME } from '../config/settingsSections'
-import { useI18n } from '../uiTranslations'
-import { formatAspectRatio, isSameAspectRatio, parseAspectRatio, parsePositiveInteger } from '../utils/appState'
-import { Field, PresetInput, Toggle, Switch } from './AppControls'
-import { Input } from './ui/input'
+import type { DataframeConfig } from '../../config/defaultPlotConfig'
+import { DEFAULT_DATAFRAME } from '../../config/settingsSections'
+import { useI18n } from '../../uiTranslations'
+import { formatAspectRatio, isSameAspectRatio, parseAspectRatio, parsePositiveInteger } from '../../utils/appState'
+import { Field, PresetInput, Toggle, Switch } from '../common/AppControls'
+import { Input } from '../ui/input'
 
 type Props = {
   activeDataframe: DataframeConfig

@@ -11,7 +11,7 @@ const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const readSource = (relativePath) => readFile(path.join(projectDir, 'src', relativePath), 'utf8')
 
 test('PlotPage requests the render endpoint with the dataframe and frame indices', async () => {
-  const source = await readSource('components/PlotPage.tsx')
+  const source = await readSource('components/layout/PlotPage.tsx')
 
   assert.match(source, /fetchBackend\(\s*'\/api\/render-plot'/)
   assert.match(source, /include_log: true/)
@@ -25,14 +25,14 @@ test('PlotPage requests the render endpoint with the dataframe and frame indices
 })
 
 test('PlotPage shows backend plot messages', async () => {
-  const source = await readSource('components/PlotPage.tsx')
+  const source = await readSource('components/layout/PlotPage.tsx')
 
   assert.match(source, /response\.headers\.get\('X-Ashby-Messages'\)/)
   assert.match(source, /t\('plotMessages'\)/)
 })
 
 test('PlotPage sends Excel datasources as FormData with descriptors', async () => {
-  const source = await readSource('components/PlotPage.tsx')
+  const source = await readSource('components/layout/PlotPage.tsx')
 
   assert.match(source, /form\.append\('payload', JSON\.stringify\(payload\)\)/)
   assert.match(source, /form\.append\('data_sources', JSON\.stringify\(descriptors\)\)/)
@@ -87,7 +87,7 @@ test('App syncs the config with tabs of the same workspace', async () => {
 })
 
 test('config tabs use stable UI keys instead of array indices', async () => {
-  const source = await readSource('components/ConfigTabs.tsx')
+  const source = await readSource('components/layout/ConfigTabs.tsx')
 
   assert.match(source, /key=\{getUiKey\(df, 'dataframe'\)\}/)
   assert.match(source, /key=\{getUiKey\(frame, 'frame'\)\}/)
@@ -104,7 +104,7 @@ test('App exposes a persistent UI theme selector without forcing light mode', as
 
 test('scrolling through all settings sections is a setting that is off by default', async () => {
   const app = await readSource('App.tsx')
-  const sections = await readSource('components/ConfigSections.tsx')
+  const sections = await readSource('components/settings/ConfigSections.tsx')
 
   assert.match(app, /readStored\(SCROLL_SECTIONS_STORAGE_KEY, \(value\) => value === 'true'\)/)
   assert.match(app, /label=\{t\('scrollSections'\)\}/)
@@ -113,9 +113,9 @@ test('scrolling through all settings sections is a setting that is off by defaul
 })
 
 test('image output (with aspect ratio and dark mode) is a group of Text & look that the export dialog links to', async () => {
-  const textLook = await readSource('components/TextLookSection.tsx')
-  const output = await readSource('components/ImageOutputSection.tsx')
-  const plotPage = await readSource('components/PlotPage.tsx')
+  const textLook = await readSource('components/settings/TextLookSection.tsx')
+  const output = await readSource('components/settings/ImageOutputSection.tsx')
+  const plotPage = await readSource('components/layout/PlotPage.tsx')
 
   assert.match(textLook, /<SettingsGroup title=\{t\('secOutput'\)\} level="default" anchor="output">/)
   for (const path of ['image_ratio', 'dark_mode', 'fileformat', 'resolution', 'transparent', 'watermark', 'copyright']) {
@@ -126,14 +126,14 @@ test('image output (with aspect ratio and dark mode) is a group of Text & look t
 
 test('datasource files are kept as in-memory copies and read with the stored copy as fallback', async () => {
   const app = await readSource('App.tsx')
-  const plotPage = await readSource('components/PlotPage.tsx')
+  const plotPage = await readSource('components/layout/PlotPage.tsx')
 
   assert.match(app, /cachedFile = await toMemoryFile\(file, filename\)/)
   assert.match(plotPage, /readDatasourceWithFallback\(file, \(\) => getCachedDatasourceFile\(file\.name\)/)
 })
 
 test('middle click on a dataset or plot opens a synced tab on auxclick, which Firefox allows to open tabs', async () => {
-  const tabs = await readSource('components/ConfigTabs.tsx')
+  const tabs = await readSource('components/layout/ConfigTabs.tsx')
   const app = await readSource('App.tsx')
 
   assert.match(tabs, /onAuxClick: \(event: MouseEvent<HTMLElement>\) => \{/)
@@ -148,8 +148,13 @@ test('the app loads nothing from other servers: no web fonts, CDNs or trackers',
     .filter((file) => /\.(tsx?|css|html)$/.test(file))
     .map((file) => path.join('src', file))
   files.push('index.html')
-  // Plain links the user can click (About dialog) are fine; they load nothing by themselves.
-  const allowedLinks = ['https://aerospace-lab.de/repolysat/', 'https://aerospace-lab.de/', 'https://github.com/walgren/Ashby-plots', 'https://github.com/afffe18', 'https://github.com/13Bytes']
+  // Plain links the user can click (About dialog, overview, privacy notice) are fine; they load nothing by themselves.
+  const allowedLinks = [
+    'https://aerospace-lab.de/repolysat/', 'https://aerospace-lab.de/', 'https://aerospace-lab.de/impressum/', 'https://aerospace-lab.de/datenschutz/',
+    'https://ksat-stuttgart.de/en/projects/source-2/',
+    'https://github.com/walgren/Ashby-plots', 'https://github.com/afffe18', 'https://github.com/13Bytes', 'https://github.com/13Bytes/ashby',
+    'https://github.com/Aerospace-Lab-e-V/', 'https://www.instagram.com/aerospace_lab/', 'https://www.linkedin.com/company/aerospacelab-herrenberg',
+  ]
   for (const file of files) {
     const source = await readFile(path.join(projectDir, file), 'utf8')
     assert.doesNotMatch(source, /@font-face|@import\s+url|fonts\.googleapis|fonts\.gstatic|<link[^>]+href=["']https?:|<script[^>]+src=["']https?:/, file)

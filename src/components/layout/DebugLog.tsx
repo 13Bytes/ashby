@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useI18n } from '../uiTranslations'
-import type { BackendErrorDetails } from '../utils/backendErrors'
-import { downloadBlob } from '../utils/configIo'
-import { clearLog, formatLogEntry, formatLogTime, useDebugLog, type DebugLogEntry, type LogLevel } from '../utils/debugLog'
-import { Alert } from './ui/alert'
-import { Button } from './ui/button'
+import { useI18n } from '../../uiTranslations'
+import type { BackendErrorDetails } from '../../utils/backendErrors'
+import { downloadBlob } from '../../utils/configIo'
+import { clearLog, formatLogEntry, formatLogTime, useDebugLog, type DebugLogEntry, type LogLevel } from '../../utils/debugLog'
+import { Alert } from '../ui/alert'
+import { Button } from '../ui/button'
 
 function CopyButton({ text }: { text: string }) {
   const { t } = useI18n()

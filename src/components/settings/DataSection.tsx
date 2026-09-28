@@ -1,12 +1,12 @@
 import type { ChangeEvent, RefObject } from 'react'
-import type { DataframeConfig } from '../config/defaultPlotConfig'
-import { useI18n } from '../uiTranslations'
-import { getSourceMode, numberValue, type SourceMode } from '../utils/appState'
-import { describeFormatWarning, type ExcelFormatWarning } from '../utils/excelFormat'
-import { Field, ScopeTag, Toggle } from './AppControls'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Select } from './ui/select'
+import type { DataframeConfig } from '../../config/defaultPlotConfig'
+import { useI18n } from '../../uiTranslations'
+import { getSourceMode, numberValue, type SourceMode } from '../../utils/appState'
+import { describeFormatWarning, type ExcelFormatWarning } from '../../utils/excelFormat'
+import { Field, ScopeTag, Toggle } from '../common/AppControls'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Select } from '../ui/select'
 
 type Props = {
   activeDataframe: DataframeConfig

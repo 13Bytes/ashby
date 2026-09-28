@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Button } from './ui/button'
-import type { DataframeConfig } from '../config/defaultPlotConfig'
-import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
-import { useI18n } from '../uiTranslations'
-import { populateMaterialColorsForDataframe } from '../utils/configEditing'
-import { DEFAULT_DATAFRAME } from '../config/settingsSections'
-import { Field, LanguageFields, Toggle, SettingsGroup } from './AppControls'
-import { ColorDot } from './ColorPicker'
+import { Button } from '../ui/button'
+import type { DataframeConfig } from '../../config/defaultPlotConfig'
+import { CUSTOM_SELECT_VALUE } from '../../config/uiOptions'
+import { useI18n } from '../../uiTranslations'
+import { populateMaterialColorsForDataframe } from '../../utils/configEditing'
+import { DEFAULT_DATAFRAME } from '../../config/settingsSections'
+import { Field, LanguageFields, Toggle, SettingsGroup } from '../common/AppControls'
+import { ColorDot } from '../common/ColorPicker'
 
 type Props = {
   activeDataframe: DataframeConfig

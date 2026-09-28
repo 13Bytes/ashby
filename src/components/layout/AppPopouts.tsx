@@ -1,8 +1,9 @@
 import { useEffect, type ChangeEvent, type ReactNode, type RefObject } from 'react'
-import { cn } from '../lib/utils'
-import { useI18n } from '../uiTranslations'
-import { BrandLogo } from './BrandLogo'
-import { Button } from './ui/button'
+import { LINKS } from '../../content/overviewContent'
+import { cn } from '../../lib/utils'
+import { useI18n } from '../../uiTranslations'
+import { BrandLogo } from '../common/BrandLogo'
+import { Button } from '../ui/button'
 
 type AppPopoutsProps = {
   showAbout: boolean
@@ -16,6 +17,7 @@ type AppPopoutsProps = {
   jsonMarker: Set<number>
   settingsContent: ReactNode
   onCloseAbout: () => void
+  onOpenPrivacy: () => void
   onCloseSettings: () => void
   onCloseGenerateColorsConfirm: () => void
   onGenerateMaterialColors: () => void
@@ -165,7 +167,7 @@ function renderJsonHighlight(jsonDraft: string, jsonMarker: Set<number>) {
   return tokens
 }
 
-function AboutPopout({ onClose }: { onClose: () => void }) {
+function AboutPopout({ onClose, onOpenPrivacy }: { onClose: () => void; onOpenPrivacy: () => void }) {
   const { t } = useI18n()
   return (
     <PopoutShell>
@@ -201,7 +203,16 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
           {' @ '}
           <ExternalLink href="https://aerospace-lab.de/">Aerospace-Lab</ExternalLink>.
         </p>
+        <p>
+          {t('feedbackTo')}{' '}
+          <a className={linkClassName} href={LINKS.feedback}>{LINKS.feedbackAddress}</a>
+        </p>
       </div>
+      <nav className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 border-t border-zinc-200 pt-3 text-sm dark:border-zinc-800">
+        <ExternalLink href={LINKS.imprint}>{t('imprint')}</ExternalLink>
+        <button type="button" className={linkClassName} onClick={onOpenPrivacy}>{t('privacy')}</button>
+        <ExternalLink href={LINKS.repository}>GitHub</ExternalLink>
+      </nav>
       <DialogActions>
         <Button variant="outline" onClick={onClose}>
           {t('close')}
@@ -410,6 +421,7 @@ export function AppPopouts(props: AppPopoutsProps) {
     jsonMarker,
     settingsContent,
     onCloseAbout,
+    onOpenPrivacy,
     onCloseSettings,
     onCloseGenerateColorsConfirm,
     onGenerateMaterialColors,
@@ -428,7 +440,7 @@ export function AppPopouts(props: AppPopoutsProps) {
 
   return (
     <>
-      {showAbout ? <AboutPopout onClose={onCloseAbout} /> : null}
+      {showAbout ? <AboutPopout onClose={onCloseAbout} onOpenPrivacy={onOpenPrivacy} /> : null}
       {showSettings ? <SettingsPopout onClose={onCloseSettings} settingsContent={settingsContent} /> : null}
       {showGenerateColorsConfirm ? (
         <GenerateColorsPopout onClose={onCloseGenerateColorsConfirm} onGenerate={onGenerateMaterialColors} />

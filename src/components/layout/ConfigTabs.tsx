@@ -1,8 +1,8 @@
 import { useState, type Dispatch, type DragEvent, type MouseEvent, type SetStateAction } from 'react'
-import type { PlotConfig } from '../config/defaultPlotConfig'
-import { useI18n } from '../uiTranslations'
-import { dataframeLabel, getSelectedIndices, getUiKey } from '../utils/appState'
-import { Button } from './ui/button'
+import type { PlotConfig } from '../../config/defaultPlotConfig'
+import { useI18n } from '../../uiTranslations'
+import { dataframeLabel, getSelectedIndices, getUiKey } from '../../utils/appState'
+import { Button } from '../ui/button'
 
 type TabRename = { type: 'dataframe' | 'frame'; index: number; value: string }
 
