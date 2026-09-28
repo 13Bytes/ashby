@@ -1,14 +1,14 @@
 import type { KeyboardEvent } from 'react'
-import type { DataframeConfig } from '../config/defaultPlotConfig'
-import { DEFAULT_DATAFRAME } from '../config/settingsSections'
-import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '../config/uiOptions'
-import { useI18n } from '../uiTranslations'
-import { numberValue } from '../utils/appState'
-import { Field, SettingsGroup } from './AppControls'
+import type { DataframeConfig } from '../../config/defaultPlotConfig'
+import { DEFAULT_DATAFRAME } from '../../config/settingsSections'
+import { CUSTOM_SELECT_VALUE, FONT_FAMILY_OPTIONS, FONT_STYLE_OPTIONS } from '../../config/uiOptions'
+import { useI18n } from '../../uiTranslations'
+import { numberValue } from '../../utils/appState'
+import { Field, SettingsGroup } from '../common/AppControls'
 import { ImageOutputSection } from './ImageOutputSection'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Select } from './ui/select'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Select } from '../ui/select'
 
 type Props = {
   activeDataframe: DataframeConfig

@@ -1,7 +1,7 @@
-import type { FrameConfig } from '../config/defaultPlotConfig'
-import { useI18n } from '../uiTranslations'
-import { parseJsonField } from '../utils/configIo'
-import { DraftInput, Field } from './AppControls'
+import type { FrameConfig } from '../../config/defaultPlotConfig'
+import { useI18n } from '../../uiTranslations'
+import { parseJsonField } from '../../utils/configIo'
+import { DraftInput, Field } from '../common/AppControls'
 
 type Props = {
   activeFrame: FrameConfig

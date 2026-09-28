@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { useI18n } from '../uiTranslations'
-import { hexToHsv, hsvToHex, parseHexInput, type Hsv } from '../utils/colors'
+import { useI18n } from '../../uiTranslations'
+import { hexToHsv, hsvToHex, parseHexInput, type Hsv } from '../../utils/colors'
 
 const HEX_PATTERN = /^#[0-9a-f]{6}$/i
 const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value))

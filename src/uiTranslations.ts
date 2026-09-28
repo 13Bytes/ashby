@@ -20,6 +20,7 @@ const en = {
   close: 'Close',
   cancel: 'Cancel',
   closeNotification: 'Close notification',
+  backToOverview: 'Back to the overview',
   backendUnavailable: 'The backend server is not available. Plot previews and datasource imports will not work until it is running.',
 
   // settings
@@ -41,6 +42,9 @@ const en = {
   aboutRework: 'Major rework by',
   aboutUiPrefix: 'UI by',
   aboutUiSuffix: '; most of the frontend code was written with Codex and Claude.',
+  feedbackTo: 'Feedback & criticism:',
+  imprint: 'Imprint',
+  privacy: 'Privacy',
 
   // dialogs
   generateColorsTitle: 'Generate new material colors?',
@@ -478,6 +482,7 @@ const de: Record<LabelKey, string> = {
   close: 'Schließen',
   cancel: 'Abbrechen',
   closeNotification: 'Meldung schließen',
+  backToOverview: 'Zurück zur Übersicht',
   backendUnavailable: 'Der Backend-Server ist nicht verfügbar. Plot-Vorschauen und Datenquellenimporte funktionieren erst wieder, wenn er läuft.',
 
   uiLanguage: 'UI-Sprache',
@@ -497,6 +502,9 @@ const de: Record<LabelKey, string> = {
   aboutRework: 'Große Überarbeitung durch',
   aboutUiPrefix: 'UI von',
   aboutUiSuffix: '; der Großteil des Frontend-Codes entstand mit Codex und Claude.',
+  feedbackTo: 'Feedback & Kritik:',
+  imprint: 'Impressum',
+  privacy: 'Datenschutz',
 
   generateColorsTitle: 'Neue Materialfarben erzeugen?',
   generateColorsText: 'Überschreibt alle Materialfarben außer "default" und verteilt die Farbtöne gleichmäßig auf die Materialien.',

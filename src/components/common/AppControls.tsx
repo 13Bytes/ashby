@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { cn } from '../lib/utils'
-import { getFieldHelp, useI18n } from '../uiTranslations'
-import type { MultiOption } from '../utils/appState'
-import { HEX_COLOR, resolvePreviewColor } from '../utils/colors'
-import { Input } from './ui/input'
-import { Select } from './ui/select'
+import { cn } from '../../lib/utils'
+import { getFieldHelp, useI18n } from '../../uiTranslations'
+import type { MultiOption } from '../../utils/appState'
+import { HEX_COLOR, resolvePreviewColor } from '../../utils/colors'
+import { Input } from '../ui/input'
+import { Select } from '../ui/select'
 import { ColorDot } from './ColorPicker'
 
 const TOOLTIP_WIDTH_PX = 288

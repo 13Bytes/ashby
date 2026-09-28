@@ -1,13 +1,13 @@
-import { MARGIN_SIDES, type AxisMargin, type DataframeConfig, type FrameConfig, type MarginSide } from '../config/defaultPlotConfig'
-import { DEFAULT_MARGIN } from '../config/settingsSections'
-import { useAxesWarning } from '../hooks/useAxesWarning'
-import { useI18n } from '../uiTranslations'
-import { numberValue } from '../utils/appState'
-import { plotAxesOf } from '../utils/configEditing'
-import { useSettings } from '../utils/settingsContext'
-import { Field, FieldGroup, GroupedField, LanguageFields, Toggle, SettingsGroup, SharedHint } from './AppControls'
-import { Input } from './ui/input'
-import { Select } from './ui/select'
+import { MARGIN_SIDES, type AxisMargin, type DataframeConfig, type FrameConfig, type MarginSide } from '../../config/defaultPlotConfig'
+import { DEFAULT_MARGIN } from '../../config/settingsSections'
+import { useAxesWarning } from '../../hooks/useAxesWarning'
+import { useI18n } from '../../uiTranslations'
+import { numberValue } from '../../utils/appState'
+import { plotAxesOf } from '../../utils/configEditing'
+import { useSettings } from '../../utils/settingsContext'
+import { Field, FieldGroup, GroupedField, LanguageFields, Toggle, SettingsGroup, SharedHint } from '../common/AppControls'
+import { Input } from '../ui/input'
+import { Select } from '../ui/select'
 
 type Props = {
   activeFrame: FrameConfig

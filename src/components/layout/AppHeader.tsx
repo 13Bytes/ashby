@@ -1,8 +1,8 @@
 import { useCallback, useState, type ReactNode } from 'react'
-import type { SettingsMode } from '../config/settingsSections'
-import { useI18n } from '../uiTranslations'
-import { Toggle } from './AppControls'
-import { BrandLogo } from './BrandLogo'
+import type { SettingsMode } from '../../config/settingsSections'
+import { useI18n } from '../../uiTranslations'
+import { Toggle } from '../common/AppControls'
+import { BrandLogo } from '../common/BrandLogo'
 import { DebugLogDialog } from './DebugLog'
 
 type Props = {
@@ -11,6 +11,8 @@ type Props = {
   openJsonEditor: () => void
   setShowAbout: (show: boolean) => void
   setShowSettings: (show: boolean) => void
+  showOverview: boolean
+  onShowOverview: () => void
 }
 
 const iconProps = { viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', className: 'h-[18px] w-[18px]', 'aria-hidden': true } as const
@@ -55,25 +57,36 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
   )
 }
 
-export function AppHeader({ mode, setMode, openJsonEditor, setShowAbout, setShowSettings }: Props) {
+export function AppHeader({ mode, setMode, openJsonEditor, setShowAbout, setShowSettings, showOverview, onShowOverview }: Props) {
   const { t } = useI18n()
   const [showLog, setShowLog] = useState(false)
   const closeLog = useCallback(() => setShowLog(false), [])
 
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-zinc-200 px-4 py-2 text-left dark:border-zinc-800">
-      <h1 className="m-0 mr-auto flex items-center gap-2 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-        <BrandLogo className="h-6 w-6" />
-        PolyPlot
+      <h1 className="m-0 mr-auto text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+        {/* The logo leads back to the overview. */}
+        <button
+          type="button"
+          onClick={onShowOverview}
+          title={t('backToOverview')}
+          aria-label={`PolyPlot – ${t('backToOverview')}`}
+          className="-mx-1.5 flex items-center gap-2 rounded-md px-1.5 py-0.5 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 dark:hover:text-brand-300"
+        >
+          <BrandLogo className="h-6 w-6" />
+          PolyPlot
+        </button>
       </h1>
-      <span title={t('modeHint')} className="flex">
-        <Toggle<SettingsMode>
-          ariaLabel={t('modeHint')}
-          value={mode}
-          onChange={setMode}
-          options={[{ value: 'simple', label: t('modeSimple') }, { value: 'all', label: t('modeAll') }]}
-        />
-      </span>
+      {showOverview ? null : (
+        <span title={t('modeHint')} className="flex">
+          <Toggle<SettingsMode>
+            ariaLabel={t('modeHint')}
+            value={mode}
+            onChange={setMode}
+            options={[{ value: 'simple', label: t('modeSimple') }, { value: 'all', label: t('modeAll') }]}
+          />
+        </span>
+      )}
       <div role="group" aria-label={t('menu')} className="flex h-9 divide-x divide-zinc-300 overflow-hidden rounded-md border border-zinc-300 dark:divide-zinc-700 dark:border-zinc-700">
         <IconButton label={t('settings')} onClick={() => setShowSettings(true)}><CogIcon /></IconButton>
         <IconButton label={t('editJson')} onClick={openJsonEditor}><JsonIcon /></IconButton>

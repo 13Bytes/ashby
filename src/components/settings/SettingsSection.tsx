@@ -1,8 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { SETTINGS_SECTIONS, type SettingsSectionId } from '../config/settingsSections'
-import { useSectionStats, type SectionStats } from '../hooks/useSectionStats'
-import { useI18n } from '../uiTranslations'
-import { useSettings } from '../utils/settingsContext'
+import { SETTINGS_SECTIONS, type SettingsSectionId } from '../../config/settingsSections'
+import { useSectionStats, type SectionStats } from '../../hooks/useSectionStats'
+import { useI18n } from '../../uiTranslations'
+import { useSettings } from '../../utils/settingsContext'
 
 type Props = {
   id: SettingsSectionId

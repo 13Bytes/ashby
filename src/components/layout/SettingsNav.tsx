@@ -1,7 +1,7 @@
 import { useState, type RefObject } from 'react'
-import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from '../config/settingsSections'
-import { useI18n } from '../uiTranslations'
-import { HoverNote, ScopeTag } from './AppControls'
+import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from '../../config/settingsSections'
+import { useI18n } from '../../uiTranslations'
+import { HoverNote, ScopeTag } from '../common/AppControls'
 
 /** Sidebar status of a section: missing required settings, or the number of items it holds. */
 export type SectionStatus = { missing: number; items?: number }

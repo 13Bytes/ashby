@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import { PlotPage } from './components/PlotPage'
+import { PlotPage } from './components/layout/PlotPage'
 import { Alert, TimedAlert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { getConfigVersion, normalizePlotConfig } from './config/configMappers'
@@ -7,12 +7,14 @@ import { CONFIG_VERSION, type PlotConfig } from './config/defaultPlotConfig'
 import { exportConfig, findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
-import { AppPopouts, SettingsRow } from './components/AppPopouts'
+import { AppPopouts, SettingsRow } from './components/layout/AppPopouts'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
-import { AppHeader } from './components/AppHeader'
-import { ConfigSections } from './components/ConfigSections'
-import { ConfigTabs } from './components/ConfigTabs'
-import { Toggle, Switch } from './components/AppControls'
+import { AppHeader } from './components/layout/AppHeader'
+import { OverviewPage } from './components/overview/OverviewPage'
+import { PrivacyDialog } from './components/overview/PrivacyDialog'
+import { ConfigSections } from './components/settings/ConfigSections'
+import { ConfigTabs } from './components/layout/ConfigTabs'
+import { Toggle, Switch } from './components/common/AppControls'
 import { byDataframeIndex, dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
@@ -24,7 +26,7 @@ import { addLogEntry } from './utils/debugLog'
 import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
 import { getDataframeMissing, getFrameMissing } from './utils/settingsStatus'
 import { SettingsContext } from './utils/settingsContext'
-import { SettingsNav, type SectionStatus } from './components/SettingsNav'
+import { SettingsNav, type SectionStatus } from './components/layout/SettingsNav'
 import { cn } from './lib/utils'
 import { describeFormatWarning, parseFormatWarnings, type ExcelFormatWarning } from './utils/excelFormat'
 
@@ -44,6 +46,8 @@ const SETTINGS_MODE_STORAGE_KEY = 'ashby-settings-mode'
 const PREVIEW_WIDTH_STORAGE_KEY = 'ashby-preview-width'
 const AUTO_REFRESH_STORAGE_KEY = 'ashby-auto-refresh'
 const SCROLL_SECTIONS_STORAGE_KEY = 'ashby-scroll-sections'
+/** URL flag of tabs opened from a plot (middle-click): they start in the editor instead of the overview. */
+const VIEW_URL_PARAM = 'view'
 const DEFAULT_PREVIEW_WIDTH = 460
 const MIN_PREVIEW_WIDTH = 280
 /** Width kept for the settings list and the editor when the preview is dragged wider. */
@@ -97,6 +101,8 @@ function App() {
   const [workspaceId] = useState(() => getWorkspaceId())
   // The URL as the tab was opened with; effects rewrite it with the current selection.
   const [initialSearch] = useState(() => window.location.search)
+  // Opening or reloading the page shows the overview first.
+  const [showOverview, setShowOverview] = useState(() => new URLSearchParams(initialSearch).get(VIEW_URL_PARAM) !== 'editor')
   const [configBaseName, setConfigBaseName] = useState('ashby-config')
   const [activeDataframeIndex, setActiveDataframeIndex] = useState(0)
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
@@ -120,6 +126,8 @@ function App() {
   const [importInProgress, setImportInProgress] = useState(false)
   const [tabRename, setTabRename] = useState<{ type: 'dataframe' | 'frame'; index: number; value: string } | null>(null)
   const [showAbout, setShowAbout] = useState(false)
+  const [showPrivacy, setShowPrivacy] = useState(false)
+  const closePrivacy = useCallback(() => setShowPrivacy(false), [])
   const [showSettings, setShowSettings] = useState(false)
   const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
@@ -372,6 +380,8 @@ function App() {
     params.set('dataframe', String(activeDataframeIndex))
     params.set('frame', String(activeFrameIndex))
     params.set(WORKSPACE_URL_PARAM, workspaceId)
+    // Read once at the start; a reload of this tab shows the overview again.
+    params.delete(VIEW_URL_PARAM)
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
   }, [activeDataframeIndex, activeFrameIndex, workspaceId])
   useEffect(() => {
@@ -764,6 +774,7 @@ function App() {
     const params = new URLSearchParams(window.location.search)
     params.set('dataframe', String(dataframeIndex))
     params.set('frame', String(frameIndex))
+    params.set(VIEW_URL_PARAM, 'editor')
     // No 'noopener': the new tab must inherit this tab's sessionStorage copy of the config.
     window.open(`${window.location.pathname}?${params.toString()}`, '_blank')
   }
@@ -1044,97 +1055,103 @@ function App() {
     <I18nContext.Provider value={i18n}>
     <SettingsContext.Provider value={settingsContext}>
     <div className={cn('flex min-h-svh flex-col text-left lg:h-svh', settingsMode === 'simple' ? 'settings-simple' : 'settings-all')}>
-      <AppHeader mode={settingsMode} setMode={changeSettingsMode} openJsonEditor={openJsonEditor} setShowAbout={setShowAbout} setShowSettings={setShowSettings} />
+      <AppHeader mode={settingsMode} setMode={changeSettingsMode} openJsonEditor={openJsonEditor} setShowAbout={setShowAbout} setShowSettings={setShowSettings} showOverview={showOverview} onShowOverview={() => setShowOverview(true)} />
       <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
-      {backendAvailable === false ? (
-        <div className="px-4 pt-3">
-          <Alert variant="warning">{backendForeign ? t('backendForeign') : t('backendUnavailable')}</Alert>
-        </div>
-      ) : null}
-      {missingDatasourceDataframes.length > 0 ? (
-        <div className="px-4 pt-3">
-          <Alert variant="warning">
-            {t('datasourceMissing', { list: missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => t('datasourceMissingItem', { n: dataframeIndex + 1, filename: dataframe.importFileName ?? '' })).join(', ') })}
-          </Alert>
-        </div>
-      ) : null}
-      <ConfigTabs {...tabProps} />
-      {/* Notices close themselves (messages stay in the log); warnings and errors stay longer. */}
-      {configWarning ? (
-        <div className="px-4 pt-3">
-          <TimedAlert variant="warning" seconds={NOTICE_SECONDS.warning} onClose={() => setConfigWarning(null)} closeLabel={t('closeNotification')} resetKey={configWarning}>
-            {configWarning}
-          </TimedAlert>
-        </div>
-      ) : null}
-      {alert ? (
-        <div className="px-4 pt-3">
-          <TimedAlert variant={alert.tone === 'error' ? 'destructive' : alert.tone} seconds={NOTICE_SECONDS[alert.tone]} onClose={() => setAlert(null)} closeLabel={t('closeNotification')} resetKey={alert}>
-            {alert.message}
-          </TimedAlert>
-        </div>
-      ) : null}
-      <div
-        ref={workRef}
-        style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}
-        className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)_9px_var(--preview-width)]"
-      >
-        <SettingsNav
-          mode={settingsMode}
-          activeSection={activeSection}
-          onSelect={(section) => goTo(section)}
-          onReveal={revealSetting}
-          statusFor={sectionStatus}
-          dataframeName={dataframeLabel(activeDataframe, activeDataframeIndex)}
-          frameName={activeFrame.name || `Frame ${activeFrameIndex + 1}`}
-          editorRef={editorRef}
-        />
-        <main ref={editorRef} className="min-h-0 min-w-0 overflow-auto px-6 pb-10 pt-5">
-          <div className="@container mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
-            <ConfigSections {...sectionProps} />
+      {showOverview ? <OverviewPage onOpenEditor={() => setShowOverview(false)} onOpenPrivacy={() => setShowPrivacy(true)} /> : (<>
+        {backendAvailable === false ? (
+          <div className="px-4 pt-3">
+            <Alert variant="warning">{backendForeign ? t('backendForeign') : t('backendUnavailable')}</Alert>
           </div>
-        </main>
+        ) : null}
+        {missingDatasourceDataframes.length > 0 ? (
+          <div className="px-4 pt-3">
+            <Alert variant="warning">
+              {t('datasourceMissing', { list: missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => t('datasourceMissingItem', { n: dataframeIndex + 1, filename: dataframe.importFileName ?? '' })).join(', ') })}
+            </Alert>
+          </div>
+        ) : null}
+        <ConfigTabs {...tabProps} />
+        {/* Notices close themselves (messages stay in the log); warnings and errors stay longer. */}
+        {configWarning ? (
+          <div className="px-4 pt-3">
+            <TimedAlert variant="warning" seconds={NOTICE_SECONDS.warning} onClose={() => setConfigWarning(null)} closeLabel={t('closeNotification')} resetKey={configWarning}>
+              {configWarning}
+            </TimedAlert>
+          </div>
+        ) : null}
+        {alert ? (
+          <div className="px-4 pt-3">
+            <TimedAlert variant={alert.tone === 'error' ? 'destructive' : alert.tone} seconds={NOTICE_SECONDS[alert.tone]} onClose={() => setAlert(null)} closeLabel={t('closeNotification')} resetKey={alert}>
+              {alert.message}
+            </TimedAlert>
+          </div>
+        ) : null}
         <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t('resizePreview')}
-          aria-valuenow={previewWidth}
-          tabIndex={0}
-          title={t('resizePreviewHint')}
-          onPointerDown={startPreviewResize}
-          onDoubleClick={() => commitPreviewWidth(DEFAULT_PREVIEW_WIDTH)}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-              event.preventDefault()
-              commitPreviewWidth(previewWidth + (event.key === 'ArrowLeft' ? 24 : -24))
-            }
-          }}
-          className="group hidden cursor-col-resize touch-none place-items-center border-x border-zinc-200 bg-zinc-100 focus-visible:outline-none lg:grid dark:border-zinc-800 dark:bg-zinc-900"
+          ref={workRef}
+          style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}
+          className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)_9px_var(--preview-width)]"
         >
-          <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-brand-500 group-focus-visible:bg-brand-500 dark:bg-zinc-700" />
+          <SettingsNav
+            mode={settingsMode}
+            activeSection={activeSection}
+            onSelect={(section) => goTo(section)}
+            onReveal={revealSetting}
+            statusFor={sectionStatus}
+            dataframeName={dataframeLabel(activeDataframe, activeDataframeIndex)}
+            frameName={activeFrame.name || `Frame ${activeFrameIndex + 1}`}
+            editorRef={editorRef}
+          />
+          <main ref={editorRef} className="min-h-0 min-w-0 overflow-auto px-6 pb-10 pt-5">
+            <div className="@container mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
+              <ConfigSections {...sectionProps} />
+            </div>
+          </main>
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t('resizePreview')}
+            aria-valuenow={previewWidth}
+            tabIndex={0}
+            title={t('resizePreviewHint')}
+            onPointerDown={startPreviewResize}
+            onDoubleClick={() => commitPreviewWidth(DEFAULT_PREVIEW_WIDTH)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                event.preventDefault()
+                commitPreviewWidth(previewWidth + (event.key === 'ArrowLeft' ? 24 : -24))
+              }
+            }}
+            className="group hidden cursor-col-resize touch-none place-items-center border-x border-zinc-200 bg-zinc-100 focus-visible:outline-none lg:grid dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-brand-500 group-focus-visible:bg-brand-500 dark:bg-zinc-700" />
+          </div>
+          <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets}
+            missing={activeMissing}
+            onJump={goTo}
+            autoRefresh={autoRefresh}
+            onAutoRefreshChange={(next) => {
+              setAutoRefresh(next)
+              writeStored(AUTO_REFRESH_STORAGE_KEY, String(next))
+            }}
+          />
         </div>
-        <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets}
-          missing={activeMissing}
-          onJump={goTo}
-          autoRefresh={autoRefresh}
-          onAutoRefreshChange={(next) => {
-            setAutoRefresh(next)
-            writeStored(AUTO_REFRESH_STORAGE_KEY, String(next))
-          }}
-        />
-      </div>
+      </>)}
       <AppPopouts
         showAbout={showAbout}
         showSettings={showSettings}
         showGenerateColorsConfirm={showGenerateColorsConfirm}
         showJson={showJson}
         showResetConfirm={showResetConfirm}
-        datasourcePrompt={datasourcePrompt}
+        datasourcePrompt={showOverview ? null : datasourcePrompt}
         jsonFullscreen={jsonFullscreen}
         jsonDraft={jsonDraft}
         jsonMarker={jsonMarker}
         settingsContent={settingsContent}
         onCloseAbout={() => setShowAbout(false)}
+        onOpenPrivacy={() => {
+          setShowAbout(false)
+          setShowPrivacy(true)
+        }}
         onCloseSettings={() => setShowSettings(false)}
         onCloseGenerateColorsConfirm={() => setShowGenerateColorsConfirm(false)}
         onGenerateMaterialColors={generateMaterialColors}
@@ -1155,6 +1172,7 @@ function App() {
         jsonOverlayRef={jsonOverlayRef}
         jsonTextareaRef={jsonTextareaRef}
       />
+      {showPrivacy ? <PrivacyDialog onClose={closePrivacy} /> : null}
     </div>
     </SettingsContext.Provider>
     </I18nContext.Provider>

@@ -6,23 +6,10 @@
 
 <p align="center">Build Ashby plots from your material data, right in the browser, with a live preview.</p>
 
-PolyPlot turns a spreadsheet of material properties into Ashby plots: every material family gets a
-colored hull around its data points, so you can see at a glance which materials cover which region
-of, say, strength against heat deflection temperature. You pick the data source and the two
-quantities, and PolyPlot draws the plot. Everything else (colors, fonts, reference lines,
-annotations, export format) can be tuned but has sensible defaults.
+PolyPlot turns a spreadsheet of material properties into Ashby plots: every material family gets a colored hull around its data points, so you can see at a glance which materials cover which region of, say, strength against heat deflection temperature. You pick the data source and the two quantities, and PolyPlot draws the plot. Everything else (colors, fonts, reference lines, annotations, export format) can be tuned but has sensible defaults.
 
 ![Example plot: tensile strength against heat deflection temperature for common polymers](backend/docs/graphics/Ashbyplot_complete.png)
 
-## Motivation
-
-PolyPlot was built as part of [RePolySat](https://aerospace-lab.de/repolysat/). For our part of
-the KSat build we had to decide which polymer to make it from, and that meant comparing a lot of
-polymers across several properties at once. Ashby plots are the classic tool for that kind of
-material selection, but producing them by hand for every pair of properties, and redoing them each
-time the data changed, did not scale. So the plotting scripts grew into a configurable tool, and
-the tool got a browser UI so that anyone on the team could make and adjust plots without editing
-JSON or Python.
 
 ## What it can do
 
@@ -81,12 +68,12 @@ JSON or Python.
 
 ## Credits
 
-- Foundation by [walgren](https://github.com/walgren/Ashby-plots)
+- A basic version of the backend was written by [walgren](https://github.com/walgren/Ashby-plots)
 - Major rework by [afffe18](https://github.com/afffe18)
 - UI by [afffe18](https://github.com/afffe18) & [13Bytes](https://github.com/13Bytes); most of the
   frontend code was written with Codex and Claude.
 
-Created as part of [RePolySat](https://aerospace-lab.de/repolysat/).
+Improved as part of [RePolySat](https://aerospace-lab.de/repolysat/) @ [Aerospace-Lab](https://aerospace-lab.de/).
 
 ---
 
@@ -182,9 +169,6 @@ What the tests cover:
 GitHub Actions runs the build and all tests on every push and pull request
 ([`.github/workflows/run-tests.yml`](.github/workflows/run-tests.yml)).
 
-### Troubleshooting
-
-- "Another program answers at the backend address": something else listens on `127.0.0.1:8000` and takes precedence over the backend on `0.0.0.0:8000`. A common cause is an editor forwarding port 8000 from a remote machine (e.g. VS Code / VSCodium Remote-SSH, see its Ports panel). Stop that forward or run the backend on another port.
 
 ## Deployment
 

@@ -1,13 +1,13 @@
-import type { AnnotationConfig, DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
-import { DEFAULT_ANNOTATION_ARROW, DEFAULT_ANNOTATION_MARKER, DEFAULT_ANNOTATION_TEXT } from '../config/settingsSections'
-import { useI18n } from '../uiTranslations'
-import { numberValue, positiveValue } from '../utils/appState'
-import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS, getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, SettingsGroup, Switch } from './AppControls'
-import { useOpenItems } from '../hooks/useOpenItems'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Select } from './ui/select'
+import type { AnnotationConfig, DataframeConfig, FrameConfig } from '../../config/defaultPlotConfig'
+import { DEFAULT_ANNOTATION_ARROW, DEFAULT_ANNOTATION_MARKER, DEFAULT_ANNOTATION_TEXT } from '../../config/settingsSections'
+import { useI18n } from '../../uiTranslations'
+import { numberValue, positiveValue } from '../../utils/appState'
+import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS, getLocalizedLabel, setLocalizedLabel } from '../../utils/configEditing'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, SettingsGroup, Switch } from '../common/AppControls'
+import { useOpenItems } from '../../hooks/useOpenItems'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Select } from '../ui/select'
 
 const MARKER_SYMBOL_OPTIONS: Array<{ value: string; label: string }> = [
   { value: '.', label: 'point' },
