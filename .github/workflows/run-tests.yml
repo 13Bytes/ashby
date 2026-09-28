@@ -2,6 +2,8 @@ name: Tests
 on:
   push:
   pull_request:
+permissions:
+  contents: read    # tests only read the repository
 jobs:
   Build-Action:
     runs-on: ubuntu-latest

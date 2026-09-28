@@ -1,7 +1,7 @@
 {
 
 "frames":[{
-    "API_Key": "Bearer teable_accEbwLnOPcALnjGJXU_Hp6iPPr5mn5WPOgMNfzqgAro1j9t1G0Vj6DjAJTMg+s=",
+    "API_Key": null,
     "teable_url":null,
     "teable_url__":"https://teable.aerospace-lab.de/api/table/tblMYoRyrN4FrwdAiH6/record",
     "import_file_name":"MatWeb_materials_export.xlsx",

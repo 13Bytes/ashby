@@ -13,7 +13,12 @@ env:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # `branches` above matches the *name* of the tested branch, which a fork can also call "main".
+    # Only publish images for pushes to this repository, never for pull requests from forks.
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.event.workflow_run.head_repository.full_name == github.repository }}
     permissions:
       contents: read
       packages: write

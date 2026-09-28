@@ -14,6 +14,11 @@ from urllib.parse import urlsplit
 
 import requests
 
+try:
+    from ..security import RemoteRequestError, UnsafeRemoteURL, parse_json, read_capped_body, validate_remote_url
+except ImportError:     # plot.py started as a script from backend/
+    from security import RemoteRequestError, UnsafeRemoteURL, parse_json, read_capped_body, validate_remote_url
+
 PAGE_SIZE = 1000  # Teable's maximum `take`
 TIMEOUT_SECONDS = 30
 MAX_PAGES = 200  # safety stop: 200,000 records, far more than a material table holds
@@ -58,27 +63,32 @@ def authorization_header(api_key: str) -> str:
 
 
 def _get_json(url: str, api_key: str, params: dict[str, Any], verify_tls: bool) -> tuple[Any, bool]:
-    """GET a Teable API endpoint. Returns the JSON body and the TLS setting that worked."""
+    """GET a Teable API endpoint. Returns the JSON body and the TLS setting used."""
     headers = {'Authorization': authorization_header(api_key), 'Accept': 'application/json'}
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS, verify=verify_tls, allow_redirects=False)
-    except requests.exceptions.SSLError:
-        if verify_tls is False:
-            raise
-        print('WARNING: TLS certificate verification failed for Teable. Retrying with verify=False.')
-        verify_tls = False
-        response = requests.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS, verify=False, allow_redirects=False)
-
-    if response.status_code in (401, 403):
-        raise TeableError(f'Teable API: access denied ({response.status_code}). Please check the API key and its access to this table.')
-    if response.status_code == 404:
-        raise TeableError('Teable API: table not found (404). Please check the URL.')
-    if not response.ok:
-        raise TeableError(f'Teable API error {response.status_code}: {response.text[:300]}')
+        url = validate_remote_url(url)      # no requests to internal addresses (SSRF)
+    except UnsafeRemoteURL as error:
+        raise TeableError(str(error)) from error
+    verify_tls = verify_tls is not False    # only an explicit False disables certificate checks; never a silent fallback
     try:
-        return response.json(), verify_tls
-    except ValueError as error:
-        raise TeableError('Teable did not return JSON. Please check the URL.') from error
+        response = requests.get(url, params=params, headers=headers, timeout=TIMEOUT_SECONDS, verify=verify_tls, allow_redirects=False, stream=True)
+    except requests.exceptions.SSLError as error:
+        raise TeableError('Teable TLS certificate could not be verified. Please check the URL.') from error
+
+    with response:
+        if response.status_code in (401, 403):
+            raise TeableError(f'Teable API: access denied ({response.status_code}). Please check the API key and its access to this table.')
+        if response.status_code == 404:
+            raise TeableError('Teable API: table not found (404). Please check the URL.')
+        if not response.ok:
+            # the body is not echoed: it may come from a server the user does not control
+            raise TeableError(f'Teable API error {response.status_code}. Please check the URL.')
+        try:
+            return parse_json(read_capped_body(response)), verify_tls
+        except RemoteRequestError as error:
+            raise TeableError(str(error)) from error
+        except ValueError as error:
+            raise TeableError('Teable did not return JSON. Please check the URL.') from error
 
 
 def fetch_field_names(teable_url: str, api_key: str, verify_tls: bool = True) -> list[str]:

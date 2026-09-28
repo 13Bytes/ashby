@@ -6,6 +6,11 @@ import pandas as pd
 from . import teable
 from .filter import filter_data
 
+try:
+    from ..security import check_row_count, check_xlsx_bytes
+except ImportError:     # plot.py started as a script from backend/
+    from security import check_row_count, check_xlsx_bytes
+
 
 import os
 
@@ -28,8 +33,8 @@ def _resolve_import_file_path(import_file_name: str) -> Path:
     search_roots = [MATERIAL_PROPERTIES_DIR.resolve()]
     for root in search_roots:
         resolved_candidate = (root / candidate).resolve()
-        if root in resolved_candidate.parents or resolved_candidate == root:
-            if resolved_candidate.exists():
+        if root in resolved_candidate.parents and resolved_candidate.suffix.lower() == '.xlsx':
+            if resolved_candidate.is_file():
                 return resolved_candidate
 
     raise FileNotFoundError(f"Unable to locate import file '{import_file_name}'.")
@@ -68,6 +73,7 @@ def import_data(dataframe, frame, Sorted_data, xlsx_file_bytes=None):
             data = import_excel(dataframe['import_file_name'], dataframe.get('import_sheet',0), frame.get('filter', None))
     else:
         raise FileNotFoundError("no datasource selected. set teable_url or import_file_name in config")
+    check_row_count(len(data))
     return data
 
 RANGE_SUFFIXES = ('low', 'high')   # the plot reads "<name> low" and "<name> high"; a "<name> unit" column is not used
@@ -213,6 +219,7 @@ def import_excel(import_file_name, import_sheet, filter_clause=None):
 
 
 def import_excel_bytes(file_bytes, import_sheet, filter_clause=None):
+    check_xlsx_bytes(file_bytes)
     data = prepare_sheet(pd.read_excel(
         io.BytesIO(file_bytes),
         sheet_name = import_sheet,

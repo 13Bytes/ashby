@@ -24,9 +24,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY --from=builderjs /app/dist ./backend/production-frontend
 
+# run unprivileged; matplotlib needs a writable cache directory
+RUN useradd --system --uid 10001 --no-create-home ashby
+ENV MPLCONFIGDIR=/tmp/matplotlib
+USER ashby
+
 VOLUME ["/app/backend/material_properties"]
 
 ENV PORT=8000
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn backend.app:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn backend.app:app --host 0.0.0.0 --port ${PORT} --no-server-header"]

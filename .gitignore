@@ -15,6 +15,11 @@ backend/.venv
 .ashby-uploaded-data/
 **/__pycache__/
 
+# local backups / env files may contain Teable API keys
+*.bk
+.env
+.env.*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

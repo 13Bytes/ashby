@@ -1,6 +1,8 @@
 """Unit tests for backend/import_data/teable.py with mocked HTTP responses (no server needed)."""
 from __future__ import annotations
 
+import json
+import socket
 import sys
 import unittest
 from pathlib import Path
@@ -15,15 +17,22 @@ API_URL = 'https://teable.example.com/api/table/tblXYZ123/record'
 
 
 def _response(status: int = 200, payload=None, text: str = ''):
-    response = mock.Mock()
+    response = mock.MagicMock()
     response.status_code = status
     response.ok = 200 <= status < 300
     response.text = text
-    if isinstance(payload, Exception):
-        response.json.side_effect = payload
-    else:
-        response.json.return_value = payload
+    response.__enter__.return_value = response
+    body = b'not json' if isinstance(payload, Exception) else json.dumps(payload).encode()
+    response.iter_content.return_value = [body]
     return response
+
+
+def setUpModule() -> None:
+    # teable.example.com does not resolve; pretend it is a public host so the SSRF check passes
+    public = [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))]
+    patcher = mock.patch('backend.security.socket.getaddrinfo', return_value=public)
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
 
 
 class ResolveTeableSourceTest(unittest.TestCase):
