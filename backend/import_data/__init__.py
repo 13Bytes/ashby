@@ -3,6 +3,7 @@ from .import_data import(
         # import_excel,
         EXCEL_ENGINE,
         check_excel_format,
+        prepare_sheet,
         import_data,
         import_excel_metadata,
         list_available_import_files,

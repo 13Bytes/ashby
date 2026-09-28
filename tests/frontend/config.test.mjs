@@ -31,28 +31,38 @@ test('an imported config of another version is read and exported in the current 
   assert.equal(normalizePlotConfig().version, CONFIG_VERSION)
 })
 
-test('legend position: right, above, or none (null), also without room for the legend', () => {
-  assert.deepEqual([firstFrame({ dataframes: [{ frames: [{}] }] }).legend_above, firstFrame({ dataframes: [{ frames: [{}] }] }).legend_flag], [false, true])
-  assert.equal(firstFrame({ dataframes: [{ frames: [{ legend_above: true }] }] }).legend_above, true)
-  const none = firstFrame({ dataframes: [{ frames: [{ legend_above: null }] }] })
-  assert.deepEqual([none.legend_above, none.legend_flag], [null, null])
+const firstDataframe = (config) => toExternalConfig(normalizePlotConfig(config)).dataframes[0]
+
+test('legend position is a dataframe setting: right, above, or none (null)', () => {
+  assert.equal(firstDataframe({ dataframes: [{ frames: [{}] }] }).legend_above, false)
+  assert.equal(firstDataframe({ dataframes: [{ legend_above: true, frames: [{}] }] }).legend_above, true)
+  assert.equal(firstDataframe({ dataframes: [{ legend_above: null, frames: [{}] }] }).legend_above, null)
+  const frame = firstFrame({ dataframes: [{ frames: [{ legend_above: true, legend_flag: true }] }] })
+  assert.equal('legend_above' in frame || 'legend_flag' in frame, false)
 })
 
-test('frame dark mode, guideline label direction and annotation settings survive import and export', () => {
+test('configs before version 6: the legend position and dark mode of the first frame move to the dataframe', () => {
+  assert.equal(firstDataframe({ version: 5, dataframes: [{ frames: [{ legend_above: null }, { legend_above: true }] }] }).legend_above, null)
+  assert.equal(firstDataframe({ version: 5, dataframes: [{ frames: [{ legend_above: true }] }] }).legend_above, true)
+  // The dataframe's own values win.
+  assert.equal(firstDataframe({ dataframes: [{ legend_above: false, frames: [{ legend_above: true }] }] }).legend_above, false)
+  assert.equal(firstDataframe({ dataframes: [{ frames: [{ dark_mode: true }] }] }).dark_mode, true)
+  assert.equal(firstDataframe({ dataframes: [{ dark_mode: false, frames: [{ dark_mode: true }] }] }).dark_mode, false)
+  assert.equal('dark_mode' in firstFrame({ dataframes: [{ frames: [{ dark_mode: true }] }] }), false)
+})
+
+test('guideline label direction and annotation settings survive import and export', () => {
   const frame = firstFrame({
     dataframes: [{
       frames: [{
-        dark_mode: true,
         guidelines: [{ x: 1, y: 2, label_rotated: false }, { x: 1 }],
         annotations: [{}, { text: { name: 'A', font_size: 12 }, axes: {}, marker: { edgecolor: 'red' } }],
       }],
     }],
   })
-  assert.equal(frame.dark_mode, true)
   assert.deepEqual(frame.guidelines.map((guideline) => guideline.label_rotated), [false, true])
   assert.equal(frame.annotations[1].text.font_size, 12)
   assert.equal(frame.annotations[1].marker.edgecolors, 'red')
-  assert.equal('dark_mode' in firstFrame({ dataframes: [{ frames: [{}] }] }), false)
 })
 
 test('copyright text and watermark file are kept', () => {
@@ -82,16 +92,15 @@ test('Simple mode hides the Text & look section only', () => {
 test('Excel format warnings from the backend are described; unknown ones are left out', () => {
   const t = createTranslator('en')
   const warnings = parseFormatWarnings([
-    { code: 'incomplete_quantities', count: 3, quantities: [{ name: 'Strength', missing: ['unit'] }] },
-    { code: 'non_numeric_values', count: 1, columns: [{ column: 'Density low', count: 2, example: '1,1' }] },
+    { code: 'incomplete_quantities', count: 3, quantities: [{ name: 'Strength', missing: ['high'] }] },
+    { code: 'non_numeric_values', count: 1, columns: [{ column: 'Density low', count: 2, example: 'n/a' }] },
     { code: 'padded_names', count: 1, columns: [' low'] },
     { code: 'from_a_newer_backend' },
     null,
   ])
-  assert.equal(warnings.length, 3)
-  const [incomplete, nonNumeric, padded] = warnings.map((warning) => describeFormatWarning(warning, t))
-  assert.match(incomplete, /Strength \(missing: unit\), and 2 more/)
-  assert.match(nonNumeric, /Density low \(2× e\.g\. "1,1"\)/)
-  assert.match(padded, /" low"/)
+  assert.equal(warnings.length, 2)
+  const [incomplete, nonNumeric] = warnings.map((warning) => describeFormatWarning(warning, t))
+  assert.match(incomplete, /Strength \(missing: high\), and 2 more/)
+  assert.match(nonNumeric, /Density low \(2× e\.g\. "n\/a"\)/)
   assert.deepEqual(parseFormatWarnings(undefined), [])
 })

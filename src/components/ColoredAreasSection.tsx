@@ -5,7 +5,7 @@ import { DEFAULT_AREA } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { addColoredAreaToFrame } from '../utils/coloredAreas'
-import { ColorOrMaterialInput, EmptyItems, Field, ItemCard, Segmented, SettingsGroup } from './AppControls'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, Segmented, SettingsGroup } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
 
 type Props = {
@@ -101,20 +101,20 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
 
               {usesAxes ? (
                 rangeAxes.length > 0 ? (
-                  <div className="grid gap-4 @lg:grid-cols-2">
+                  <FieldGroup label={t('areaRanges')} jsonPath={`colored_areas[${areaIndex}].axes.`} level="check" className="@lg:grid-cols-2">
                     {rangeAxes.map((axis) => {
                       const range = area.axes?.[axis] ?? [null, null]
                       return (
-                        <Field key={axis} label={t('areaRange', { axis })} jsonPath={`colored_areas[${areaIndex}].axes.${axis}`} level="check">
+                        <GroupedField key={axis} label={axis}>
                           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                             <Input type="number" aria-label={`${axis} ${t('min')}`} placeholder={`${t('min')} (${t('openBound')})`} value={range[0] ?? ''} onChange={(e) => setRange(areaIndex, axis, 0, e.target.valueAsNumber)} />
                             <span className="text-zinc-400">–</span>
                             <Input type="number" aria-label={`${axis} ${t('max')}`} placeholder={`${t('max')} (${t('openBound')})`} value={range[1] ?? ''} onChange={(e) => setRange(areaIndex, axis, 1, e.target.valueAsNumber)} />
                           </div>
-                        </Field>
+                        </GroupedField>
                       )
                     })}
-                  </div>
+                  </FieldGroup>
                 ) : (
                   <p className="m-0 text-xs text-zinc-500">{t('areaAxesHint')}</p>
                 )

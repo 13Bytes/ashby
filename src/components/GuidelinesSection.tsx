@@ -6,7 +6,7 @@ import { DEFAULT_GUIDELINE } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, EmptyItems, Field, ItemCard, LanguageFields, Segmented, SettingsGroup } from './AppControls'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, Segmented, SettingsGroup } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
 
 type Props = {
@@ -56,12 +56,16 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
               }}
             >
               <div className="grid gap-4 @lg:grid-cols-3">
-                <Field label={t('guidelineX')} jsonPath={`guidelines[${guidelineIndex}].x`} level="check">
-                  <Input type="number" value={guideline.x ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
-                </Field>
-                <Field label={t('guidelineY')} jsonPath={`guidelines[${guidelineIndex}].y`} level="check">
-                  <Input type="number" value={guideline.y ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
-                </Field>
+                <div className="@lg:col-span-2">
+                  <FieldGroup label={t('anchorPoint')} jsonPath={`guidelines[${guidelineIndex}].x`} level="check" className="grid-cols-2">
+                    <GroupedField label={`x${activeFrame.xQuantity ? ` · ${activeFrame.xQuantity}` : ''}`}>
+                      <Input type="number" aria-label={t('guidelineX')} value={guideline.x ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                    </GroupedField>
+                    <GroupedField label={`y${activeFrame.yQuantity ? ` · ${activeFrame.yQuantity}` : ''}`}>
+                      <Input type="number" aria-label={t('guidelineY')} value={guideline.y ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                    </GroupedField>
+                  </FieldGroup>
+                </div>
                 <Field label={t('guidelineSlope')} jsonPath={`guidelines[${guidelineIndex}].m`} level="check">
                   <Input type="number" value={guideline.m} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} />
                 </Field>
@@ -77,8 +81,8 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
                   <ColorOrMaterialInput materialColors={materialColors} value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, color: next } }))} />
                 </Field>
               </div>
-              <div className="grid gap-4 @lg:grid-cols-4">
-                <div className="@lg:col-span-2">
+              <div className="grid gap-4 @lg:grid-cols-2">
+                <div className="grid">
                   <LanguageFields
                     label={t('text')}
                     jsonPath={`guidelines[${guidelineIndex}].label`}
@@ -89,22 +93,24 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
                     onChange={(lang, next) => updateGuideline(guidelineIndex, (g) => ({ ...g, label: setLocalizedLabel(g.label, lang, next, activeDataframe.plotLanguages) }))}
                   />
                 </div>
-                <Field label={t('labelPosition')} jsonPath={`guidelines[${guidelineIndex}].label_above`} level="default" changed={guideline.labelAbove !== DEFAULT_GUIDELINE.labelAbove}>
-                  <Segmented<'above' | 'below'>
-                    ariaLabel={t('labelPosition')}
-                    value={guideline.labelAbove ? 'above' : 'below'}
-                    onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: next === 'above' }))}
-                    options={[{ value: 'above', label: t('above') }, { value: 'below', label: t('below') }]}
-                  />
-                </Field>
-                <Field label={t('labelDirection')} jsonPath={`guidelines[${guidelineIndex}].label_rotated`} level="default" changed={guideline.labelRotated !== DEFAULT_GUIDELINE.labelRotated}>
-                  <Segmented<'along' | 'horizontal'>
-                    ariaLabel={t('labelDirection')}
-                    value={guideline.labelRotated ? 'along' : 'horizontal'}
-                    onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelRotated: next === 'along' }))}
-                    options={[{ value: 'along', label: t('alongLine') }, { value: 'horizontal', label: t('horizontal') }]}
-                  />
-                </Field>
+                <div className="flex flex-wrap content-start gap-4">
+                  <Field label={t('labelPosition')} jsonPath={`guidelines[${guidelineIndex}].label_above`} level="default" changed={guideline.labelAbove !== DEFAULT_GUIDELINE.labelAbove}>
+                    <Segmented<'above' | 'below'>
+                      ariaLabel={t('labelPosition')}
+                      value={guideline.labelAbove ? 'above' : 'below'}
+                      onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: next === 'above' }))}
+                      options={[{ value: 'above', label: t('above') }, { value: 'below', label: t('below') }]}
+                    />
+                  </Field>
+                  <Field label={t('labelDirection')} jsonPath={`guidelines[${guidelineIndex}].label_rotated`} level="default" changed={guideline.labelRotated !== DEFAULT_GUIDELINE.labelRotated}>
+                    <Segmented<'along' | 'horizontal'>
+                      ariaLabel={t('labelDirection')}
+                      value={guideline.labelRotated ? 'along' : 'horizontal'}
+                      onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelRotated: next === 'along' }))}
+                      options={[{ value: 'along', label: t('alongLine') }, { value: 'horizontal', label: t('horizontal') }]}
+                    />
+                  </Field>
+                </div>
               </div>
               <div className="grid gap-4 @lg:grid-cols-3">
                 <Field label={t('fontSize')} jsonPath={`guidelines[${guidelineIndex}].fontsize`} level="default" changed={guideline.fontsize !== DEFAULT_GUIDELINE.fontsize}>

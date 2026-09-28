@@ -12,7 +12,7 @@
 // for colors see: https://matplotlib.org/stable/users/explain/colors/colors.html & https://matplotlib.org/stable/gallery/color/named_colors.html 
 
 {
-    "version":5,                            // version number
+    "version":6,                            // version number of this format (6: legend_above moved from the frames to the dataframe, frame dark_mode removed)
     "create_all_dataframes":true,           // [true] create all dataframes in list,  [num array] only given frames (numbers can be retrieved from output when creating all frames) {true}
     "dataframes":[{
         "name":null,                        // title to show in console log, {""}
@@ -27,6 +27,7 @@
         "resolution":1000,                  // vertical resolution for .png export [num]
     
         "legend_title":"",                  // see Appendix PLACEHOLDER_LABEL
+        "legend_above":false,               // determine where legend should be printed [true]:above, [false]:right, [null]:no legend  {false}
         "font":{                            // [{}]
             "font_style":"",                // fort style {"sans-serif"}  ["serif"]["sans-serif"]["cursive"]["fantasy"]["monospace"]
             "font":"",                      // font [str] {"Arial"}
@@ -51,9 +52,7 @@
             "name":null,                    // title to show in output and window header on popout {""}
             
             "title":"",                     // see Appendix PLACEHOLDER_LABEL
-            "legend_above":false,           // determine where legend should be printed [true]:above, [false]:right, [null]:no legend  {false}
             "language":"",                  // [str] {dataframe:language }
-            "dark_mode":false,              // font color, black or white: {dataframe:dark_mode}
 
             "x_quantity":"",                // axis name (see bottom) for value on x_axis       [str]
             "x_rel_quantity":null,          //   "                    to divide x_quantity by (per point)   [str / none] {none}

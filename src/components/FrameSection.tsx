@@ -1,9 +1,9 @@
 import type { DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
-import { DEFAULT_FRAME, DEFAULT_MARGIN } from '../config/settingsSections'
+import { DEFAULT_MARGIN } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
 import { useSettings } from '../utils/settingsContext'
-import { Field, LanguageFields, Segmented, SettingsGroup, SharedHint, Toggle } from './AppControls'
+import { Field, FieldGroup, GroupedField, LanguageFields, Segmented, SettingsGroup, SharedHint, Toggle } from './AppControls'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 
@@ -14,8 +14,6 @@ type Props = {
   automaticDisplayAreaActive: boolean
 }
 
-type LegendPosition = 'right' | 'above' | 'none'
-type FrameDarkMode = 'dataset' | 'off' | 'on'
 type Margin = NonNullable<FrameConfig['automaticDisplayAreaMargin']>
 type Limits = NonNullable<FrameConfig['xLim']>
 
@@ -103,29 +101,6 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
         />
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        <Field label={t('legendPosition')} jsonPath="frames[j].legend_above" level="default" changed={activeFrame.legendAbove !== DEFAULT_FRAME.legendAbove}>
-          <Segmented<LegendPosition>
-            ariaLabel={t('legendPosition')}
-            value={activeFrame.legendAbove === null ? 'none' : activeFrame.legendAbove ? 'above' : 'right'}
-            onChange={(next) => patchActiveFrame((c) => ({ ...c, legendAbove: next === 'none' ? null : next === 'above' }))}
-            options={[{ value: 'right', label: t('legendRight') }, { value: 'above', label: t('legendAbove') }, { value: 'none', label: t('legendNone') }]}
-          />
-        </Field>
-        <Field label={t('frameDarkMode')} jsonPath="frames[j].dark_mode" level="default" changed={activeFrame.darkMode !== undefined}>
-          <Segmented<FrameDarkMode>
-            ariaLabel={t('frameDarkMode')}
-            value={activeFrame.darkMode === undefined ? 'dataset' : activeFrame.darkMode ? 'on' : 'off'}
-            onChange={(next) => patchActiveFrame((c) => ({ ...c, darkMode: next === 'dataset' ? undefined : next === 'on' }))}
-            options={[
-              { value: 'dataset', label: t('asDataset', { value: activeDataframe.darkMode ? t('on') : t('off') }) },
-              { value: 'off', label: t('off') },
-              { value: 'on', label: t('on') },
-            ]}
-          />
-        </Field>
-      </div>
-
       {axisBox('x')}
       <div className="-my-3 flex justify-center" data-always>
         <button
@@ -155,30 +130,38 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
           />
         </Field>
         {automaticDisplayAreaActive ? (
-          <Field label={t('marginsLabel')} jsonPath="automatic_Display_Area_margin" level="default" changed={marginsChanged}>
-            <div className="grid gap-3 @lg:grid-cols-4">
-              {(['left', 'right', 'bottom', 'top'] as const).map((side) => (
-                <label key={side} className="grid gap-1 text-xs text-zinc-500">
-                  {t(side)}
-                  <Input type="number" step={0.01} value={margins?.[side] ?? 0} onChange={(e) => setMargin(side, e.target.valueAsNumber)} />
-                </label>
-              ))}
-            </div>
-          </Field>
+          <FieldGroup label={t('marginsLabel')} jsonPath="automatic_Display_Area_margin" level="default" changed={marginsChanged} className="grid-cols-2 @lg:grid-cols-4">
+            {(['left', 'right', 'bottom', 'top'] as const).map((side) => (
+              <GroupedField key={side} label={t(side)}>
+                <Input type="number" step={0.01} value={margins?.[side] ?? 0} onChange={(e) => setMargin(side, e.target.valueAsNumber)} />
+              </GroupedField>
+            ))}
+          </FieldGroup>
         ) : (
-          <Field label={t('fixedLimits')} jsonPath="x_lim[0]" level="default" changed={limitsChanged}>
-            <div className="grid gap-3 @lg:grid-cols-4">
-              {([['x', 0], ['x', 1], ['y', 0], ['y', 1]] as const).map(([axis, bound]) => {
-                const key = axis === 'x' ? 'xLim' : 'yLim'
-                return (
-                  <label key={`${axis}${bound}`} className="grid gap-1 text-xs text-zinc-500">
-                    {`${axis.toUpperCase()} ${bound === 0 ? t('min') : t('max')}`}
-                    <Input type="number" value={activeFrame[key]?.[bound] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, [key]: withLimit(c[key], bound, e.target.valueAsNumber) }))} />
-                  </label>
-                )
-              })}
-            </div>
-          </Field>
+          <FieldGroup label={t('fixedLimits')} jsonPath="x_lim[0]" level="default" changed={limitsChanged} className="@lg:grid-cols-2">
+            {(['x', 'y'] as const).map((axis) => {
+              const key = axis === 'x' ? 'xLim' : 'yLim'
+              const quantity = axis === 'x' ? activeFrame.xQuantity : activeFrame.yQuantity
+              const limitInput = (bound: 0 | 1) => (
+                <Input
+                  type="number"
+                  aria-label={`${axis.toUpperCase()} ${bound === 0 ? t('min') : t('max')}`}
+                  placeholder={bound === 0 ? t('min') : t('max')}
+                  value={activeFrame[key]?.[bound] ?? ''}
+                  onChange={(e) => patchActiveFrame((c) => ({ ...c, [key]: withLimit(c[key], bound, e.target.valueAsNumber) }))}
+                />
+              )
+              return (
+                <GroupedField key={axis} label={`${axis.toUpperCase()}${quantity ? ` · ${quantity}` : ''}`}>
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                    {limitInput(0)}
+                    <span className="text-zinc-400">–</span>
+                    {limitInput(1)}
+                  </div>
+                </GroupedField>
+              )
+            })}
+          </FieldGroup>
         )}
       </SettingsGroup>
     </>

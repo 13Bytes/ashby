@@ -4,7 +4,8 @@ import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
 import { useI18n } from '../uiTranslations'
 import { populateMaterialColorsForDataframe } from '../utils/configEditing'
-import { Field, LanguageFields, SettingsGroup } from './AppControls'
+import { DEFAULT_DATAFRAME } from '../config/settingsSections'
+import { Field, LanguageFields, Segmented, SettingsGroup } from './AppControls'
 import { ColorDot } from './ColorPicker'
 
 type Props = {
@@ -25,7 +26,7 @@ const renameMaterial = (df: DataframeConfig, material: string, nextName: string)
   return { ...df, materialColors: nextColors }
 }
 
-/** Legend title and material colors; shared by all frames of the dataframe. */
+/** Legend title and position and the material colors; shared by all frames of the dataframe. */
 export function MaterialColorsSection({
   activeDataframe,
   customMaterialNames,
@@ -51,6 +52,14 @@ export function MaterialColorsSection({
           value={(lang) => activeDataframe.legendTitle[lang] ?? ''}
           onChange={(lang, next) => patchActiveDataframe((df) => ({ ...df, legendTitle: { ...df.legendTitle, [lang]: next } }))}
         />
+        <Field label={t('legendPosition')} jsonPath="dataframes[i].legend_above" level="default" changed={activeDataframe.legendAbove !== DEFAULT_DATAFRAME.legendAbove}>
+          <Segmented<'right' | 'above' | 'none'>
+            ariaLabel={t('legendPosition')}
+            value={activeDataframe.legendAbove === null ? 'none' : activeDataframe.legendAbove ? 'above' : 'right'}
+            onChange={(next) => patchActiveDataframe((df) => ({ ...df, legendAbove: next === 'none' ? null : next === 'above' }))}
+            options={[{ value: 'right', label: t('legendRight') }, { value: 'above', label: t('legendAbove') }, { value: 'none', label: t('legendNone') }]}
+          />
+        </Field>
       </div>
 
       <SettingsGroup

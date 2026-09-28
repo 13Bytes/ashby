@@ -81,7 +81,8 @@ export const getAxisBasesFromColumns = (columns: string[]): string[] => {
   }
 
   return [...buckets.entries()]
-    .filter(([, suffixes]) => suffixes.has('low') && suffixes.has('high') && suffixes.has('unit'))
+    // The plot reads "<name> low" and "<name> high"; a "<name> unit" column is optional.
+    .filter(([, suffixes]) => suffixes.has('low') && suffixes.has('high'))
     .map(([base]) => base)
     .sort((a, b) => a.localeCompare(b))
 }

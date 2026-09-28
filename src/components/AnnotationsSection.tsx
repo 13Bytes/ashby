@@ -3,7 +3,7 @@ import { DEFAULT_ANNOTATION_ARROW, DEFAULT_ANNOTATION_MARKER, DEFAULT_ANNOTATION
 import { useI18n } from '../uiTranslations'
 import { numberValue, positiveValue } from '../utils/appState'
 import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS, getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, EmptyItems, Field, ItemCard, LanguageFields, SettingsGroup, Toggle } from './AppControls'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, SettingsGroup, Toggle } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -109,7 +109,7 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                 patchActiveFrame((f) => ({ ...f, annotations: f.annotations.filter((_, i) => i !== annotationIndex) }))
               }}
             >
-              <div className="grid gap-4 @lg:grid-cols-3">
+              <div className="grid gap-4 @lg:grid-cols-2">
                 <LanguageFields
                   label={t('textLabel')}
                   jsonPath={`annotations[${annotationIndex}].text.name`}
@@ -119,21 +119,33 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                   value={(lang) => getLocalizedLabel(annotation.text?.name ?? '', lang)}
                   onChange={(lang, next) => patchText(annotationIndex, { name: setLocalizedLabel(annotation.text?.name ?? '', lang, next, activeDataframe.plotLanguages) })}
                 />
-                {positionAxes.length > 0 ? positionAxes.map((axisName) => (
-                  <Field key={axisName} label={t('positionOn', { axis: axisName })} jsonPath={`annotations[${annotationIndex}].axes.${axisName}`} level="required" missing={annotation.axes?.[axisName] === undefined}>
-                    <Input type="number" value={annotation.axes?.[axisName] ?? ''} onChange={(e) => patchPosition(annotationIndex, axisName, e.target.valueAsNumber)} />
-                  </Field>
-                )) : (
+                {positionAxes.length > 0 ? (
+                  <FieldGroup
+                    label={t('position')}
+                    jsonPath={`annotations[${annotationIndex}].axes`}
+                    level="required"
+                    missing={positionAxes.some((axisName) => annotation.axes?.[axisName] === undefined)}
+                    className="grid-cols-2"
+                  >
+                    {positionAxes.map((axisName) => (
+                      <GroupedField key={axisName} label={axisName} missing={annotation.axes?.[axisName] === undefined}>
+                        <Input type="number" aria-label={t('positionOn', { axis: axisName })} value={annotation.axes?.[axisName] ?? ''} onChange={(e) => patchPosition(annotationIndex, axisName, e.target.valueAsNumber)} />
+                      </GroupedField>
+                    ))}
+                  </FieldGroup>
+                ) : (
                   <p className="m-0 self-center text-xs text-zinc-500">{t('annotationPositionHint')}</p>
                 )}
               </div>
               <div className="grid gap-4 @lg:grid-cols-3">
-                <Field label={t('textOffsetX')} jsonPath={`annotations[${annotationIndex}].text.rel_pos[0]`} level="default" changed={(annotation.text?.relPos?.[0] ?? 0) !== 0}>
-                  <Input type="number" value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[0] ?? 0), annotation.text?.relPos?.[1] ?? 0] })} />
-                </Field>
-                <Field label={t('textOffsetY')} jsonPath={`annotations[${annotationIndex}].text.rel_pos[1]`} level="default" changed={(annotation.text?.relPos?.[1] ?? 0) !== 0}>
-                  <Input type="number" value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [annotation.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[1] ?? 0)] })} />
-                </Field>
+                <FieldGroup label={t('textOffset')} jsonPath={`annotations[${annotationIndex}].text.rel_pos`} level="default" changed={(annotation.text?.relPos ?? [0, 0]).some((value) => value !== 0)} className="grid-cols-2">
+                  <GroupedField label="x">
+                    <Input type="number" aria-label={t('textOffsetX')} value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[0] ?? 0), annotation.text?.relPos?.[1] ?? 0] })} />
+                  </GroupedField>
+                  <GroupedField label="y">
+                    <Input type="number" aria-label={t('textOffsetY')} value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [annotation.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[1] ?? 0)] })} />
+                  </GroupedField>
+                </FieldGroup>
                 <Field label={t('textColor')} jsonPath={`annotations[${annotationIndex}].text.color`} level="default" changed={(annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color) !== DEFAULT_ANNOTATION_TEXT.color}>
                   <ColorOrMaterialInput materialColors={materialColors} value={annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color} onChange={(color) => patchText(annotationIndex, { color })} />
                 </Field>

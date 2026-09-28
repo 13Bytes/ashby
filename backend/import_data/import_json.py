@@ -2,7 +2,7 @@ import json
 from termcolor import (colored, cprint)
 
 
-CURRENT_VERSION = 5
+CURRENT_VERSION = 6     # keep equal to CONFIG_VERSION in src/config/defaultPlotConfig.ts
 
 def import_json(filename):
     try:

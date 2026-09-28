@@ -102,6 +102,8 @@ function App() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [jsonDraft, setJsonDraft] = useState('')
   const [alert, setAlert] = useState<AlertState | null>(null)
+  /** Version warning of the imported config; its own banner, so the automatic data import's message does not replace it. */
+  const [configWarning, setConfigWarning] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -697,13 +699,14 @@ function App() {
       setImportedSources({})
       importedSignaturesRef.current.clear()
       // Another format version is imported anyway (unknown settings are kept as they are), with a warning.
+      setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
       if (importedVersion === CONFIG_VERSION) {
-        setAlert({ tone: 'success', message: t('configImported', { name: file.name }) })
+        setConfigWarning(null)
       } else {
         const message = importedVersion === undefined
           ? t('configVersionMissing', { name: file.name, current: CONFIG_VERSION })
           : t('configVersionMismatch', { name: file.name, version: importedVersion, current: CONFIG_VERSION })
-        setAlert({ tone: 'warning', message })
+        setConfigWarning(message)
         addLogEntry({ level: 'warning', source: 'config', title: file.name, message })
       }
     } catch (error) {
@@ -816,6 +819,7 @@ function App() {
   const jsonMarker = useMemo(() => getJsonSyntaxMarkers(jsonDraft), [jsonDraft])
   const resetConfig = () => {
     setPlotConfig(normalizePlotConfig())
+    setConfigWarning(null)
     setConfigBaseName('ashby-config')
     setActiveDataframeIndex(0)
     setActiveFrameIndex(0)
@@ -1060,6 +1064,14 @@ function App() {
         </div>
       ) : null}
       <ConfigTabs {...tabProps} />
+      {configWarning ? (
+        <div className="px-4 pt-3">
+          <Alert variant="warning" className="flex items-center justify-between gap-3">
+            <span>{configWarning}</span>
+            <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setConfigWarning(null)} aria-label={t('closeNotification')}>✕</button>
+          </Alert>
+        </div>
+      ) : null}
       {alert ? (
         <div className="px-4 pt-3">
           <Alert variant={alert.tone === 'error' ? 'destructive' : alert.tone} className="flex items-center justify-between gap-3">

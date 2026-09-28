@@ -203,7 +203,62 @@ export function Field({
   )
 }
 
-/** One text field per plot language. Simple mode shows the selected language only. */
+/**
+ * Several values that belong together (one text per language, one coordinate per axis) in one
+ * framed box under a common label. Counts as one setting: search, Simple mode and the section
+ * statistics treat it like a Field.
+ */
+export function FieldGroup({
+  label,
+  jsonPath,
+  level,
+  missing,
+  changed,
+  anchor,
+  className,
+  children,
+}: {
+  label: string
+  jsonPath: string
+  level?: SettingLevel
+  missing?: boolean
+  changed?: boolean
+  anchor?: string
+  /** Layout of the grouped fields, e.g. a column per axis. */
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="grid content-start gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 pb-3 pt-2 dark:border-zinc-800 dark:bg-zinc-900/40"
+      data-setting={label}
+      data-anchor={anchor}
+      data-level={level}
+      data-changed={level === 'default' && changed ? 'true' : undefined}
+      data-missing={missing ? 'true' : undefined}
+    >
+      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} />
+      <div className={cn('grid gap-3', className)}>{children}</div>
+    </div>
+  )
+}
+
+/** A value inside a FieldGroup: a small label (e.g. the axis) above its input. */
+export function GroupedField({ label, missing, children }: { label: ReactNode; missing?: boolean; children: ReactNode }) {
+  return (
+    <label className="grid min-w-0 content-start gap-1" data-missing={missing ? 'true' : undefined}>
+      <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">{label}</span>
+      {children}
+    </label>
+  )
+}
+
+/**
+ * One text field per plot language, grouped under the label when there are several. Simple mode
+ * shows the selected language only.
+ */
 export function LanguageFields({
   label,
   jsonPath,
@@ -223,6 +278,18 @@ export function LanguageFields({
   onChange: (language: string, next: string) => void
   anchor?: string
 }) {
+  if (languages.length > 1) {
+    return (
+      <FieldGroup label={label} jsonPath={jsonPath} level={level} anchor={anchor} className="gap-2">
+        {languages.map((language) => (
+          <label key={language} className="flex items-center gap-2" data-lang-other={language !== selectedLanguage ? 'true' : undefined}>
+            <span className="w-8 shrink-0 rounded py-0.5 text-center font-mono text-[10px] uppercase text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700">{language}</span>
+            <Input aria-label={`${label} (${language})`} value={value(language)} onChange={(event) => onChange(language, event.target.value)} />
+          </label>
+        ))}
+      </FieldGroup>
+    )
+  }
   return (
     <>
       {languages.map((language) => (

@@ -56,7 +56,9 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
         # : General setup :
-        dark_mode = frame.get('dark_mode', df_darkmode)
+        dark_mode = df_darkmode     # config version 6: set per dataframe only
+        # [True] above, [False] right, [None] no legend. Since config version 6 per dataframe; older configs set it per frame.
+        legend_above = dataframe.get('legend_above', frame.get('legend_above', False))
         if dark_mode:
             font_color = 'white'
         else:
@@ -73,7 +75,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         if dark_mode:       # without this a non-transparent dark plot gets white text on matplotlib's white background
             fig.patch.set_facecolor(DARK_BACKGROUND)
             ax.set_facecolor(DARK_BACKGROUND)
-        if frame.get('legend_flag',True) != None:           # & ❗ ⇒  ui
+        if legend_above is not None and frame.get('legend_flag',True) != None:     # room for the legend
             plt.subplots_adjust(left=0.09, right=0.86)
         
         ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
@@ -116,13 +118,13 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         Plot_size = plot_size(frame, DATA, Marker, image_ratio) # § class §
                     
 
-        if frame.get('legend_above',True) != None:
+        if legend_above is not None:
             Graphics.legend.create_legend(
                 Format_Storage = Format_Storage,
                 font_color = font_color,
                 font_size  = df_font.get('legend_label_size',15),
                 title_size = df_font.get('legend_title_size',25),
-                above = frame.get("legend_above",False),
+                above = legend_above,
                 copyright = (dataframe.get('copyright', False) != False)
             )
 

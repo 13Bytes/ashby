@@ -68,6 +68,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
       language: dataframe.language,
       plot_languages: dataframe.plotLanguages,
       dark_mode: dataframe.darkMode,
+      legend_above: dataframe.legendAbove,
       transparent: dataframe.transparent,
       watermark: dataframe.watermark,
       copyright: dataframe.copyright,
@@ -75,11 +76,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
       _extensions: dataframe._extensions,
       frames: dataframe.frames.map((frame) => ({
         name: frame.name ?? null,
-        // null: no legend, and no room kept for one right of the plot
-        legend_flag: frame.legendAbove === null ? null : frame.legendFlag,
         title: frame.title,
-        ...(frame.darkMode === undefined ? {} : { dark_mode: frame.darkMode }),
-        legend_above: frame.legendAbove,
         language: frame.language,
         x_quantity: frame.xQuantity,
         x_rel_quantity: frame.xRelQuantity ?? null,

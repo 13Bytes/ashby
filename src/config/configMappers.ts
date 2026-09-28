@@ -24,9 +24,6 @@ const asOptionalString = (value: unknown): string | undefined => {
 const coerceBool = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback
 
-const coerceOptionalBool = (value: unknown): boolean | undefined =>
-  typeof value === 'boolean' ? value : undefined
-
 const coerceNumber = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
@@ -132,6 +129,14 @@ const normalizeGuidelines = (value: unknown): FrameConfig['guidelines'] =>
       }
     })
     : []
+
+/** null: no legend. */
+const coerceLegendAbove = (value: unknown, fallback: boolean | null): boolean | null =>
+  value === null ? null : coerceBool(value, fallback ?? false)
+
+/** The key holding the legend position, if the object has one. */
+const legendAboveKeyOf = (value: Record<string, unknown>): 'legendAbove' | 'legend_above' | undefined =>
+  'legendAbove' in value ? 'legendAbove' : 'legend_above' in value ? 'legend_above' : undefined
 
 const positiveOr = (value: number | undefined, fallback: number): number => (value !== undefined && value > 0 ? value : fallback)
 
@@ -244,6 +249,7 @@ const normalizeFrame = (
   const known = new Set([
     '_extensions',
     'name',
+    // Before version 6; read by normalizeDataframe, not kept.
     'legend_flag',
     'legendFlag',
     'title',
@@ -305,17 +311,11 @@ const normalizeFrame = (
   return {
     ...structuredClone(fallback),
     name: asOptionalString(partial.name),
-    legendFlag: coerceBool(partial.legendFlag ?? partial.legend_flag, fallback.legendFlag),
     title: isRecord(partial.title)
       ? Object.fromEntries(
         Object.entries(partial.title).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
       )
       : fallback.title,
-    darkMode: coerceOptionalBool(partial.darkMode ?? partial.dark_mode),
-    // null: no legend
-    legendAbove: (partial.legendAbove ?? partial.legend_above) === null
-      ? null
-      : coerceBool(partial.legendAbove ?? partial.legend_above, fallback.legendAbove ?? false),
     language: typeof partial.language === 'string' ? partial.language : fallback.language,
     xQuantity:
       typeof (partial.xQuantity ?? partial.x_quantity) === 'string'
@@ -365,6 +365,9 @@ const normalizeDataframe = (
   }
 
   const legacyFrames = Array.isArray(partial.frames) ? partial.frames : null
+  const firstFrame = legacyFrames && isRecord(legacyFrames[0]) ? legacyFrames[0] : undefined
+  const legendSource = legendAboveKeyOf(partial) ? partial : firstFrame
+  const legendKey = legendSource ? legendAboveKeyOf(legendSource) : undefined
   const normalizedFrames = legacyFrames
     ? legacyFrames.map((frame, index) =>
       normalizeFrame(frame, fallback.frames[index] ?? fallback.frames[0]),
@@ -402,6 +405,8 @@ const normalizeDataframe = (
     'plotLanguages',
     'dark_mode',
     'darkMode',
+    'legend_above',
+    'legendAbove',
     'create_all_frames',
     'createAllFrames',
     'frames',
@@ -463,7 +468,9 @@ const normalizeDataframe = (
     plotLanguages: Array.isArray(plotLanguagesSource)
       ? plotLanguagesSource.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
       : fallback.plotLanguages,
-    darkMode: coerceBool(partial.darkMode ?? partial.dark_mode, fallback.darkMode),
+    // Before version 6 the frames held these; the first frame's values are taken over.
+    darkMode: coerceBool(partial.darkMode ?? partial.dark_mode ?? firstFrame?.darkMode ?? firstFrame?.dark_mode, fallback.darkMode),
+    legendAbove: coerceLegendAbove(legendSource && legendKey ? legendSource[legendKey] : undefined, fallback.legendAbove),
     transparent: coerceBool(partial.transparent, fallback.transparent),
     watermark: coerceBoolOrString(partial.watermark, fallback.watermark),
     copyright: coerceBoolOrString(partial.copyright, fallback.copyright),

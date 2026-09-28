@@ -10,8 +10,10 @@ export const FONT_STYLES = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monosp
  * Config format version this app reads and writes. Raise it together with CURRENT_VERSION in
  * backend/import_data/import_json.py (a frontend test checks that both match) when the format
  * changes. Importing a config of another version shows a warning.
+ *
+ * 6: `legend_above` moved from the frames to the dataframe; the frames' `dark_mode` was removed.
  */
-export const CONFIG_VERSION = 5
+export const CONFIG_VERSION = 6
 
 export type UnknownConfigBucket = Record<string, unknown>
 
@@ -46,6 +48,8 @@ export interface DataframeConfig {
   language: string
   plotLanguages: string[]
   darkMode: boolean
+  /** Legend above the plots (true), to their right (false) or no legend (null). Since version 6. */
+  legendAbove: boolean | null
   transparent: boolean
   watermark: boolean|string
   copyright: boolean|string
@@ -58,12 +62,7 @@ export interface DataframeConfig {
 
 export interface FrameConfig {
   name?: string
-  legendFlag: boolean
   title: Record<string, string>
-  /** Overrides the dataframe's dark mode for this frame. */
-  darkMode?: boolean
-  /** Legend above the plot (true), to its right (false) or no legend (null). */
-  legendAbove: boolean | null
   language: string
   xQuantity?: string
   xRelQuantity?: string
@@ -190,6 +189,7 @@ export function createDefaultPlotConfig(): PlotConfig {
         language: 'en',
         plotLanguages: ['en'],
         darkMode: false,
+        legendAbove: false,
         transparent: false,
         watermark: true,
         copyright: true,
@@ -197,8 +197,6 @@ export function createDefaultPlotConfig(): PlotConfig {
         frames: [
           {
             title: { en: '' },
-            legendFlag: true,
-            legendAbove: false,
             language: 'en',
             xQuantity: undefined,
             logXFlag: false,

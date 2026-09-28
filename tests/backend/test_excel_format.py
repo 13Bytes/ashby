@@ -11,7 +11,7 @@ import pandas as pd
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_DIR))
 
-from backend.import_data import check_excel_format  # noqa: E402
+from backend.import_data import check_excel_format, prepare_sheet  # noqa: E402
 from backend.plot_renderer import RequestDataSource, render_plot_image  # noqa: E402
 
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
@@ -32,36 +32,43 @@ class CheckExcelFormatTest(unittest.TestCase):
         })
         self.assertEqual(check_excel_format(data), [])
 
-    def test_empty_sheet(self) -> None:
+    def test_harmless_quirks_are_not_reported(self) -> None:
+        # Spreadsheet habits the plot copes with: no unit column, low above high, spaces around
+        # names, a decimal comma typed as text, unnamed or repeated columns, an unnamed " low" column.
+        data = pd.DataFrame({
+            'Material ': ['PA6', 'PEEK'],
+            'Density low ': ['1,1', 2.0],
+            'Density high': [1.0, 1.4],
+            'Unnamed: 3': ['note', None],
+            ' low': [1, 2],
+            'Material.1': ['x', 'y'],
+        })
+        self.assertEqual(check_excel_format(data), [])
+
+    def test_empty_sheet_and_missing_quantities(self) -> None:
         self.assertEqual(codes(check_excel_format(pd.DataFrame())), ['empty_sheet'])
         self.assertEqual(codes(check_excel_format(pd.DataFrame(columns=['Material']))), ['empty_sheet'])
+        # e.g. the column names are not in the first row
+        self.assertEqual(codes(check_excel_format(pd.DataFrame({'Unnamed: 0': ['Material'], 'Unnamed: 1': ['Density low']}))), ['no_quantities'])
 
-    def test_problems_are_reported_with_their_columns(self) -> None:
+    def test_problems_that_keep_data_out_of_the_plot(self) -> None:
         data = pd.DataFrame({
-            'Material': ['PA6', 'PEEK'],
-            'Unnamed: 1': ['note', None],   # values without a column name
-            'Unnamed: 2': [None, None],     # empty: ignored
-            'Layer ': ['a', 'b'],
-            'Density low': ['1,1', 1.3],
-            'Density high': [1.0, 1.4],
-            'Density unit': ['g/cm³', 'g/cm³'],
+            'Density low': ['n/a', 1.3],
+            'Density high': [1.0, '>2'],
             'Strength low': [10, 20],
-            'Strength high': [30, 40],
-            'Material.1': ['x', 'y'],       # pandas' name for a repeated "Material"
         })
         warnings = {warning['code']: warning for warning in check_excel_format(data)}
-        self.assertEqual(warnings['unnamed_columns']['columns'], ['B'])
-        self.assertEqual(warnings['padded_names']['columns'], ['Layer '])
-        self.assertEqual(warnings['duplicate_names']['columns'], ['Material'])
-        self.assertEqual(warnings['incomplete_quantities']['quantities'], [{'name': 'Strength', 'missing': ['unit']}])
-        self.assertEqual(warnings['non_numeric_values']['columns'], [{'column': 'Density low', 'count': 1, 'example': '1,1'}])
-        self.assertNotIn('no_quantities', warnings)
-        self.assertNotIn('low_above_high', warnings)
+        self.assertEqual(warnings['incomplete_quantities']['quantities'], [{'name': 'Strength', 'missing': ['high']}])
+        self.assertEqual(warnings['non_numeric_values']['columns'], [
+            {'column': 'Density low', 'count': 1, 'example': 'n/a'},
+            {'column': 'Density high', 'count': 1, 'example': '>2'},
+        ])
 
-    def test_low_above_high_and_missing_quantities(self) -> None:
-        swapped = pd.DataFrame({'Density low': [2, 1], 'Density high': [1, 2], 'Density unit': ['', '']})
-        self.assertEqual(check_excel_format(swapped), [{'code': 'low_above_high', 'count': 1, 'quantities': [{'name': 'Density', 'count': 1}]}])
-        self.assertEqual(codes(check_excel_format(pd.DataFrame({'Material': ['PA6']}))), ['no_quantities'])
+    def test_prepare_sheet_strips_names_and_reads_numbers(self) -> None:
+        data = prepare_sheet(pd.DataFrame({'Material ': ['PA6', 'PEEK'], 'Density low ': ['1,5', 'n/a'], 'Density high': [2, 3]}))
+        self.assertEqual(list(data.columns), ['Material', 'Density low', 'Density high'])
+        self.assertEqual(data['Density low'].iloc[0], 1.5)
+        self.assertTrue(pd.isna(data['Density low'].iloc[1]))
 
 
 class DarkModeBackgroundTest(unittest.TestCase):

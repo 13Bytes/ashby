@@ -38,10 +38,10 @@ const readJson = async (relativePath) => JSON.parse(await readFile(path.join(pro
 const roundTrip = (config) => normalizePlotConfig(JSON.parse(JSON.stringify(toExternalConfig(config))))
 const exported = (config) => JSON.parse(JSON.stringify(toExternalConfig(config)))
 
-test('appState derives axis bases only from complete low/high/unit column groups', () => {
+test('appState derives axis bases from low/high column pairs; a unit column is optional', () => {
   assert.deepEqual(
-    getAxisBasesFromColumns(['Density high', 'Density unit', 'Density low', 'Cost low', 'Cost high']),
-    ['Density'],
+    getAxisBasesFromColumns(['Density high', 'Density unit', 'Density low', 'Cost low', 'Cost high', 'Mass low', 'Price unit']),
+    ['Cost', 'Density'],
   )
 })
 
@@ -70,7 +70,7 @@ test('plot language helpers trim, dedupe, and preserve at least one language', (
 })
 
 test('a new colored area is a polygon with default corners', () => {
-  assert.deepEqual(addColoredAreaToFrame({ coloredAreas: [] }).coloredAreas[0], { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 })
+  assert.deepEqual(addColoredAreaToFrame({ coloredAreas: [] }).coloredAreas[0], { x: [0], y: [0], color: '#ef4444', alpha: 0.2 })
 })
 
 test('colored area axis ranges are normalized to [min, max] with open bounds', () => {
@@ -170,17 +170,13 @@ test('translations fill placeholders and cover every key in every language', () 
   assert.equal(parseUILanguage('fr'), 'en')
 })
 
-test('frames inherit dataframe dark mode unless explicitly overridden', () => {
+test('dark mode is a dataframe setting; frames carry none', () => {
   const config = createDefaultPlotConfig()
   config.dataframes[0].darkMode = true
-
   const inherited = exported(config)
   assert.equal(inherited.dataframes[0].dark_mode, true)
   assert.equal('dark_mode' in inherited.dataframes[0].frames[0], false)
-
-  config.dataframes[0].frames[0].darkMode = false
-  assert.equal(exported(config).dataframes[0].frames[0].dark_mode, false)
-  assert.equal(roundTrip(config).dataframes[0].frames[0].darkMode, false)
+  assert.equal(roundTrip(config).dataframes[0].darkMode, true)
 })
 
 test('the export uses the backend key names', () => {
