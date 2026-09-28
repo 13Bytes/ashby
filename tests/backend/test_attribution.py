@@ -1,6 +1,7 @@
 """The attribution on plots rendered by this server, and the key that unlocks the copyright and watermark switches."""
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 import unittest
@@ -10,12 +11,39 @@ from unittest import mock
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_DIR))
 
-from fastapi.testclient import TestClient  # noqa: E402
-
 from backend import app as app_module, plot_renderer, security  # noqa: E402
 
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
 KEY = 'correct-horse-battery-staple-42'
+
+
+def post(path: str, body: dict | None = None, headers: dict[str, str] | None = None) -> tuple[int, bytes]:
+    """POST through the ASGI app in this process, so the mocks apply. fastapi's TestClient would need httpx, which the backend does not install."""
+    content = json.dumps(body).encode('utf-8') if body is not None else b''
+    raw_headers = [(b'host', b'testserver'), (b'content-type', b'application/json'), (b'content-length', str(len(content)).encode())]
+    raw_headers += [(name.lower().encode(), value.encode()) for name, value in (headers or {}).items()]
+    scope = {
+        'type': 'http', 'asgi': {'version': '3.0'}, 'http_version': '1.1', 'method': 'POST', 'scheme': 'http',
+        'path': path, 'raw_path': path.encode(), 'query_string': b'', 'root_path': '', 'headers': raw_headers,
+        'client': ('127.0.0.1', 50000), 'server': ('testserver', 80),
+    }
+    request_messages = [{'type': 'http.request', 'body': content, 'more_body': False}]
+    status: list[int] = []
+    chunks: list[bytes] = []
+
+    async def receive():
+        if request_messages:
+            return request_messages.pop(0)
+        await asyncio.Event().wait()        # the client stays connected
+
+    async def send(message):
+        if message['type'] == 'http.response.start':
+            status.append(message['status'])
+        elif message['type'] == 'http.response.body':
+            chunks.append(message.get('body', b''))
+
+    asyncio.run(app_module.app(scope, receive, send))
+    return status[0], b''.join(chunks)
 
 
 class AttributionRuleTest(unittest.TestCase):
@@ -44,17 +72,17 @@ class AttributionRuleTest(unittest.TestCase):
 
 class AttributionApiTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.client = TestClient(app_module.app)
         patcher = mock.patch.object(security, 'ATTRIBUTION_KEY', KEY)
         patcher.start()
         self.addCleanup(patcher.stop)
 
     def test_key_endpoint(self):
         header = security.ATTRIBUTION_KEY_HEADER
-        self.assertEqual(self.client.post('/api/attribution-key', headers={header: KEY}).json(), {'valid': True})
+        valid = lambda headers=None: json.loads(post('/api/attribution-key', headers=headers)[1])
+        self.assertEqual(valid({header: KEY}), {'valid': True})
         with mock.patch.object(app_module.asyncio, 'sleep', mock.AsyncMock()) as sleep:
-            self.assertEqual(self.client.post('/api/attribution-key', headers={header: 'guess'}).json(), {'valid': False})
-            self.assertEqual(self.client.post('/api/attribution-key').json(), {'valid': False})
+            self.assertEqual(valid({header: 'guess'}), {'valid': False})
+            self.assertEqual(valid(), {'valid': False})
         self.assertEqual(sleep.await_count, 2)      # wrong keys are answered slowly
 
     def test_render_endpoints_apply_the_attribution_unless_the_key_is_sent(self):
@@ -75,7 +103,7 @@ class AttributionApiTest(unittest.TestCase):
         ]
         with mock.patch.object(plot_renderer.plot, 'main', side_effect=fake_main):
             for path, body, headers in requests:
-                self.client.post(path, json=body, headers=headers)
+                post(path, body, headers)
 
         attribution = {'copyright': security.ATTRIBUTION_TEXT, 'watermark': False}
         unlocked = {'copyright': True, 'watermark': True}
