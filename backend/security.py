@@ -5,6 +5,7 @@ loosen or tighten them without code changes.
 """
 from __future__ import annotations
 
+import hmac
 import io
 import ipaddress
 import json
@@ -150,6 +151,34 @@ def resolve_watermark_file(name: str) -> Path:
     if root not in candidate.parents or candidate.suffix.lower() not in MEDIA_SUFFIXES or not candidate.is_file():
         raise FileNotFoundError(f"Watermark '{name}' not found in backend/media/watermarks.")
     return candidate
+
+
+# : attribution :
+# Plots rendered on this server always carry an attribution instead of the copyright notice, and no
+# watermark. Holders of the attribution key (environment variable ASHBY_ATTRIBUTION_KEY; unset: nobody)
+# switch the copyright notice and the watermark on or off instead; both then show the standard text and logo.
+ATTRIBUTION_TEXT       = 'created using ashby.aerospace-lab.de'
+ATTRIBUTION_KEY        = os.environ.get('ASHBY_ATTRIBUTION_KEY', '')
+ATTRIBUTION_KEY_HEADER = 'x-ashby-attribution-key'
+
+
+def attribution_key_valid(key: str | None) -> bool:
+    '''the key sent by the editor matches the server's (compared in constant time)'''
+    if not ATTRIBUTION_KEY or not key:
+        return False
+    return hmac.compare_digest(key.encode('utf-8'), ATTRIBUTION_KEY.encode('utf-8'))
+
+
+def apply_attribution(dataframe: dict[str, Any], unlocked: bool) -> dict[str, Any]:
+    '''copyright and watermark as the server allows them: switches with the key, the attribution without'''
+    if unlocked:
+        # on / off only: custom texts and files from the config are not used
+        dataframe['copyright'] = dataframe.get('copyright', False) not in (False, None, '')
+        dataframe['watermark'] = dataframe.get('watermark', False) not in (False, None, '')
+    else:
+        dataframe['copyright'] = ATTRIBUTION_TEXT
+        dataframe['watermark'] = False
+    return dataframe
 
 
 # : error output :

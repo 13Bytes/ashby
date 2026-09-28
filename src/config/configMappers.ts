@@ -33,8 +33,9 @@ const coerceNumber = (value: unknown, fallback: number): number =>
 const coerceOptionalNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined
 
-const coerceBoolOrString = (value: unknown, fallback: boolean | string): boolean | string =>
-  typeof value === 'boolean' || typeof value === 'string' ? value : fallback
+/** Copyright and watermark are on/off; older configs may hold a custom text or file name, which means on. */
+const coerceOnOrText = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : typeof value === 'string' ? value.trim() !== '' : value === null ? false : fallback
 
 const coerceStringRecord = (value: Record<string, unknown>): Record<string, string> =>
   Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'))
@@ -491,8 +492,8 @@ const normalizeDataframe = (
     darkMode: coerceBool(partial.darkMode ?? partial.dark_mode ?? firstFrame?.darkMode ?? firstFrame?.dark_mode, fallback.darkMode),
     legendAbove: coerceLegendAbove(legendSource && legendKey ? legendSource[legendKey] : undefined, fallback.legendAbove),
     transparent: coerceBool(partial.transparent, fallback.transparent),
-    watermark: coerceBoolOrString(partial.watermark, fallback.watermark),
-    copyright: coerceBoolOrString(partial.copyright, fallback.copyright),
+    watermark: coerceOnOrText(partial.watermark, fallback.watermark),
+    copyright: coerceOnOrText(partial.copyright, fallback.copyright),
     createAllFrames:
       createAllFramesSource === true
         ? true

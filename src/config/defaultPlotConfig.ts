@@ -55,8 +55,9 @@ export interface DataframeConfig {
   /** Legend above the plots (true), to their right (false) or no legend (null). Since version 6. */
   legendAbove: boolean | null
   transparent: boolean
-  watermark: boolean|string
-  copyright: boolean|string
+  /** On/off; the server shows them only to holders of the attribution key (standard logo and notice). */
+  watermark: boolean
+  copyright: boolean
   createAllFrames: true | number[]
   frames: FrameConfig[]
   axes: AxisConfig[]
@@ -206,7 +207,7 @@ export function createDefaultPlotConfig(): PlotConfig {
         darkMode: false,
         legendAbove: false,
         transparent: false,
-        watermark: true,
+        watermark: false,
         copyright: true,
         createAllFrames: true,
         frames: [

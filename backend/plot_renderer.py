@@ -22,7 +22,7 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 import matplotlib.pyplot as plt
 
 from . import plot
-from .security import MAX_QUEUED_RENDERS, redact_paths, sanitize_render_config
+from .security import MAX_QUEUED_RENDERS, apply_attribution, redact_paths, sanitize_render_config
 
 
 @dataclass
@@ -198,8 +198,10 @@ def render_plot_image(
     frame_index: int = 0,
     data_sources: dict[int, RequestDataSource] | None = None,
     request_id: str | None = None,
+    attribution_unlocked: bool = False,
 ) -> RenderedPlot:
-    """Renders one frame. With a `request_id`, get_render_status() reports its progress."""
+    """Renders one frame. With a `request_id`, get_render_status() reports its progress. Without
+    `attribution_unlocked` (a valid attribution key), the plot carries the attribution (security.apply_attribution)."""
     global _pending_renders
     with _PENDING_LOCK:     # renders run one at a time: refuse instead of queueing without bound
         if _pending_renders >= MAX_QUEUED_RENDERS:
@@ -213,7 +215,7 @@ def render_plot_image(
         with _RENDER_LOCK:
             progress.thread_id = threading.get_ident()
             try:
-                return _render_plot_image(config, dataframe_index, frame_index, data_sources, progress.output)
+                return _render_plot_image(config, dataframe_index, frame_index, data_sources, progress.output, attribution_unlocked)
             finally:
                 plt.close('all')    # a failed render must not leave its figure in memory
     finally:
@@ -229,9 +231,11 @@ def _render_plot_image(
     frame_index: int,
     data_sources: dict[int, RequestDataSource] | None,
     plot_output: StringIO,
+    attribution_unlocked: bool = False,
 ) -> RenderedPlot:
     dataframe, frame = _select_frame_config(config, dataframe_index, frame_index)
     dataframe, frame = sanitize_render_config(dataframe, frame)
+    dataframe = apply_attribution(dataframe, attribution_unlocked)
 
     resolution = dataframe.get('resolution', None)
     file_format = 'svg' if resolution in (None, 'svg') else 'png'

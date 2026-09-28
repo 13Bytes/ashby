@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import base64
@@ -34,12 +35,12 @@ if __package__ in (None, ''):
     from backend import import_data as import_data_module
     from backend.import_data import teable as teable_api
     from backend.plot_renderer import PlotRenderError, RenderQueueFull, RequestDataSource, describe_exception, get_render_status, render_plot_image
-    from backend.security import MAX_JSON_BYTES, MAX_PLOTS_PER_DOWNLOAD, MAX_REQUEST_BYTES, MAX_UPLOAD_FILES, check_row_count, check_xlsx_bytes, redact_paths
+    from backend.security import ATTRIBUTION_KEY_HEADER, MAX_JSON_BYTES, MAX_PLOTS_PER_DOWNLOAD, MAX_REQUEST_BYTES, MAX_UPLOAD_FILES, attribution_key_valid, check_row_count, check_xlsx_bytes, redact_paths
 else:
     from . import import_data as import_data_module
     from .import_data import teable as teable_api
     from .plot_renderer import PlotRenderError, RenderQueueFull, RequestDataSource, describe_exception, get_render_status, render_plot_image
-    from .security import MAX_JSON_BYTES, MAX_PLOTS_PER_DOWNLOAD, MAX_REQUEST_BYTES, MAX_UPLOAD_FILES, check_row_count, check_xlsx_bytes, redact_paths
+    from .security import ATTRIBUTION_KEY_HEADER, MAX_JSON_BYTES, MAX_PLOTS_PER_DOWNLOAD, MAX_REQUEST_BYTES, MAX_UPLOAD_FILES, attribution_key_valid, check_row_count, check_xlsx_bytes, redact_paths
 
 ENABLE_API_DOCS = os.environ.get('ASHBY_ENABLE_API_DOCS', '').lower() in ('1', 'true', 'yes')
 
@@ -356,6 +357,19 @@ def health() -> JSONResponse:
     return JSONResponse({'status': 'ok'})
 
 
+def _attribution_unlocked(request: Request) -> bool:
+    return attribution_key_valid(request.headers.get(ATTRIBUTION_KEY_HEADER))
+
+
+@app.post('/api/attribution-key')
+async def check_attribution_key(request: Request) -> JSONResponse:
+    '''tells the editor whether the key in the header unlocks the copyright and watermark switches'''
+    valid = _attribution_unlocked(request)
+    if not valid:
+        await asyncio.sleep(1)      # slows down guessing
+    return JSONResponse({'valid': valid})
+
+
 @app.get('/api/render-status/{request_id}')
 def render_status(request_id: str) -> JSONResponse:
     status = get_render_status(request_id) if re.fullmatch(REQUEST_ID_PATTERN, request_id) else None
@@ -377,6 +391,7 @@ async def render_plot(request: Request) -> Response:
             frame_index=payload.frame_index,
             data_sources=data_sources,
             request_id=payload.request_id,
+            attribution_unlocked=_attribution_unlocked(request),
         )
     except RenderQueueFull as exc:
         return _busy_response(exc)
@@ -420,6 +435,7 @@ async def download_plots(request: Request) -> Response:
                     dataframe_index=plot.dataframe_index,
                     frame_index=plot.frame_index,
                     data_sources=data_sources,
+                    attribution_unlocked=_attribution_unlocked(request),
                 )
             except RenderQueueFull as exc:
                 return _busy_response(exc)

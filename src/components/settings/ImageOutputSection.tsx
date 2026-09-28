@@ -2,8 +2,8 @@ import type { DataframeConfig } from '../../config/defaultPlotConfig'
 import { DEFAULT_DATAFRAME } from '../../config/settingsSections'
 import { useI18n } from '../../uiTranslations'
 import { formatAspectRatio, isSameAspectRatio, parseAspectRatio, parsePositiveInteger } from '../../utils/appState'
+import { useAttributionUnlocked } from '../../utils/attributionKey'
 import { Field, PresetInput, Toggle, Switch } from '../common/AppControls'
-import { Input } from '../ui/input'
 
 type Props = {
   activeDataframe: DataframeConfig
@@ -22,8 +22,7 @@ const RESOLUTION_PRESETS = [100, 150, 300, 600].map((value) => ({ value, label: 
 export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Props) {
   const { t } = useI18n()
   const isPng = activeDataframe.fileformat === 'png'
-  // watermark and copyright: false (off), true (standard logo / notice) or a file name / text.
-  const { watermark, copyright } = activeDataframe
+  const attributionUnlocked = useAttributionUnlocked()
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-4">
@@ -59,7 +58,7 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
           />
         </Field>
       </div>
-      {/* The four switches in one row. */}
+      {/* The switches in one row; copyright and watermark only with the attribution key. */}
       <div className="grid grid-cols-2 gap-4 @lg:grid-cols-4">
         <Field label={t('DarkMode')} jsonPath="dataframes[i].dark_mode" level="default" changed={activeDataframe.darkMode !== DEFAULT_DATAFRAME.darkMode}>
           <Switch checked={activeDataframe.darkMode} label={t('DarkMode')} onChange={(darkMode) => patchActiveDataframe((current) => ({ ...current, darkMode }))} />
@@ -67,35 +66,17 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
         <Field label={t('transparent')} jsonPath="dataframes[i].transparent" level="default" changed={activeDataframe.transparent !== DEFAULT_DATAFRAME.transparent}>
           <Switch checked={activeDataframe.transparent} label={t('transparent')} onChange={(transparent) => patchActiveDataframe((current) => ({ ...current, transparent }))} />
         </Field>
-        <Field label={t('watermark')} jsonPath="dataframes[i].watermark" level="default" changed={Boolean(watermark) !== Boolean(DEFAULT_DATAFRAME.watermark)}>
-          <Switch checked={Boolean(watermark)} label={t('watermark')} onChange={(on) => patchActiveDataframe((current) => ({ ...current, watermark: on }))} />
-        </Field>
-        <Field label={t('copyright')} jsonPath="dataframes[i].copyright" level="default" changed={Boolean(copyright) !== Boolean(DEFAULT_DATAFRAME.copyright)}>
-          <Switch checked={Boolean(copyright)} label={t('copyright')} onChange={(on) => patchActiveDataframe((current) => ({ ...current, copyright: on }))} />
-        </Field>
+        {attributionUnlocked && (
+          <>
+            <Field label={t('watermark')} jsonPath="dataframes[i].watermark" level="default" changed={activeDataframe.watermark !== DEFAULT_DATAFRAME.watermark}>
+              <Switch checked={activeDataframe.watermark} label={t('watermark')} onChange={(watermark) => patchActiveDataframe((current) => ({ ...current, watermark }))} />
+            </Field>
+            <Field label={t('copyright')} jsonPath="dataframes[i].copyright" level="default" changed={activeDataframe.copyright !== DEFAULT_DATAFRAME.copyright}>
+              <Switch checked={activeDataframe.copyright} label={t('copyright')} onChange={(copyright) => patchActiveDataframe((current) => ({ ...current, copyright }))} />
+            </Field>
+          </>
+        )}
       </div>
-      {watermark || copyright ? (
-        <div className="grid gap-4 @lg:grid-cols-2">
-          {watermark ? (
-            <Field label={t('watermarkFile')} jsonPath="dataframes[i].watermark.file" level="default" changed={typeof watermark === 'string'}>
-              <Input
-                value={typeof watermark === 'string' ? watermark : ''}
-                placeholder={t('watermarkFilePlaceholder')}
-                onChange={(event) => patchActiveDataframe((current) => ({ ...current, watermark: event.target.value.trim() ? event.target.value : true }))}
-              />
-            </Field>
-          ) : null}
-          {copyright ? (
-            <Field label={t('copyrightText')} jsonPath="dataframes[i].copyright.text" level="default" changed={typeof copyright === 'string'}>
-              <Input
-                value={typeof copyright === 'string' ? copyright : ''}
-                placeholder={t('copyrightTextPlaceholder')}
-                onChange={(event) => patchActiveDataframe((current) => ({ ...current, copyright: event.target.value.trim() ? event.target.value : true }))}
-              />
-            </Field>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   )
 }

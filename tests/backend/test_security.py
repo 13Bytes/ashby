@@ -245,12 +245,12 @@ class SecurityApiTests(unittest.TestCase):
         self.assertIn('sandbox', headers.get('content-security-policy', ''))
         self.assertEqual(headers.get('x-content-type-options'), 'nosniff')
 
-    def test_watermark_path_traversal_is_rejected(self) -> None:
+    def test_watermark_file_names_from_the_config_are_never_opened(self) -> None:
+        # The server only draws its own logo (with the attribution key) or none: a path in the config is ignored.
         payload = json.loads(json.dumps(self.render_payload))
         payload['config']['dataframes'][0]['watermark'] = '../../app.py'
         status, _, body = self.render_multipart(payload)
-        self.assertEqual(status, 400)
-        self.assertIn('not found in backend/media/watermarks', json.loads(body)['message'])
+        self.assertEqual(status, 200, body[:500])
 
     def test_watermark_from_watermark_directory_still_works(self) -> None:
         payload = json.loads(json.dumps(self.render_payload))
