@@ -4,9 +4,10 @@ import { Select } from './ui/select'
 import type { DataframeConfig, FrameConfig, GuidelineConfig } from '../config/defaultPlotConfig'
 import { DEFAULT_GUIDELINE } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { numberValue } from '../utils/appState'
-import { getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, Segmented, SettingsGroup } from './AppControls'
+import { axisTag, numberValue } from '../utils/appState'
+import { getLocalizedLabel, plotAxesOf, setLocalizedLabel } from '../utils/configEditing'
+import { useAxesWarning } from '../hooks/useAxesWarning'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, Toggle, SettingsGroup } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
 
 type Props = {
@@ -25,6 +26,10 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
   const { t } = useI18n()
   const language = activeDataframe.language
   const openItems = useOpenItems(String(activeFrame._extensions.uiKey))
+  const axesWarning = useAxesWarning(activeFrame)
+  // Anchor point and slope are plot coordinates; note the axes they were entered for.
+  const updateCoordinates = (guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig) =>
+    updateGuideline(guidelineIndex, (g) => ({ ...patch(g), plotAxes: plotAxesOf(activeFrame) }))
   return (
     <SettingsGroup
       title={<>{t('guidelines')} <span className="ml-1 font-sans normal-case tracking-normal text-zinc-400">{activeFrame.guidelines.length}</span></>}
@@ -37,13 +42,14 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
         {activeFrame.guidelines.length === 0 ? <EmptyItems>{t('noItems')}</EmptyItems> : null}
         {activeFrame.guidelines.map((guideline, guidelineIndex) => {
           const text = getLocalizedLabel(guideline.label, language)
+          const warning = axesWarning(guideline.plotAxes)
           const anchor = [guideline.x, guideline.y].every((value) => value !== undefined) ? `(${guideline.x}, ${guideline.y})` : guideline.x !== undefined ? `x = ${guideline.x}` : guideline.y !== undefined ? `y = ${guideline.y}` : ''
           return (
             <ItemCard
               key={guidelineIndex}
               icon="╱"
               title={text || `${t('guideline')} ${guidelineIndex + 1}`}
-              summary={[anchor, `m = ${guideline.m}`].filter(Boolean).join(' · ')}
+              summary={[warning ? `⚠ ${t('axesChangedShort')}` : '', anchor, `m = ${guideline.m}`].filter(Boolean).join(' · ')}
               open={openItems.isOpen(guidelineIndex)}
               onOpenChange={(next) => openItems.setOpen(guidelineIndex, next)}
               onDuplicate={() => {
@@ -57,17 +63,17 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
             >
               <div className="grid gap-4 @lg:grid-cols-3">
                 <div className="@lg:col-span-2">
-                  <FieldGroup label={t('anchorPoint')} jsonPath={`guidelines[${guidelineIndex}].x`} level="check" className="grid-cols-2">
-                    <GroupedField label={`x${activeFrame.xQuantity ? ` · ${activeFrame.xQuantity}` : ''}`}>
-                      <Input type="number" aria-label={t('guidelineX')} value={guideline.x ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                  <FieldGroup label={t('anchorPoint')} jsonPath={`guidelines[${guidelineIndex}].x`} level="check" columns={2} inline warning={warning}>
+                    <GroupedField tag={axisTag('x', activeFrame.xQuantity)} title={axisTag('x', activeFrame.xQuantity)}>
+                      <Input type="number" aria-label={t('guidelineX')} value={guideline.x ?? ''} onChange={(e) => updateCoordinates(guidelineIndex, (g) => ({ ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
                     </GroupedField>
-                    <GroupedField label={`y${activeFrame.yQuantity ? ` · ${activeFrame.yQuantity}` : ''}`}>
-                      <Input type="number" aria-label={t('guidelineY')} value={guideline.y ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                    <GroupedField tag={axisTag('y', activeFrame.yQuantity)} title={axisTag('y', activeFrame.yQuantity)}>
+                      <Input type="number" aria-label={t('guidelineY')} value={guideline.y ?? ''} onChange={(e) => updateCoordinates(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
                     </GroupedField>
                   </FieldGroup>
                 </div>
                 <Field label={t('guidelineSlope')} jsonPath={`guidelines[${guidelineIndex}].m`} level="check">
-                  <Input type="number" value={guideline.m} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} />
+                  <Input type="number" value={guideline.m} onChange={(e) => updateCoordinates(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} />
                 </Field>
                 <Field label={t('lineStyle')} jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`} level="default" changed={guideline.lineProps.linestyle !== DEFAULT_GUIDELINE.lineProps.linestyle}>
                   <Select value={guideline.lineProps.linestyle} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linestyle: e.target.value } }))}>
@@ -95,7 +101,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
                 </div>
                 <div className="flex flex-wrap content-start gap-4">
                   <Field label={t('labelPosition')} jsonPath={`guidelines[${guidelineIndex}].label_above`} level="default" changed={guideline.labelAbove !== DEFAULT_GUIDELINE.labelAbove}>
-                    <Segmented<'above' | 'below'>
+                    <Toggle<'above' | 'below'>
                       ariaLabel={t('labelPosition')}
                       value={guideline.labelAbove ? 'above' : 'below'}
                       onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: next === 'above' }))}
@@ -103,7 +109,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
                     />
                   </Field>
                   <Field label={t('labelDirection')} jsonPath={`guidelines[${guidelineIndex}].label_rotated`} level="default" changed={guideline.labelRotated !== DEFAULT_GUIDELINE.labelRotated}>
-                    <Segmented<'along' | 'horizontal'>
+                    <Toggle<'along' | 'horizontal'>
                       ariaLabel={t('labelDirection')}
                       value={guideline.labelRotated ? 'along' : 'horizontal'}
                       onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelRotated: next === 'along' }))}

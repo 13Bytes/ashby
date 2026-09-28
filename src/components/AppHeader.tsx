@@ -1,7 +1,8 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import type { SettingsMode } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { Segmented } from './AppControls'
+import { Toggle } from './AppControls'
+import { BrandLogo } from './BrandLogo'
 import { DebugLogDialog } from './DebugLog'
 
 type Props = {
@@ -61,9 +62,12 @@ export function AppHeader({ mode, setMode, openJsonEditor, setShowAbout, setShow
 
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-zinc-200 px-4 py-2 text-left dark:border-zinc-800">
-      <h1 className="m-0 mr-auto text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ashby Plot Builder</h1>
+      <h1 className="m-0 mr-auto flex items-center gap-2 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+        <BrandLogo className="h-6 w-6" />
+        PolyPlot
+      </h1>
       <span title={t('modeHint')} className="flex">
-        <Segmented<SettingsMode>
+        <Toggle<SettingsMode>
           ariaLabel={t('modeHint')}
           value={mode}
           onChange={setMode}

@@ -20,9 +20,9 @@ import {
   reorderSelectionIndices,
   toggleIndexSelection,
 } from '../../src/utils/appState.ts'
-import { addColoredAreaToFrame } from '../../src/utils/coloredAreas.ts'
+import { addColoredAreaToFrame, setColoredAreaType } from '../../src/utils/coloredAreas.ts'
 import { resolvePreviewColor } from '../../src/utils/colors.ts'
-import { addAnnotationToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, setLocalizedLabel } from '../../src/utils/configEditing.ts'
+import { addAnnotationToFrame, addLayerToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, keepPointOpacityOnLastLayer, plotAxesChanged, setLocalizedLabel } from '../../src/utils/configEditing.ts'
 import { findExternalFrameOffset, parseImportedConfig, parseJsonField, toExternalConfig } from '../../src/utils/configIo.ts'
 import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
@@ -69,8 +69,22 @@ test('plot language helpers trim, dedupe, and preserve at least one language', (
   assert.deepEqual(addPlotLanguageToList(['en'], 'en'), ['en'])
 })
 
-test('a new colored area is a polygon with default corners', () => {
-  assert.deepEqual(addColoredAreaToFrame({ coloredAreas: [] }).coloredAreas[0], { x: [0], y: [0], color: '#ef4444', alpha: 0.2 })
+test('a new colored area is an axis range; as a polygon it gets a first corner, noted for the plot axes', () => {
+  const frame = { coloredAreas: [], xQuantity: 'tens', xRelQuantity: 'density', yQuantity: 'hdt' }
+  const area = addColoredAreaToFrame(frame).coloredAreas[0]
+  assert.deepEqual(area, { axes: {}, x: [], y: [], color: '#ef4444', alpha: 0.2 })
+  assert.deepEqual(setColoredAreaType(area, 'polygon', frame), { axes: undefined, x: [0], y: [0], plotAxes: ['tens/density', 'hdt'], color: '#ef4444', alpha: 0.2 })
+  // Existing corners are kept when switching back and forth.
+  const polygon = { x: [1, 2, 3], y: [1, 2, 1], color: 'red', alpha: 0.2 }
+  assert.deepEqual(setColoredAreaType(setColoredAreaType(polygon, 'axes', frame), 'polygon', frame), { ...polygon, axes: undefined })
+})
+
+test('coordinates warn only when the plot axes changed since they were entered', () => {
+  const frame = { xQuantity: 'tens', yQuantity: 'hdt' }
+  assert.equal(plotAxesChanged(undefined, frame), false)
+  assert.equal(plotAxesChanged(['tens', 'hdt'], frame), false)
+  assert.equal(plotAxesChanged(['tens', 'hdt'], { ...frame, yRelQuantity: 'density' }), true)
+  assert.equal(plotAxesChanged(['hdt', 'tens'], frame), true)
 })
 
 test('colored area axis ranges are normalized to [min, max] with open bounds', () => {
@@ -145,7 +159,7 @@ test('uiTheme validates stored values and resolves system preference', () => {
 })
 
 test('field help exists in every language for the documented paths', () => {
-  const paths = ['_extensions.source_mode', 'teable_url', 'import_sheet', 'x_rel_quantity', 'x_lim[0]', 'layers[2].whitelist', 'colored_areas[0].axes.density', 'guidelines[0].line_props.color', 'annotations[3].arrow.headwidth']
+  const paths = ['_extensions.source_mode', 'teable_url', 'import_sheet', 'x_rel_quantity', 'axis_margin.left', 'layers[2].whitelist', 'colored_areas[0].axes.density', 'guidelines[0].line_props.color', 'annotations[3].arrow.headwidth']
   for (const jsonPath of paths) {
     for (const language of ['en', 'de']) {
       assert.ok(getFieldHelp(language, jsonPath), `${language}: ${jsonPath}`)
@@ -155,8 +169,8 @@ test('field help exists in every language for the documented paths', () => {
 })
 
 test('English labels use sentence case', () => {
-  // Fragments that are embedded into other sentences start lowercase on purpose.
-  const embedded = new Set(['datasourceMissingItem', 'openBound', 'customPreset', 'fmtMissing', 'fmtMore'])
+  // Fragments embedded into other sentences, placeholders and abbreviations start lowercase on purpose.
+  const embedded = new Set(['datasourceMissingItem', 'openBound', 'customPreset', 'fmtMissing', 'fmtMore', 'notInThisPlot', 'marginRelative', 'marginAbsolute'])
   const lowercase = Object.entries(UI_LABELS.en).filter(([key, text]) => !embedded.has(key) && /^[a-z]/.test(text))
   assert.deepEqual(lowercase, [])
 })
@@ -217,8 +231,7 @@ test('dataframe settings survive export and import', () => {
   const config = createDefaultPlotConfig()
   const [dataframe] = config.dataframes
   Object.assign(dataframe, { transparent: true, watermark: 'logo.png', copyright: false, fileformat: 'png', resolution: 250 })
-  dataframe.frames[0].xLim = [1, undefined]
-  dataframe.frames[0].yLim = [undefined, 5]
+  dataframe.frames[0].axisMargin = { left: 1, right: 0.1, bottom: 0.12, top: 5, absolute: ['left', 'top'], plotAxes: ['tens', 'hdt'] }
 
   const [imported] = roundTrip(config).dataframes
   assert.equal(imported.transparent, true)
@@ -226,8 +239,7 @@ test('dataframe settings survive export and import', () => {
   assert.equal(imported.copyright, false)
   assert.equal(imported.fileformat, 'png')
   assert.equal(imported.resolution, 250)
-  assert.deepEqual(imported.frames[0].xLim, [1, undefined])
-  assert.deepEqual(imported.frames[0].yLim, [undefined, 5])
+  assert.deepEqual(imported.frames[0].axisMargin, { left: 1, right: 0.1, bottom: 0.12, top: 5, absolute: ['left', 'top'], plotAxes: ['tens', 'hdt'] })
   assert.equal('transparent' in imported._extensions, false)
 })
 
@@ -434,4 +446,14 @@ test('the debug log keeps the newest entry first and formats entries as text', (
   assert.match(text, /ERROR render: Plot 2/)
   assert.match(text, /Location: plot\.py:1/)
   assert.match(text, /Backend output:\noutput/)
+})
+
+test('the opacity of points and ranges stays on the last layer, which the backend reads', () => {
+  const frame = createDefaultPlotConfig().dataframes[0].frames[0]
+  assert.deepEqual([frame.layers[0].alphaPoints, frame.layers[0].alphaAreas], [0.3, 0.6])
+  const added = addLayerToFrame(frame)
+  assert.equal(added.layers[1].alpha, 0.4)
+  assert.deepEqual(added.layers.map((layer) => [layer.alphaPoints, layer.alphaAreas]), [[undefined, undefined], [0.3, 0.6]])
+  const removed = keepPointOpacityOnLastLayer(added.layers, added.layers.slice(0, 1))
+  assert.deepEqual([removed[0].alphaPoints, removed[0].alphaAreas], [0.3, 0.6])
 })

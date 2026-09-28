@@ -2,7 +2,7 @@ import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { DEFAULT_DATAFRAME } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { formatAspectRatio, isSameAspectRatio, parseAspectRatio, parsePositiveInteger } from '../utils/appState'
-import { Field, PresetInput, Segmented, Toggle } from './AppControls'
+import { Field, PresetInput, Toggle, Switch } from './AppControls'
 import { Input } from './ui/input'
 
 type Props = {
@@ -39,7 +39,7 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
           />
         </Field>
         <Field label={t('fileFormat')} jsonPath="dataframes[i].fileformat" level="default" changed={activeDataframe.fileformat !== DEFAULT_DATAFRAME.fileformat}>
-          <Segmented<'svg' | 'png'>
+          <Toggle<'svg' | 'png'>
             ariaLabel={t('fileFormat')}
             value={activeDataframe.fileformat}
             onChange={(fileformat) => patchActiveDataframe((current) => ({ ...current, fileformat }))}
@@ -62,16 +62,16 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
       {/* The four switches in one row. */}
       <div className="grid grid-cols-2 gap-4 @lg:grid-cols-4">
         <Field label={t('DarkMode')} jsonPath="dataframes[i].dark_mode" level="default" changed={activeDataframe.darkMode !== DEFAULT_DATAFRAME.darkMode}>
-          <Toggle checked={activeDataframe.darkMode} label={t('DarkMode')} onChange={(darkMode) => patchActiveDataframe((current) => ({ ...current, darkMode }))} />
+          <Switch checked={activeDataframe.darkMode} label={t('DarkMode')} onChange={(darkMode) => patchActiveDataframe((current) => ({ ...current, darkMode }))} />
         </Field>
         <Field label={t('transparent')} jsonPath="dataframes[i].transparent" level="default" changed={activeDataframe.transparent !== DEFAULT_DATAFRAME.transparent}>
-          <Toggle checked={activeDataframe.transparent} label={t('transparent')} onChange={(transparent) => patchActiveDataframe((current) => ({ ...current, transparent }))} />
+          <Switch checked={activeDataframe.transparent} label={t('transparent')} onChange={(transparent) => patchActiveDataframe((current) => ({ ...current, transparent }))} />
         </Field>
         <Field label={t('watermark')} jsonPath="dataframes[i].watermark" level="default" changed={Boolean(watermark) !== Boolean(DEFAULT_DATAFRAME.watermark)}>
-          <Toggle checked={Boolean(watermark)} label={t('watermark')} onChange={(on) => patchActiveDataframe((current) => ({ ...current, watermark: on }))} />
+          <Switch checked={Boolean(watermark)} label={t('watermark')} onChange={(on) => patchActiveDataframe((current) => ({ ...current, watermark: on }))} />
         </Field>
         <Field label={t('copyright')} jsonPath="dataframes[i].copyright" level="default" changed={Boolean(copyright) !== Boolean(DEFAULT_DATAFRAME.copyright)}>
-          <Toggle checked={Boolean(copyright)} label={t('copyright')} onChange={(on) => patchActiveDataframe((current) => ({ ...current, copyright: on }))} />
+          <Switch checked={Boolean(copyright)} label={t('copyright')} onChange={(on) => patchActiveDataframe((current) => ({ ...current, copyright: on }))} />
         </Field>
       </div>
       {watermark || copyright ? (

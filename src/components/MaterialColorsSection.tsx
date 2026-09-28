@@ -5,7 +5,7 @@ import { CUSTOM_SELECT_VALUE } from '../config/uiOptions'
 import { useI18n } from '../uiTranslations'
 import { populateMaterialColorsForDataframe } from '../utils/configEditing'
 import { DEFAULT_DATAFRAME } from '../config/settingsSections'
-import { Field, LanguageFields, Segmented, SettingsGroup } from './AppControls'
+import { Field, LanguageFields, Toggle, SettingsGroup } from './AppControls'
 import { ColorDot } from './ColorPicker'
 
 type Props = {
@@ -53,7 +53,7 @@ export function MaterialColorsSection({
           onChange={(lang, next) => patchActiveDataframe((df) => ({ ...df, legendTitle: { ...df.legendTitle, [lang]: next } }))}
         />
         <Field label={t('legendPosition')} jsonPath="dataframes[i].legend_above" level="default" changed={activeDataframe.legendAbove !== DEFAULT_DATAFRAME.legendAbove}>
-          <Segmented<'right' | 'above' | 'none'>
+          <Toggle<'right' | 'above' | 'none'>
             ariaLabel={t('legendPosition')}
             value={activeDataframe.legendAbove === null ? 'none' : activeDataframe.legendAbove ? 'above' : 'right'}
             onChange={(next) => patchActiveDataframe((df) => ({ ...df, legendAbove: next === 'none' ? null : next === 'above' }))}

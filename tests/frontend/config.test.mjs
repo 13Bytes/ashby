@@ -104,3 +104,32 @@ test('Excel format warnings from the backend are described; unknown ones are lef
   assert.match(nonNumeric, /Density low \(2× e\.g\. "n\/a"\)/)
   assert.deepEqual(parseFormatWarnings(undefined), [])
 })
+
+test('axis margin: each side a relative margin or a fixed value on the axis', () => {
+  const exported = (frame) => firstFrame({ dataframes: [{ frames: [frame] }] })
+  assert.deepEqual(exported({ axis_margin: { left: { absolute: 5 }, right: 0.2, top: 0.1, bottom: 0, plot_axes: ['tens', 'hdt'] } }).axis_margin,
+    { left: { absolute: 5 }, right: 0.2, bottom: 0, top: 0.1, plot_axes: ['tens', 'hdt'] })
+  // One number sets all sides; the axes are only noted for fixed values.
+  assert.deepEqual(exported({ axis_margin: 0.05 }).axis_margin, { left: 0.05, right: 0.05, bottom: 0.05, top: 0.05 })
+  assert.equal('x_lim' in exported({}), false)
+})
+
+test('configs before version 6: automatic_Display_Area_margin and x_lim/y_lim become axis_margin', () => {
+  const frame = firstFrame({ version: 5, dataframes: [{ frames: [{ automatic_Display_Area_margin: 0.05, x_lim: [0, null], y_lim: [1, 1000] }] }] })
+  assert.deepEqual(frame.axis_margin, { left: { absolute: 0 }, right: 0.05, bottom: { absolute: 1 }, top: { absolute: 1000 } })
+  assert.equal('automatic_Display_Area_margin' in frame, false)
+  // The automatic area was switched off (null) for fixed limits: the other sides get the default margin.
+  assert.deepEqual(firstFrame({ dataframes: [{ frames: [{ automatic_Display_Area_margin: null, x_lim: [2, 3] }] }] }).axis_margin,
+    { left: { absolute: 2 }, right: { absolute: 3 }, bottom: 0.12, top: 0.12 })
+})
+
+test('guidelines and polygon areas keep the axes their coordinates were entered for', () => {
+  const frame = firstFrame({ dataframes: [{ frames: [{
+    guidelines: [{ x: 1, y: 2, plot_axes: ['tens', 'hdt'] }, { x: 1 }],
+    colored_areas: [{ x: [0, 1, 1], y: [0, 0, 1], plot_axes: ['tens', 'hdt'] }, { axes: { tens: [1, 2] }, x: [], y: [], plot_axes: ['tens', 'hdt'] }],
+  }] }] })
+  assert.deepEqual(frame.guidelines.map((guideline) => guideline.plot_axes), [['tens', 'hdt'], undefined])
+  // Axis ranges belong to named axes: no note needed.
+  assert.deepEqual(frame.colored_areas.map((area) => area.plot_axes), [['tens', 'hdt'], undefined])
+  assert.equal('plotAxes' in frame.colored_areas[0], false)
+})

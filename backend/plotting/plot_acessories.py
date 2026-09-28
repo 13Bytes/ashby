@@ -99,7 +99,8 @@ def draw_colored_areas(Format_Storage:object, Sorted_data:object, colored_areas:
                 #     else:          values[dim] = None
 
             print(f"colored area: {values}")
-            if values[0] == None and values[1] == None: return
+            if all(bound is None for value in values for bound in (value or [None, None])):     # no range on this plot's axes: skip only this area
+                continue
             x,y = min_max_area(values[0], values[1], Plot_size)
 
         ax.fill(
@@ -187,7 +188,7 @@ class marker:
             label = Format_Storage.language_text(text.get('name',""))
             # print("label pos:", plot_size.x.offset(text['rel_pos'][0], values[0]) , plot_size.y.offset(text['rel_pos'][1], values[1]))
             x = Plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
-            y = Plot_size.x.offset(values[1], text.get('rel_pos', [0,0])[1])
+            y = Plot_size.y.offset(values[1], text.get('rel_pos', [0,0])[1])
             if arrow == None:           # ~ Label
                 self.ax.text(
                     x        = x,

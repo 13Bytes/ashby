@@ -3,7 +3,7 @@ import type { DataframeConfig } from '../config/defaultPlotConfig'
 import { useI18n } from '../uiTranslations'
 import { getSourceMode, numberValue, type SourceMode } from '../utils/appState'
 import { describeFormatWarning, type ExcelFormatWarning } from '../utils/excelFormat'
-import { Field, ScopeTag, Segmented } from './AppControls'
+import { Field, ScopeTag, Toggle } from './AppControls'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
@@ -107,7 +107,7 @@ export function DataSection({
         </div>
 
         <Field label={t('sourceMode')} jsonPath="_extensions.source_mode" level="required" missing={sourceMissing} anchor="dataSource">
-          <Segmented<SourceMode>
+          <Toggle<SourceMode>
             ariaLabel={t('sourceMode')}
             value={sourceMode}
             onChange={updateSourceMode}

@@ -1,7 +1,7 @@
 import { useState, type RefObject } from 'react'
 import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { HoverNote, LevelIcon, ScopeTag } from './AppControls'
+import { HoverNote, ScopeTag } from './AppControls'
 
 /** Sidebar status of a section: missing required settings, or the number of items it holds. */
 export type SectionStatus = { missing: number; items?: number }
@@ -142,11 +142,6 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
           </div>
         </>
       )}
-      <div className="mt-auto grid gap-1.5 border-t border-zinc-200 pt-3 text-[11px] text-zinc-500 dark:border-zinc-800">
-        <span className="flex items-center gap-2"><LevelIcon level="required" />{t('levelRequired')}</span>
-        <span className="flex items-center gap-2"><LevelIcon level="check" />{t('levelCheck')}</span>
-        <span className="flex items-center gap-2"><LevelIcon level="default" />{t('levelDefault')}{mode === 'simple' ? ` · ${t('levelKeyHidden')}` : ''}</span>
-      </div>
     </nav>
   )
 }

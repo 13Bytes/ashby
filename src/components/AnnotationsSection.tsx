@@ -3,7 +3,7 @@ import { DEFAULT_ANNOTATION_ARROW, DEFAULT_ANNOTATION_MARKER, DEFAULT_ANNOTATION
 import { useI18n } from '../uiTranslations'
 import { numberValue, positiveValue } from '../utils/appState'
 import { addAnnotationToFrame, DEFAULT_ANNOTATION_SETTINGS, getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, SettingsGroup, Toggle } from './AppControls'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, SettingsGroup, Switch } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -74,7 +74,14 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
     })
 
   const defaults = activeFrame.annotations[0]
-  const positionAxes = [activeFrame.xQuantity, activeFrame.yQuantity].filter((axis, index, all): axis is string => Boolean(axis) && all.indexOf(axis) === index)
+  // The backend places an annotation at its value of the x and y quantity, each divided by the
+  // relative quantity if the plot has one. Values of the other axes are kept for other plots.
+  const plotRoles = new Map<string, string[]>()
+  for (const [role, quantity] of [['X', activeFrame.xQuantity], ['Y', activeFrame.yQuantity], ['÷X', activeFrame.xRelQuantity], ['÷Y', activeFrame.yRelQuantity]] as const) {
+    if (quantity) plotRoles.set(quantity, [...(plotRoles.get(quantity) ?? []), role])
+  }
+  const positionAxes = [...plotRoles.keys(), ...activeDataframe.axes.map((axis) => axis.name).filter((name) => name && !plotRoles.has(name))]
+  const summaryAxes = [activeFrame.xQuantity, activeFrame.yQuantity].filter((axis): axis is string => Boolean(axis))
   const count = Math.max(0, activeFrame.annotations.length - 1)
 
   return (
@@ -91,7 +98,7 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
         {activeFrame.annotations.map((annotation, annotationIndex) => {
           if (annotationIndex === 0) return null
           const text = getLocalizedLabel(annotation.text?.name ?? '', language)
-          const position = positionAxes.map((axis) => annotation.axes?.[axis]).filter((value) => value !== undefined).join(', ')
+          const position = summaryAxes.map((axis) => annotation.axes?.[axis]).filter((value) => value !== undefined).join(', ')
           return (
             <ItemCard
               key={annotationIndex}
@@ -124,25 +131,34 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                     label={t('position')}
                     jsonPath={`annotations[${annotationIndex}].axes`}
                     level="required"
-                    missing={positionAxes.some((axisName) => annotation.axes?.[axisName] === undefined)}
-                    className="grid-cols-2"
+                    missing={[...plotRoles.keys()].some((axisName) => annotation.axes?.[axisName] === undefined)}
                   >
-                    {positionAxes.map((axisName) => (
-                      <GroupedField key={axisName} label={axisName} missing={annotation.axes?.[axisName] === undefined}>
-                        <Input type="number" aria-label={t('positionOn', { axis: axisName })} value={annotation.axes?.[axisName] ?? ''} onChange={(e) => patchPosition(annotationIndex, axisName, e.target.valueAsNumber)} />
-                      </GroupedField>
-                    ))}
+                    {positionAxes.map((axisName) => {
+                      const roles = plotRoles.get(axisName)
+                      const tag = roles ? `${roles.join(' ')} · ${axisName}` : axisName
+                      return (
+                        <GroupedField key={axisName} tag={tag} title={tag} missing={roles !== undefined && annotation.axes?.[axisName] === undefined} simpleHidden={!roles}>
+                          <Input
+                            type="number"
+                            aria-label={t('positionOn', { axis: axisName })}
+                            placeholder={roles ? undefined : t('notInThisPlot')}
+                            value={annotation.axes?.[axisName] ?? ''}
+                            onChange={(e) => patchPosition(annotationIndex, axisName, e.target.valueAsNumber)}
+                          />
+                        </GroupedField>
+                      )
+                    })}
                   </FieldGroup>
                 ) : (
                   <p className="m-0 self-center text-xs text-zinc-500">{t('annotationPositionHint')}</p>
                 )}
               </div>
               <div className="grid gap-4 @lg:grid-cols-3">
-                <FieldGroup label={t('textOffset')} jsonPath={`annotations[${annotationIndex}].text.rel_pos`} level="default" changed={(annotation.text?.relPos ?? [0, 0]).some((value) => value !== 0)} className="grid-cols-2">
-                  <GroupedField label="x">
+                <FieldGroup label={t('textOffset')} jsonPath={`annotations[${annotationIndex}].text.rel_pos`} level="default" changed={(annotation.text?.relPos ?? [0, 0]).some((value) => value !== 0)} columns={2} inline>
+                  <GroupedField tag="X">
                     <Input type="number" aria-label={t('textOffsetX')} value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[0] ?? 0), annotation.text?.relPos?.[1] ?? 0] })} />
                   </GroupedField>
-                  <GroupedField label="y">
+                  <GroupedField tag="Y">
                     <Input type="number" aria-label={t('textOffsetY')} value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [annotation.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[1] ?? 0)] })} />
                   </GroupedField>
                 </FieldGroup>
@@ -162,10 +178,10 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
               </div>
               <div className="grid gap-4 @lg:grid-cols-3">
                 <Field label={t('marker')} jsonPath={`annotations[${annotationIndex}].marker`} level="check">
-                  <Toggle checked={Boolean(annotation.marker)} label={t('marker')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, marker: on ? { ...DEFAULT_ANNOTATION_MARKER } : undefined }))} />
+                  <Switch checked={Boolean(annotation.marker)} label={t('marker')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, marker: on ? { ...DEFAULT_ANNOTATION_MARKER } : undefined }))} />
                 </Field>
                 <Field label={t('arrow')} jsonPath={`annotations[${annotationIndex}].arrow`} level="check">
-                  <Toggle checked={Boolean(annotation.arrow)} label={t('arrow')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, arrow: on ? { ...DEFAULT_ANNOTATION_ARROW } : undefined }))} />
+                  <Switch checked={Boolean(annotation.arrow)} label={t('arrow')} onChange={(on) => patchAnnotation(annotationIndex, (entry) => ({ ...entry, arrow: on ? { ...DEFAULT_ANNOTATION_ARROW } : undefined }))} />
                 </Field>
               </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, type ChangeEvent, type ReactNode, type RefObject } from 'react'
 import { cn } from '../lib/utils'
 import { useI18n } from '../uiTranslations'
+import { BrandLogo } from './BrandLogo'
 import { Button } from './ui/button'
 
 type AppPopoutsProps = {
@@ -168,11 +169,12 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   return (
     <PopoutShell>
-      <h3 className="mt-0 text-lg">{t('about')}</h3>
+      <div className="mb-4 flex flex-col items-center gap-2 text-center">
+        <BrandLogo className="h-14 w-14 text-zinc-900 dark:text-zinc-100" />
+        <h3 className="m-0 text-xl font-semibold tracking-tight">PolyPlot</h3>
+        <p className="m-0 text-sm text-zinc-600 dark:text-zinc-300">{t('aboutIntro')}</p>
+      </div>
       <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
-        <p>{t('aboutIntro')}{' '}{t('aboutReworkSuffix')}{' '}
-          <ExternalLink href="https://aerospace-lab.de/repolysat/">RePolySat</ExternalLink>
-        </p>
         <div>
           <p className="font-medium text-zinc-800 dark:text-zinc-100">{t('credits')}</p>
           <ul className="ml-5 list-disc space-y-1">
@@ -189,9 +191,16 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
               <ExternalLink href="https://github.com/afffe18">afffe18</ExternalLink>
               {' & '}
               <ExternalLink href="https://github.com/13Bytes">13Bytes</ExternalLink>
+              {t('aboutUiSuffix')}
             </li>
           </ul>
         </div>
+        <p>
+          {t('aboutReworkSuffix')}{' '}
+          <ExternalLink href="https://aerospace-lab.de/repolysat/">RePolySat</ExternalLink>
+          {' @ '}
+          <ExternalLink href="https://aerospace-lab.de/">Aerospace-Lab</ExternalLink>.
+        </p>
       </div>
       <DialogActions>
         <Button variant="outline" onClick={onClose}>

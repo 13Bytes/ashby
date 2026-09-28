@@ -1,14 +1,17 @@
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import type { FrameConfig } from '../config/defaultPlotConfig'
+import type { DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
 import { DEFAULT_AREA } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
-import { addColoredAreaToFrame } from '../utils/coloredAreas'
-import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, Segmented, SettingsGroup } from './AppControls'
+import { plotAxesOf } from '../utils/configEditing'
+import { useAxesWarning } from '../hooks/useAxesWarning'
+import { addColoredAreaToFrame, setColoredAreaType } from '../utils/coloredAreas'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, OpacitySlider, Toggle, SettingsGroup } from './AppControls'
 import { useOpenItems } from '../hooks/useOpenItems'
 
 type Props = {
+  activeDataframe: DataframeConfig
   activeFrame: FrameConfig
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   materialColors: Record<string, string>
@@ -27,11 +30,17 @@ const formatRange = (axis: string, range: AreaRange | undefined) => {
 }
 
 /** Colored areas of the active frame, as a group of the "Areas, guidelines & annotations" section. */
-export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialColors }: Props) {
+export function ColoredAreasSection({ activeDataframe, activeFrame, patchActiveFrame, materialColors }: Props) {
   const { t } = useI18n()
   const openItems = useOpenItems(String(activeFrame._extensions.uiKey))
-  // The backend only reads the ranges of the frame's x and y quantity.
-  const rangeAxes = [activeFrame.xQuantity, activeFrame.yQuantity].filter((axis, index, all): axis is string => Boolean(axis) && all.indexOf(axis) === index)
+  const axesWarning = useAxesWarning(activeFrame)
+  // The backend reads the ranges of the plot's x and y quantity. Ranges on the other axes of the
+  // dataset are kept for plots that show them (hidden in Simple mode).
+  const plotRoles = new Map<string, string[]>()
+  for (const [role, quantity] of [['X', activeFrame.xQuantity], ['Y', activeFrame.yQuantity]] as const) {
+    if (quantity) plotRoles.set(quantity, [...(plotRoles.get(quantity) ?? []), role])
+  }
+  const rangeAxes = [...plotRoles.keys(), ...activeDataframe.axes.map((axis) => axis.name).filter((name) => name && !plotRoles.has(name))]
 
   const patchArea = (areaIndex: number, patch: (area: ColoredArea) => ColoredArea) =>
     patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.map((entry, i) => (i === areaIndex ? patch(entry) : entry)) }))
@@ -41,7 +50,8 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
       range[bound] = toBound(value)
       return { ...area, axes: { ...area.axes, [axis]: range } }
     })
-  // Polygon corners are stored as parallel x/y lists; editing keeps both the same length.
+  // Polygon corners are stored as parallel x/y lists; editing keeps both the same length. They are
+  // plot coordinates, so the axes they were entered for are noted.
   const setPoint = (areaIndex: number, pointIndex: number, dimension: 'x' | 'y', value: number) =>
     patchArea(areaIndex, (area) => {
       const length = Math.max(area.x.length, area.y.length)
@@ -49,7 +59,7 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
       const y = Array.from({ length }, (_, i) => area.y[i] ?? 0)
       const target = dimension === 'x' ? x : y
       target[pointIndex] = numberValue(value, target[pointIndex])
-      return { ...area, x, y }
+      return { ...area, x, y, plotAxes: plotAxesOf(activeFrame) }
     })
   const addPoint = (areaIndex: number) =>
     patchArea(areaIndex, (area) => ({ ...area, x: [...area.x, area.x.at(-1) ?? 0], y: [...area.y, area.y.at(-1) ?? 0] }))
@@ -69,9 +79,10 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
         {activeFrame.coloredAreas.map((area, areaIndex) => {
           const usesAxes = area.axes !== undefined
           const pointCount = Math.max(area.x.length, area.y.length)
+          const warning = usesAxes ? undefined : axesWarning(area.plotAxes)
           const summary = usesAxes
-            ? rangeAxes.map((axis) => formatRange(axis, area.axes?.[axis])).filter(Boolean).join(' · ')
-            : `${t('areaTypePolygon')} · ${pointCount}`
+            ? [...plotRoles.keys()].map((axis) => formatRange(axis, area.axes?.[axis])).filter(Boolean).join(' · ')
+            : [warning ? `⚠ ${t('axesChangedShort')}` : '', `${t('areaTypePolygon')} · ${pointCount}`].filter(Boolean).join(' · ')
           return (
             <ItemCard
               key={areaIndex}
@@ -91,26 +102,26 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
               }}
             >
               <Field label={t('areaType')} jsonPath={`colored_areas[${areaIndex}].type`} level="default" changed={!usesAxes}>
-                <Segmented<'axes' | 'polygon'>
+                <Toggle<'axes' | 'polygon'>
                   ariaLabel={t('areaType')}
                   value={usesAxes ? 'axes' : 'polygon'}
-                  onChange={(next) => patchArea(areaIndex, (entry) => ({ ...entry, axes: next === 'axes' ? entry.axes ?? {} : undefined }))}
+                  onChange={(next) => patchArea(areaIndex, (entry) => setColoredAreaType(entry, next, activeFrame))}
                   options={[{ value: 'axes', label: t('areaTypeAxes') }, { value: 'polygon', label: t('areaTypePolygon') }]}
                 />
               </Field>
 
               {usesAxes ? (
                 rangeAxes.length > 0 ? (
-                  <FieldGroup label={t('areaRanges')} jsonPath={`colored_areas[${areaIndex}].axes.`} level="check" className="@lg:grid-cols-2">
+                  <FieldGroup label={t('areaRanges')} jsonPath={`colored_areas[${areaIndex}].axes.`} level="check" columns="responsive">
                     {rangeAxes.map((axis) => {
                       const range = area.axes?.[axis] ?? [null, null]
+                      const roles = plotRoles.get(axis)
+                      const tag = roles ? `${roles.join(' ')} · ${axis}` : axis
                       return (
-                        <GroupedField key={axis} label={axis}>
-                          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                            <Input type="number" aria-label={`${axis} ${t('min')}`} placeholder={`${t('min')} (${t('openBound')})`} value={range[0] ?? ''} onChange={(e) => setRange(areaIndex, axis, 0, e.target.valueAsNumber)} />
-                            <span className="text-zinc-400">–</span>
-                            <Input type="number" aria-label={`${axis} ${t('max')}`} placeholder={`${t('max')} (${t('openBound')})`} value={range[1] ?? ''} onChange={(e) => setRange(areaIndex, axis, 1, e.target.valueAsNumber)} />
-                          </div>
+                        <GroupedField key={axis} tag={tag} title={roles ? tag : `${tag}: ${t('notInThisPlot')}`} simpleHidden={!roles}>
+                          <Input type="number" aria-label={`${axis} ${t('min')}`} placeholder={`${t('min')} (${t('openBound')})`} value={range[0] ?? ''} onChange={(e) => setRange(areaIndex, axis, 0, e.target.valueAsNumber)} />
+                          <span className="text-zinc-400">–</span>
+                          <Input type="number" aria-label={`${axis} ${t('max')}`} placeholder={`${t('max')} (${t('openBound')})`} value={range[1] ?? ''} onChange={(e) => setRange(areaIndex, axis, 1, e.target.valueAsNumber)} />
                         </GroupedField>
                       )
                     })}
@@ -119,7 +130,7 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
                   <p className="m-0 text-xs text-zinc-500">{t('areaAxesHint')}</p>
                 )
               ) : (
-                <Field label={t('polygonPoints')} jsonPath={`colored_areas[${areaIndex}].points`} level="check">
+                <Field label={t('polygonPoints')} jsonPath={`colored_areas[${areaIndex}].points`} level="check" warning={warning}>
                   <div className="grid max-w-xl gap-1.5">
                     <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] gap-2 text-xs font-medium text-zinc-500">
                       <span />
@@ -156,7 +167,7 @@ export function ColoredAreasSection({ activeFrame, patchActiveFrame, materialCol
                   <ColorOrMaterialInput materialColors={materialColors} value={area.color} onChange={(color) => patchArea(areaIndex, (entry) => ({ ...entry, color }))} />
                 </Field>
                 <Field label={t('alpha')} jsonPath={`colored_areas[${areaIndex}].alpha`} level="default" changed={area.alpha !== DEFAULT_AREA.alpha}>
-                  <Input type="number" min={0} max={1} step={0.05} value={area.alpha} onChange={(e) => patchArea(areaIndex, (entry) => ({ ...entry, alpha: numberValue(e.target.valueAsNumber, entry.alpha) }))} />
+                  <OpacitySlider ariaLabel={t('alpha')} value={area.alpha} onChange={(alpha) => patchArea(areaIndex, (entry) => ({ ...entry, alpha }))} />
                 </Field>
               </div>
             </ItemCard>

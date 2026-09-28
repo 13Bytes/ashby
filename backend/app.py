@@ -37,7 +37,7 @@ else:
     from .import_data import teable as teable_api
     from .plot_renderer import PlotRenderError, RequestDataSource, describe_exception, get_render_status, render_plot_image
 
-app = FastAPI(title='Ashby Backend API')
+app = FastAPI(title='PolyPlot API')
 
 
 class RenderPlotRequest(BaseModel):

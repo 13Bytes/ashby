@@ -1,9 +1,11 @@
-import type { DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
+import { MARGIN_SIDES, type AxisMargin, type DataframeConfig, type FrameConfig, type MarginSide } from '../config/defaultPlotConfig'
 import { DEFAULT_MARGIN } from '../config/settingsSections'
+import { useAxesWarning } from '../hooks/useAxesWarning'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
+import { plotAxesOf } from '../utils/configEditing'
 import { useSettings } from '../utils/settingsContext'
-import { Field, FieldGroup, GroupedField, LanguageFields, Segmented, SettingsGroup, SharedHint, Toggle } from './AppControls'
+import { Field, FieldGroup, GroupedField, LanguageFields, Toggle, SettingsGroup, SharedHint } from './AppControls'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 
@@ -11,34 +13,40 @@ type Props = {
   activeFrame: FrameConfig
   activeDataframe: DataframeConfig
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
-  automaticDisplayAreaActive: boolean
 }
 
-type Margin = NonNullable<FrameConfig['automaticDisplayAreaMargin']>
-type Limits = NonNullable<FrameConfig['xLim']>
+/** The axis and bound each side of the axis margin belongs to. */
+const SIDE_BOUNDS: Record<MarginSide, ['X' | 'Y', 'min' | 'max']> = { left: ['X', 'min'], right: ['X', 'max'], bottom: ['Y', 'min'], top: ['Y', 'max'] }
+/** Where a side ends up when the x and y axis are swapped. */
+const SWAPPED_SIDE: Record<MarginSide, MarginSide> = { left: 'bottom', right: 'top', bottom: 'left', top: 'right' }
 
-const EMPTY_MARGIN: Margin = { left: 0, right: 0, top: 0, bottom: 0 }
-const DEFAULT_MARGINS: Margin = { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN, top: DEFAULT_MARGIN, bottom: DEFAULT_MARGIN }
-
-/** Empty input means "no limit" (null in the exported config), so the backend picks the bound automatically. */
-const withLimit = (limits: FrameConfig['xLim'], bound: 0 | 1, value: number): Limits => {
-  const next: Limits = [limits?.[0], limits?.[1]]
-  next[bound] = Number.isFinite(value) ? value : undefined
-  return next
-}
+const swapMargin = (margin: AxisMargin): AxisMargin => ({
+  left: margin.bottom,
+  right: margin.top,
+  bottom: margin.left,
+  top: margin.right,
+  absolute: margin.absolute.map((side) => SWAPPED_SIDE[side]),
+  plotAxes: margin.plotAxes && [margin.plotAxes[1], margin.plotAxes[0]],
+})
 
 /** Title, the two axes and the display area of the active frame. */
-export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, automaticDisplayAreaActive }: Props) {
+export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame }: Props) {
   const { t } = useI18n()
   const { goTo } = useSettings()
-  const margins = activeFrame.automaticDisplayAreaMargin
-  const marginsChanged = automaticDisplayAreaActive && (['left', 'right', 'top', 'bottom'] as const).some((side) => (margins?.[side] ?? 0) !== DEFAULT_MARGIN)
-  const setMargin = (side: keyof Margin, value: number) =>
+  const axesWarning = useAxesWarning(activeFrame)
+  const margin = activeFrame.axisMargin
+  const marginChanged = MARGIN_SIDES.some((side) => margin[side] !== DEFAULT_MARGIN) || margin.absolute.length > 0
+  // Fixed values are coordinates on the axes; note the axes they were entered for.
+  const patchMargin = (patch: (margin: AxisMargin) => Partial<AxisMargin>) =>
     patchActiveFrame((c) => {
-      const margin = c.automaticDisplayAreaMargin ?? EMPTY_MARGIN
-      return { ...c, automaticDisplayAreaMargin: { ...margin, [side]: numberValue(value, margin[side]) } }
+      const next = { ...c.axisMargin, ...patch(c.axisMargin) }
+      return { ...c, axisMargin: next.absolute.length > 0 ? { ...next, plotAxes: plotAxesOf(c) } : next }
     })
+  const setMarginValue = (side: MarginSide, value: number) => patchMargin((current) => ({ [side]: numberValue(value, current[side]) }))
+  const setMarginAbsolute = (side: MarginSide, absolute: boolean) =>
+    patchMargin((current) => ({ absolute: absolute ? [...current.absolute.filter((entry) => entry !== side), side] : current.absolute.filter((entry) => entry !== side) }))
   const axisOptions = activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)
+  // Values that belong to an axis move with it: fixed limits, and polygon corners, which are plot coordinates.
   const swapAxes = () => patchActiveFrame((c) => ({
     ...c,
     xQuantity: c.yQuantity,
@@ -47,8 +55,8 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
     yRelQuantity: c.xRelQuantity,
     logXFlag: c.logYFlag,
     logYFlag: c.logXFlag,
-    xLim: c.yLim,
-    yLim: c.xLim,
+    axisMargin: swapMargin(c.axisMargin),
+    coloredAreas: c.coloredAreas.map((area) => (area.axes ? area : { ...area, x: area.y, y: area.x, plotAxes: area.plotAxes && [area.plotAxes[1], area.plotAxes[0]] })),
   }))
 
   const axisBox = (axis: 'x' | 'y') => {
@@ -67,7 +75,7 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
             </Select>
           </Field>
           <Field label={t('Logarithmic')} jsonPath={`log_${axis}_flag`} level="check">
-            <Segmented<'linear' | 'log'>
+            <Toggle<'linear' | 'log'>
               ariaLabel={`${title} ${t('Logarithmic')}`}
               value={logFlag ? 'log' : 'linear'}
               onChange={(next) => patchActiveFrame((c) => ({ ...c, [axis === 'x' ? 'logXFlag' : 'logYFlag']: next === 'log' }))}
@@ -84,8 +92,6 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
       </div>
     )
   }
-
-  const limitsChanged = !automaticDisplayAreaActive && [activeFrame.xLim?.[0], activeFrame.xLim?.[1], activeFrame.yLim?.[0], activeFrame.yLim?.[1]].some((value) => value !== undefined)
 
   return (
     <>
@@ -122,47 +128,32 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, a
       <SharedHint text={t('quantitiesFromDefs')} linkLabel={t('editAxisDefs')} onOpen={() => goTo('axisDefs')} />
 
       <SettingsGroup title={t('displayArea')} level="default">
-        <Field label={t('automaticDisplayArea')} jsonPath="automatic_Display_Area_margin" level="default" changed={!automaticDisplayAreaActive}>
-          <Toggle
-            checked={automaticDisplayAreaActive}
-            label={t('automaticDisplayArea')}
-            onChange={(next) => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: next ? { ...DEFAULT_MARGINS } : null }))}
-          />
-        </Field>
-        {automaticDisplayAreaActive ? (
-          <FieldGroup label={t('marginsLabel')} jsonPath="automatic_Display_Area_margin" level="default" changed={marginsChanged} className="grid-cols-2 @lg:grid-cols-4">
-            {(['left', 'right', 'bottom', 'top'] as const).map((side) => (
-              <GroupedField key={side} label={t(side)}>
-                <Input type="number" step={0.01} value={margins?.[side] ?? 0} onChange={(e) => setMargin(side, e.target.valueAsNumber)} />
-              </GroupedField>
-            ))}
-          </FieldGroup>
-        ) : (
-          <FieldGroup label={t('fixedLimits')} jsonPath="x_lim[0]" level="default" changed={limitsChanged} className="@lg:grid-cols-2">
-            {(['x', 'y'] as const).map((axis) => {
-              const key = axis === 'x' ? 'xLim' : 'yLim'
-              const quantity = axis === 'x' ? activeFrame.xQuantity : activeFrame.yQuantity
-              const limitInput = (bound: 0 | 1) => (
-                <Input
-                  type="number"
-                  aria-label={`${axis.toUpperCase()} ${bound === 0 ? t('min') : t('max')}`}
-                  placeholder={bound === 0 ? t('min') : t('max')}
-                  value={activeFrame[key]?.[bound] ?? ''}
-                  onChange={(e) => patchActiveFrame((c) => ({ ...c, [key]: withLimit(c[key], bound, e.target.valueAsNumber) }))}
+        <FieldGroup
+          label={t('axisLimits')}
+          jsonPath="axis_margin.left"
+          level="default"
+          changed={marginChanged}
+          columns="responsive"
+          warning={margin.absolute.length > 0 ? axesWarning(margin.plotAxes) : undefined}
+        >
+          {MARGIN_SIDES.map((side) => {
+            const absolute = margin.absolute.includes(side)
+            const [axis, bound] = SIDE_BOUNDS[side]
+            const tag = `${axis} ${t(bound)}`
+            return (
+              <GroupedField key={side} tag={tag} title={`${tag} (${t(side)})`}>
+                <Input type="number" step={absolute ? 'any' : 0.01} aria-label={`${t('axisLimits')}: ${tag}`} value={margin[side]} onChange={(e) => setMarginValue(side, e.target.valueAsNumber)} />
+                <Toggle<'relative' | 'absolute'>
+                  size="sm"
+                  ariaLabel={`${t('axisLimits')}: ${tag}`}
+                  value={absolute ? 'absolute' : 'relative'}
+                  onChange={(next) => setMarginAbsolute(side, next === 'absolute')}
+                  options={[{ value: 'relative', label: t('marginRelative'), title: t('marginRelativeTitle') }, { value: 'absolute', label: t('marginAbsolute'), title: t('marginAbsoluteTitle') }]}
                 />
-              )
-              return (
-                <GroupedField key={axis} label={`${axis.toUpperCase()}${quantity ? ` · ${quantity}` : ''}`}>
-                  <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-                    {limitInput(0)}
-                    <span className="text-zinc-400">–</span>
-                    {limitInput(1)}
-                  </div>
-                </GroupedField>
-              )
-            })}
-          </FieldGroup>
-        )}
+              </GroupedField>
+            )
+          })}
+        </FieldGroup>
       </SettingsGroup>
     </>
   )

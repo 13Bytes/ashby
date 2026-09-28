@@ -217,7 +217,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
 if __name__ == '__main__':
-    print(f"\n\n{colored(' starting Ashby-Plot Generator                     Ⓒ afffe18 @ RPS (ASL) 2025 ', on_color='on_blue')}")
+    print(f"\n\n{colored(' starting PolyPlot                                 Ⓒ afffe18 @ RPS (ASL) 2025 ', on_color='on_blue')}")
 
     config = import_json(CONFIG_NAME) # + input config +
     create_dataframes  = config.get('create_all_dataframes', True)

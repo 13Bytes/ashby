@@ -4,6 +4,7 @@ from matplotlib import patches
 from PIL import Image
 import numpy as np
 from datetime import datetime
+from termcolor import cprint
 
 
 class format_storage():
@@ -189,50 +190,71 @@ def figurename(frame:dict, dateframe_index:int, frame_index:int) -> str:
     return f"Figure {dateframe_index+1}.{frame_index+1}"
 
 
+DEFAULT_MARGIN = 0.12
+
 class plot_size():
     def __init__(self, frame:dict, DATA:np.ndarray, marker:object, image_ratio:float) -> object:
-        margin       = self.margin(frame.get("automatic_Display_Area_margin",0.12))
-        self.DATA    = DATA                                                                      
-        self.x = dimension(DATA, 0, marker, frame.get('log_x_flag',False), frame.get("x_lim",None), margin['left'  ], margin['right'], image_ratio**(-0.7)) # § class §
-        self.y = dimension(DATA, 1, marker, frame.get('log_y_flag',False), frame.get("y_lim",None), margin['bottom'], margin['top'  ], 1                  ) # § class §
-    
-    def margin(self, m:float|dict) -> [float]:
+        margin       = self.margin(frame)
+        self.DATA    = DATA
+        self.x = dimension(DATA, 0, marker, frame.get('log_x_flag',False), margin['left'  ], margin['right'], image_ratio**(-0.7)) # § class §
+        self.y = dimension(DATA, 1, marker, frame.get('log_y_flag',False), margin['bottom'], margin['top'  ], 1                  ) # § class §
+
+    @staticmethod
+    def margin(frame:dict) -> dict:
+        """side → (value, absolute) from `axis_margin`: a number is a margin beyond the data
+        as a share of the data range, {"absolute": v} a fixed value on the axis; one number sets all sides.
+        Older configs before version 6: `automatic_Display_Area_margin`, and set bounds of `x_lim`/`y_lim` become fixed values."""
         keys = ["left","right","top","bottom"]
-        margin = {key:0 for key in keys}
-        if type(m) == dict:
-            for key in keys:
-                margin[key] = m.get(key, 0.12)
-        else:
-            for key in keys:
-                margin[key] = m
+        m = frame.get('axis_margin', frame.get('automatic_Display_Area_margin', DEFAULT_MARGIN))
+        if type(m) != dict:
+            m = {key: m for key in keys}
+        margin = {}
+        for key in keys:
+            value = m.get(key, DEFAULT_MARGIN)
+            if isinstance(value, dict) and value.get('absolute') is not None:
+                margin[key] = (value['absolute'], True)
+            elif isinstance(value, (int, float)):
+                margin[key] = (value, False)
+            else:
+                margin[key] = (DEFAULT_MARGIN, False)
+        for key, limits, bound in [('left','x_lim',0), ('right','x_lim',1), ('bottom','y_lim',0), ('top','y_lim',1)]:     # & deprecated since version 6
+            limit = frame.get(limits)
+            if isinstance(limit, (list, tuple)) and len(limit) == 2 and limit[bound] is not None:
+                margin[key] = (limit[bound], True)
         return margin
 
 class dimension():
-    def __init__(self, DATA:np.ndarray, dim:int, marker:type, log_flag:bool, limit:[float], margin_1:float, margin_2:float, shrink:float) -> object:
+    def __init__(self, DATA:np.ndarray, dim:int, marker:type, log_flag:bool, margin_1:tuple, margin_2:tuple, shrink:float) -> object:
         self.log_flag = log_flag
-        if limit == None:
-            self.plot_padding(float(np.nanmin(DATA[:,dim])), float(np.nanmax(DATA[:,dim])), margin_1, margin_2, marker.limits(dim), shrink)
-        else:
-            self.plot_padding(limit[0], limit[1], 0, 0, marker.limits(dim), shrink)
+        self.plot_padding(float(np.nanmin(DATA[:,dim])), float(np.nanmax(DATA[:,dim])), margin_1, margin_2, marker.limits(dim), shrink)
 
-        
-    def plot_padding(self, min:float, max:float, margin_1:float, margin_2:float, marker:[float], shrink:float) -> None:
+
+    def plot_padding(self, min:float, max:float, margin_1:tuple, margin_2:tuple, marker:[float], shrink:float) -> None:
+        """margin_1/2: (value, absolute) for the lower/upper edge. A relative value is a margin beyond the data
+        and markers as a share of their range (shrunk for wide images), an absolute one the edge itself."""
         low  = np.nanmin([marker[0], min])
         high = np.nanmax([marker[1], max])
+        (value_1, absolute_1), (value_2, absolute_2) = margin_1, margin_2
         # & take hull splines into account
 
         if self.log_flag:
+            if absolute_1 and value_1 <= 0:     # a log axis cannot reach 0
+                cprint(f"WARNING: fixed axis limit {value_1} is not above 0 on a logarithmic axis, using the default margin","yellow")
+                value_1, absolute_1 = DEFAULT_MARGIN, False
+            if absolute_2 and value_2 <= 0:
+                cprint(f"WARNING: fixed axis limit {value_2} is not above 0 on a logarithmic axis, using the default margin","yellow")
+                value_2, absolute_2 = DEFAULT_MARGIN, False
             low_log  = np.log10(low )
             high_log = np.log10(high)
-            self.low  = 10 ** (low_log  - margin_1 * (high_log - low_log) * shrink)
-            self.high = 10 ** (high_log + margin_2 * (high_log - low_log) * shrink)
+            self.low  = value_1 if absolute_1 else 10 ** (low_log  - value_1 * (high_log - low_log) * shrink)
+            self.high = value_2 if absolute_2 else 10 ** (high_log + value_2 * (high_log - low_log) * shrink)
             self.space = (np.log10(self.high) - np.log10(self.low)) / 100
         else:
-            self.low  = low  - margin_1 * (high - low) * shrink
-            self.high = high + margin_2 * (high - low) * shrink
+            self.low  = value_1 if absolute_1 else low  - value_1 * (high - low) * shrink
+            self.high = value_2 if absolute_2 else high + value_2 * (high - low) * shrink
             self.space = (self.high - self.low) /100
-    
-    
+
+
     def offset(self, pos:float, diff:float) -> float:   # for relative annotation placement
         if self.log_flag:
             return 10**(np.log10(pos) + self.space * diff)

@@ -1,0 +1,31 @@
+# Left out of the image build context: local installs and build output (the image installs and builds
+# its own; Windows node_modules break the Linux build), caches, and files the image does not use.
+
+# Dependencies and environments
+node_modules
+.venv
+backend/.venv
+**/__pycache__
+*.pyc
+
+# Build output (the image builds the frontend itself)
+dist
+dist-ssr
+backend/production-frontend
+
+# Local data and logs
+.ashby-uploaded-data
+*.log
+*.local
+
+# Repository, editor and tooling files
+.git
+.github
+.claude
+.vscode
+.idea
+.DS_Store
+
+# Not needed to build or run the app
+tests
+mockups

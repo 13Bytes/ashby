@@ -2,8 +2,11 @@ import {
   AXIS_MODES,
   CONFIG_VERSION,
   FONT_STYLES,
+  MARGIN_SIDES,
   PLOT_ALGORITHMS,
   type DataframeConfig,
+  type AxisMargin,
+  type PlotAxes,
   type FrameConfig,
   type PlotConfig,
   createDefaultPlotConfig,
@@ -71,18 +74,43 @@ const coerceNumberPair = (
   return fallback
 }
 
-const coerceOptionalNumberPair = (
-  value: unknown,
-): [number | undefined, number | undefined] | undefined => {
-  if (!Array.isArray(value) || value.length !== 2) {
-    return undefined
+const coercePlotAxes = (value: unknown): PlotAxes | undefined =>
+  Array.isArray(value) && value.length === 2 && value.every((entry) => typeof entry === 'string') ? [value[0], value[1]] : undefined
+
+/** The fixed limits before version 6, as the side of `axis_margin` they become. */
+const LEGACY_LIMITS = [['left', 'x', 0], ['right', 'x', 1], ['bottom', 'y', 0], ['top', 'y', 1]] as const
+
+/**
+ * `axis_margin` (before version 6 `automatic_Display_Area_margin`, null when fixed limits were used):
+ * a side is a margin as share of the data range, or `{ absolute: v }`, a fixed value on the axis. One
+ * number sets all sides. Set bounds of the older `x_lim`/`y_lim` become absolute sides.
+ */
+const normalizeAxisMargin = (frame: Record<string, unknown>, fallback: AxisMargin): AxisMargin => {
+  const value = frame.axisMargin ?? frame.axis_margin ?? frame.automaticDisplayAreaMargin ?? frame.automatic_Display_Area_margin
+  const margin: AxisMargin = { ...fallback, absolute: [] }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    for (const side of MARGIN_SIDES) margin[side] = value
+  } else if (isRecord(value)) {
+    for (const side of MARGIN_SIDES) {
+      const sideValue = value[side]
+      if (isRecord(sideValue) && typeof sideValue.absolute === 'number' && Number.isFinite(sideValue.absolute)) {
+        margin[side] = sideValue.absolute
+        margin.absolute.push(side)
+      } else {
+        margin[side] = coerceNumber(sideValue, fallback[side])
+      }
+    }
+    margin.plotAxes = coercePlotAxes(value.plotAxes ?? value.plot_axes)
   }
-
-  const normalized = value.map((item) =>
-    typeof item === 'number' && Number.isFinite(item) ? item : undefined,
-  ) as [number | undefined, number | undefined]
-
-  return normalized[0] === undefined && normalized[1] === undefined ? undefined : normalized
+  for (const [side, axis, bound] of LEGACY_LIMITS) {
+    const limits = frame[`${axis}Lim`] ?? frame[`${axis}_lim`]
+    const limit = Array.isArray(limits) ? limits[bound] : undefined
+    if (typeof limit === 'number' && Number.isFinite(limit)) {
+      margin[side] = limit
+      if (!margin.absolute.includes(side)) margin.absolute.push(side)
+    }
+  }
+  return margin
 }
 
 const normalizeLayers = (value: unknown, fallback: FrameConfig['layers']): FrameConfig['layers'] =>
@@ -124,6 +152,7 @@ const normalizeGuidelines = (value: unknown): FrameConfig['guidelines'] =>
           ? guideline.label
           : isRecord(guideline.label) ? coerceStringRecord(guideline.label) : '',
         labelAbove: coerceBool(guideline.labelAbove ?? guideline.label_above, true),
+        plotAxes: coercePlotAxes(guideline.plotAxes ?? guideline.plot_axes),
         labelRotated: coerceBool(guideline.labelRotated ?? guideline.label_rotated, true),
         labelPadding: coerceNumber(guideline.labelPadding ?? guideline.label_padding, 6),
       }
@@ -233,6 +262,7 @@ const normalizeColoredAreas = (value: unknown): FrameConfig['coloredAreas'] =>
       axes: normalizeAreaAxes(area.axes),
       x: Array.isArray(area.x) ? area.x.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
       y: Array.isArray(area.y) ? area.y.filter((entry): entry is number => typeof entry === 'number' && Number.isFinite(entry)) : [],
+      plotAxes: coercePlotAxes(area.plotAxes ?? area.plot_axes),
       color: typeof area.color === 'string' ? area.color : '#ef4444',
       alpha: coerceNumber(area.alpha, 0.2),
     }))
@@ -278,6 +308,8 @@ const normalizeFrame = (
     'yLim',
     'automatic_Display_Area_margin',
     'automaticDisplayAreaMargin',
+    'axis_margin',
+    'axisMargin',
     'algorithm',
     'layers',
     'filter',
@@ -304,10 +336,6 @@ const normalizeFrame = (
       ? (algorithm as FrameConfig['algorithm'])
       : fallback.algorithm
 
-  const xLim = partial.xLim ?? partial.x_lim
-  const yLim = partial.yLim ?? partial.y_lim
-
-  const automaticDisplayAreaMarginSource = partial.automaticDisplayAreaMargin ?? partial.automatic_Display_Area_margin
   return {
     ...structuredClone(fallback),
     name: asOptionalString(partial.name),
@@ -323,22 +351,13 @@ const normalizeFrame = (
         : fallback.xQuantity,
     xRelQuantity: asOptionalString(partial.xRelQuantity ?? partial.x_rel_quantity),
     logXFlag: coerceBool(partial.logXFlag ?? partial.log_x_flag, fallback.logXFlag),
-    xLim: coerceOptionalNumberPair(xLim),
     yQuantity:
       typeof (partial.yQuantity ?? partial.y_quantity) === 'string'
         ? String(partial.yQuantity ?? partial.y_quantity)
         : fallback.yQuantity,
     yRelQuantity: asOptionalString(partial.yRelQuantity ?? partial.y_rel_quantity),
     logYFlag: coerceBool(partial.logYFlag ?? partial.log_y_flag, fallback.logYFlag),
-    yLim: coerceOptionalNumberPair(yLim),
-    automaticDisplayAreaMargin: isRecord(automaticDisplayAreaMarginSource)
-      ? {
-        left: coerceNumber(automaticDisplayAreaMarginSource.left, fallback.automaticDisplayAreaMargin?.left ?? 0),
-        right: coerceNumber(automaticDisplayAreaMarginSource.right, fallback.automaticDisplayAreaMargin?.right ?? 0),
-        top: coerceNumber(automaticDisplayAreaMarginSource.top, fallback.automaticDisplayAreaMargin?.top ?? 0),
-        bottom: coerceNumber(automaticDisplayAreaMarginSource.bottom, fallback.automaticDisplayAreaMargin?.bottom ?? 0),
-      }
-      : fallback.automaticDisplayAreaMargin,
+    axisMargin: normalizeAxisMargin(partial, fallback.axisMargin),
     algorithm: normalizedAlgorithm,
     layers: normalizeLayers(partial.layers, fallback.layers),
     filter: isRecord(partial.filter) ? partial.filter : fallback.filter,

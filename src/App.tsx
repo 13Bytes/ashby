@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { PlotPage } from './components/PlotPage'
-import { Alert } from './components/ui/alert'
+import { Alert, TimedAlert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { getConfigVersion, normalizePlotConfig } from './config/configMappers'
 import { CONFIG_VERSION, type PlotConfig } from './config/defaultPlotConfig'
@@ -12,7 +12,7 @@ import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLangu
 import { AppHeader } from './components/AppHeader'
 import { ConfigSections } from './components/ConfigSections'
 import { ConfigTabs } from './components/ConfigTabs'
-import { Segmented, Toggle } from './components/AppControls'
+import { Toggle, Switch } from './components/AppControls'
 import { byDataframeIndex, dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
@@ -29,6 +29,8 @@ import { cn } from './lib/utils'
 import { describeFormatWarning, parseFormatWarnings, type ExcelFormatWarning } from './utils/excelFormat'
 
 type AlertTone = 'success' | 'warning' | 'error'; interface AlertState { tone: AlertTone; message: string }
+/** How long a notice at the top stays, unless the pointer is on it. */
+const NOTICE_SECONDS: Record<AlertTone, number> = { success: 6, warning: 15, error: 15 }
 type PlotAction = 'preview-current' | 'create-all'
 
 type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown }
@@ -149,7 +151,6 @@ function App() {
   const workRef = useRef<HTMLDivElement | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
   const activeFrame = activeDataframe.frames[activeFrameIndex] ?? activeDataframe.frames[0]
-  const automaticDisplayAreaActive = activeFrame.automaticDisplayAreaMargin !== null
   const i18n = useMemo(() => ({ language: uiLanguage, t: createTranslator(uiLanguage) }), [uiLanguage])
   const { t } = i18n
   const configSyncRef = useRef<ConfigSync | null>(null)
@@ -373,12 +374,6 @@ function App() {
     params.set(WORKSPACE_URL_PARAM, workspaceId)
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
   }, [activeDataframeIndex, activeFrameIndex, workspaceId])
-  useEffect(() => {
-    // Warnings stay until they are closed.
-    if (!alert || alert.tone === 'warning') return
-    const timeout = window.setTimeout(() => setAlert(null), 15000)
-    return () => window.clearTimeout(timeout)
-  }, [alert])
   useEffect(() => {
     let active = true
     const checkBackendAvailability = async () => {
@@ -998,7 +993,7 @@ function App() {
       setPlotActionNonce((current) => current + 1)
     },
   }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, automaticDisplayAreaActive, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
     sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
@@ -1017,7 +1012,7 @@ function App() {
         </Select>
       </SettingsRow>
       <SettingsRow label={t('uiTheme')}>
-        <Segmented<UIThemePreference>
+        <Toggle<UIThemePreference>
           ariaLabel={t('uiTheme')}
           value={uiTheme}
           onChange={setUiTheme}
@@ -1029,7 +1024,7 @@ function App() {
         />
       </SettingsRow>
       <SettingsRow label={t('scrollSections')} hint={t('scrollSectionsHint')}>
-        <Toggle
+        <Switch
           checked={scrollSections}
           label={t('scrollSections')}
           onChange={(next) => {
@@ -1064,20 +1059,19 @@ function App() {
         </div>
       ) : null}
       <ConfigTabs {...tabProps} />
+      {/* Notices close themselves (messages stay in the log); warnings and errors stay longer. */}
       {configWarning ? (
         <div className="px-4 pt-3">
-          <Alert variant="warning" className="flex items-center justify-between gap-3">
-            <span>{configWarning}</span>
-            <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setConfigWarning(null)} aria-label={t('closeNotification')}>✕</button>
-          </Alert>
+          <TimedAlert variant="warning" seconds={NOTICE_SECONDS.warning} onClose={() => setConfigWarning(null)} closeLabel={t('closeNotification')} resetKey={configWarning}>
+            {configWarning}
+          </TimedAlert>
         </div>
       ) : null}
       {alert ? (
         <div className="px-4 pt-3">
-          <Alert variant={alert.tone === 'error' ? 'destructive' : alert.tone} className="flex items-center justify-between gap-3">
-            <span>{alert.message}</span>
-            <button type="button" className="rounded px-1 text-sm leading-none hover:bg-black/10 dark:hover:bg-white/10" onClick={() => setAlert(null)} aria-label={t('closeNotification')}>✕</button>
-          </Alert>
+          <TimedAlert variant={alert.tone === 'error' ? 'destructive' : alert.tone} seconds={NOTICE_SECONDS[alert.tone]} onClose={() => setAlert(null)} closeLabel={t('closeNotification')} resetKey={alert}>
+            {alert.message}
+          </TimedAlert>
         </div>
       ) : null}
       <div

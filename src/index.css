@@ -45,10 +45,23 @@ body {
   display: none !important;
 }
 
-/* A required field that is not set yet. */
-[data-missing='true'] :is(input, select, textarea) {
+/* A required field that is not set yet; in a field group only the rows that are not set. */
+[data-missing='true']:not([role='group']) :is(input, select, textarea) {
   border-color: rgb(234 88 12);
   box-shadow: 0 0 0 2px rgb(234 88 12 / 0.2);
+}
+
+/* Time left of a notice that closes itself (TimedAlert); hovering pauses it. */
+.notice-timer {
+  animation: notice-timer var(--notice-seconds) linear forwards;
+}
+@keyframes notice-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
 /* A setting found with "Find a setting" is highlighted briefly. */

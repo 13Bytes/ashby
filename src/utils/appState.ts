@@ -305,3 +305,6 @@ export const duplicateFrameInDataframe = (df: DataframeConfig, index: number): {
   const shifted = insertSelectionIndex(frames.length, df.createAllFrames, index + 1)
   return { dataframe: { ...df, frames, createAllFrames: toggleIndexSelection(frames.length, shifted, index + 1, included) }, frameIndex: index + 1 }
 }
+
+/** Tag of a value on a plot axis inside a field group, e.g. "X · Density". */
+export const axisTag = (axis: 'x' | 'y', quantity?: string) => (quantity ? `${axis.toUpperCase()} · ${quantity}` : axis.toUpperCase())

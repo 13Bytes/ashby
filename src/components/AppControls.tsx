@@ -134,8 +134,25 @@ export function LevelIcon({ level, missing, changed }: { level: SettingLevel; mi
   )
 }
 
+/** Amber icon for a value that may be wrong now, e.g. coordinates entered for other axes; the text explains why. */
+function WarningIcon({ text }: { text: string }) {
+  const tooltipId = useId()
+  const { anchorRef, position, updateAlignment } = useTooltipAlignment()
+  return (
+    <span ref={anchorRef} className="group relative inline-flex align-middle" onPointerEnter={updateAlignment} onFocus={updateAlignment}>
+      <span tabIndex={0} role="img" aria-label={text} aria-describedby={tooltipId} className="inline-flex h-4 w-4 shrink-0 cursor-help items-center justify-center text-amber-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 dark:text-amber-400">
+        <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
+          <path d="M10 2.5 18.5 17.5h-17z" fill="currentColor" />
+          <path d="M10 8v4.5M10 14.8v.2" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </span>
+      <TooltipBubble id={tooltipId} position={position}>{text}</TooltipBubble>
+    </span>
+  )
+}
+
 /** Label with the level icon and an optional help tooltip; the help text is looked up by the config path. */
-function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, changed, lang }: { label: string; jsonPath: string; as?: 'label' | 'span'; level?: SettingLevel; missing?: boolean; changed?: boolean; lang?: string }) {
+function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, changed, lang, warning }: { label: string; jsonPath: string; as?: 'label' | 'span'; level?: SettingLevel; missing?: boolean; changed?: boolean; lang?: string; warning?: string }) {
   const { language } = useI18n()
   const help = getFieldHelp(language, jsonPath)
   return (
@@ -143,6 +160,7 @@ function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, change
       <Tag title={help ? undefined : jsonPath} className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</Tag>
       {lang ? <span className="rounded px-1 font-mono text-[10px] uppercase leading-4 text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700">{lang}</span> : null}
       {level ? <LevelIcon level={level} missing={missing} changed={changed} /> : null}
+      {warning ? <WarningIcon text={warning} /> : null}
       {help ? <InfoTooltip label={label} text={help} jsonPath={jsonPath} /> : null}
     </span>
   )
@@ -161,6 +179,7 @@ export function Field({
   fill,
   selfClassName,
   className,
+  warning,
   children,
 }: {
   label: string
@@ -182,6 +201,8 @@ export function Field({
   fill?: boolean
   selfClassName?: string
   className?: string
+  /** Shown as an amber icon next to the label, e.g. when the value may not fit the plot any more. */
+  warning?: string
   children: ReactNode
 }) {
   return (
@@ -194,7 +215,7 @@ export function Field({
       data-missing={missing ? 'true' : undefined}
       data-lang-other={otherLang ? 'true' : undefined}
     >
-      <FieldLabel label={label} jsonPath={jsonPath} level={level} missing={missing} changed={changed} lang={lang} />
+      <FieldLabel label={label} jsonPath={jsonPath} level={level} missing={missing} changed={changed} lang={lang} warning={warning} />
       <div className={cn('grid gap-2', fill && 'min-h-0', className)}>
         {children}
       </div>
@@ -203,10 +224,18 @@ export function Field({
   )
 }
 
+/** Grid columns of a FieldGroup: its rows side by side, each row a tag column and a value column. */
+const GROUP_COLUMNS = {
+  1: 'grid-cols-[auto_minmax(0,1fr)]',
+  2: 'grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] [&>:nth-child(even)>:first-child]:ml-2',
+  /** Two columns once there is room, e.g. for rows with a toggle next to the input. */
+  responsive: 'grid-cols-[auto_minmax(0,1fr)] @xl:grid-cols-[auto_minmax(0,1fr)_auto_minmax(0,1fr)] @xl:[&>:nth-child(even)>:first-child]:ml-2',
+} as const
+
 /**
  * Several values that belong together (one text per language, one coordinate per axis) in one
- * framed box under a common label. Counts as one setting: search, Simple mode and the section
- * statistics treat it like a Field.
+ * framed box under a common label, one GroupedField row per value. Counts as one setting: search,
+ * Simple mode and the section statistics treat it like a Field.
  */
 export function FieldGroup({
   label,
@@ -215,7 +244,9 @@ export function FieldGroup({
   missing,
   changed,
   anchor,
-  className,
+  columns = 1,
+  inline,
+  warning,
   children,
 }: {
   label: string
@@ -224,33 +255,46 @@ export function FieldGroup({
   missing?: boolean
   changed?: boolean
   anchor?: string
-  /** Layout of the grouped fields, e.g. a column per axis. */
-  className?: string
+  columns?: keyof typeof GROUP_COLUMNS
+  /** Without the frame, laid out like a Field, so its inputs line up with plain fields next to it. */
+  inline?: boolean
+  /** Shown as an amber icon next to the label, e.g. when the values may not fit the plot any more. */
+  warning?: string
   children: ReactNode
 }) {
   return (
     <div
       role="group"
       aria-label={label}
-      className="grid content-start gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 pb-3 pt-2 dark:border-zinc-800 dark:bg-zinc-900/40"
+      className={inline ? 'grid content-start gap-1.5' : 'grid content-start gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3 pb-3 pt-2 dark:border-zinc-800 dark:bg-zinc-900/40'}
       data-setting={label}
       data-anchor={anchor}
       data-level={level}
       data-changed={level === 'default' && changed ? 'true' : undefined}
       data-missing={missing ? 'true' : undefined}
     >
-      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} />
-      <div className={cn('grid gap-3', className)}>{children}</div>
+      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} warning={warning} />
+      <div className={cn('grid items-center gap-x-2 gap-y-2', GROUP_COLUMNS[columns])}>{children}</div>
     </div>
   )
 }
 
-/** A value inside a FieldGroup: a small label (e.g. the axis) above its input. */
-export function GroupedField({ label, missing, children }: { label: ReactNode; missing?: boolean; children: ReactNode }) {
+/** One row of a FieldGroup: a tag (language, axis, side) left of its input. The tags of a column line up. */
+export function GroupedField({ tag, title, missing, otherLang, simpleHidden, children }: {
+  tag: ReactNode
+  /** Full text of a shortened or truncated tag. */
+  title?: string
+  missing?: boolean
+  /** Text of a plot language other than the selected one (hidden in Simple mode). */
+  otherLang?: boolean
+  /** Not needed by this plot, e.g. an axis it does not show (hidden in Simple mode). */
+  simpleHidden?: boolean
+  children: ReactNode
+}) {
   return (
-    <label className="grid min-w-0 content-start gap-1" data-missing={missing ? 'true' : undefined}>
-      <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">{label}</span>
-      {children}
+    <label className="col-span-2 grid grid-cols-subgrid items-center" data-missing={missing ? 'true' : undefined} data-lang-other={otherLang ? 'true' : undefined} data-level={simpleHidden ? 'default' : undefined}>
+      <span title={title} className="min-w-8 max-w-40 truncate rounded px-1.5 py-0.5 text-center font-mono text-[10px] text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:text-zinc-400 dark:ring-zinc-700">{tag}</span>
+      <div className="flex min-w-0 items-center gap-2 [&>input]:min-w-0">{children}</div>
     </label>
   )
 }
@@ -280,12 +324,11 @@ export function LanguageFields({
 }) {
   if (languages.length > 1) {
     return (
-      <FieldGroup label={label} jsonPath={jsonPath} level={level} anchor={anchor} className="gap-2">
+      <FieldGroup label={label} jsonPath={jsonPath} level={level} anchor={anchor}>
         {languages.map((language) => (
-          <label key={language} className="flex items-center gap-2" data-lang-other={language !== selectedLanguage ? 'true' : undefined}>
-            <span className="w-8 shrink-0 rounded py-0.5 text-center font-mono text-[10px] uppercase text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700">{language}</span>
+          <GroupedField key={language} tag={language.toUpperCase()} otherLang={language !== selectedLanguage}>
             <Input aria-label={`${label} (${language})`} value={value(language)} onChange={(event) => onChange(language, event.target.value)} />
-          </label>
+          </GroupedField>
         ))}
       </FieldGroup>
     )
@@ -293,15 +336,7 @@ export function LanguageFields({
   return (
     <>
       {languages.map((language) => (
-        <Field
-          key={language}
-          label={label}
-          jsonPath={jsonPath}
-          level={level}
-          lang={languages.length > 1 ? language : undefined}
-          otherLang={language !== selectedLanguage}
-          anchor={anchor}
-        >
+        <Field key={language} label={label} jsonPath={jsonPath} level={level} anchor={anchor}>
           <Input value={value(language)} onChange={(event) => onChange(language, event.target.value)} />
         </Field>
       ))}
@@ -352,17 +387,18 @@ export function SharedHint({ text, linkLabel, onOpen }: { text: string; linkLabe
   )
 }
 
-/** Segmented control for a small set of choices. */
-export function Segmented<T extends string>({ options, value, onChange, className, ariaLabel }: { options: Array<{ value: T; label: ReactNode }>; value: T; onChange: (next: T) => void; className?: string; ariaLabel?: string }) {
+/** Toggle: segmented control for a small set of choices, e.g. Simple / All settings. */
+export function Toggle<T extends string>({ options, value, onChange, className, ariaLabel, size }: { options: Array<{ value: T; label: ReactNode; title?: string }>; value: T; onChange: (next: T) => void; className?: string; ariaLabel?: string; size?: 'sm' }) {
   return (
-    <div role="group" aria-label={ariaLabel} className={cn('inline-flex h-9 w-fit items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', className)}>
+    <div role="group" aria-label={ariaLabel} className={cn('inline-flex w-fit shrink-0 items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', size === 'sm' ? 'h-8' : 'h-9', className)}>
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
+          title={option.title}
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
-          className={`flex items-center whitespace-nowrap rounded px-3 text-xs transition-colors ${option.value === value ? 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          className={`flex items-center whitespace-nowrap rounded text-xs transition-colors ${size === 'sm' ? 'px-2' : 'px-3'} ${option.value === value ? 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
         >
           {option.label}
         </button>
@@ -428,8 +464,8 @@ export function PresetInput<T>({ presets, value, isSame, format, parse, onChange
   )
 }
 
-/** On/off switch with its state as text. */
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label?: string }) {
+/** Switch: on/off control with its state as text, e.g. transparency. */
+export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label?: string }) {
   const { t } = useI18n()
   return (
     <button
@@ -445,6 +481,38 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       </span>
       <span className={checked ? 'font-semibold text-zinc-900 dark:text-zinc-100' : 'text-zinc-500'}>{checked ? t('on') : t('off')}</span>
     </button>
+  )
+}
+
+/**
+ * Opacity from 0 (not drawn) to 1 (opaque): a slider with the exact value next to it. Invalid text
+ * in the number field is not applied.
+ */
+export function OpacitySlider({ value, onChange, ariaLabel }: { value: number; onChange: (next: number) => void; ariaLabel: string }) {
+  const clamp = (next: number) => Math.min(1, Math.max(0, Math.round(next * 100) / 100))
+  return (
+    <div className="flex h-9 items-center gap-3">
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(event) => onChange(clamp(event.target.valueAsNumber))}
+        className="h-5 min-w-0 flex-1 cursor-pointer accent-violet-600 dark:accent-violet-400"
+      />
+      <Input
+        type="number"
+        min={0}
+        max={1}
+        step={0.05}
+        aria-label={`${ariaLabel} (0–1)`}
+        value={value}
+        onChange={(event) => { if (Number.isFinite(event.target.valueAsNumber)) onChange(clamp(event.target.valueAsNumber)) }}
+        className="w-20 shrink-0 tabular-nums"
+      />
+    </div>
   )
 }
 
@@ -557,7 +625,7 @@ export function MultiSelectInput({
           ) : null}
         </div>
         {!hideModeToggle && onModeChange ? (
-          <Segmented<'blacklist' | 'whitelist'>
+          <Toggle<'blacklist' | 'whitelist'>
             ariaLabel={`${t('blacklist')} / ${t('whitelist')}`}
             value={modeValue ? 'whitelist' : 'blacklist'}
             onChange={(next) => onModeChange(next === 'whitelist')}
@@ -804,7 +872,7 @@ export function ColorOrMaterialInput({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Segmented
+      <Toggle
         options={[{ value: 'custom', label: t('colorModeCustom') }, { value: 'material', label: t('colorModeMaterial') }]}
         value={isCustom ? 'custom' : 'material'}
         onChange={switchMode}
