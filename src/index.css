@@ -1,6 +1,21 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Logo blue (#219CD3 = brand-500): the accent and the plot context. Lightness steps as Tailwind's palettes. */
+@theme {
+  --color-brand-50: oklch(97.7% 0.012 234);
+  --color-brand-100: oklch(95.1% 0.023 234);
+  --color-brand-200: oklch(90.1% 0.05 234);
+  --color-brand-300: oklch(82.8% 0.095 234);
+  --color-brand-400: oklch(74.6% 0.135 234);
+  --color-brand-500: oklch(65.4% 0.129 234.3);
+  --color-brand-600: oklch(54.5% 0.125 236);
+  --color-brand-700: oklch(49% 0.115 237);
+  --color-brand-800: oklch(43.5% 0.095 237);
+  --color-brand-900: oklch(38.5% 0.078 237);
+  --color-brand-950: oklch(29% 0.057 238);
+}
+
 :root {
   color-scheme: light;
 }
@@ -17,9 +32,70 @@ body {
 }
 
 #root {
-  width: min(96vw, 1920px);
-  max-width: 100%;
+  width: 100%;
   margin: 0 auto;
   min-height: 100svh;
   box-sizing: border-box;
+}
+
+/* Single-column grids in the settings never grow wider than their panel (long option or column
+   names would otherwise widen the whole section). In the base layer, so grid-cols-* utilities win. */
+@layer base {
+  [data-section-id] .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Simple mode: settings that can stay at their defaults are hidden, unless the section shows them. */
+.settings-simple [data-section-id]:not(.show-defaults) [data-level='default'] {
+  display: none !important;
+}
+/* Simple mode shows the text fields of the selected plot language only. */
+.settings-simple [data-lang-other] {
+  display: none !important;
+}
+/* Shortcuts that duplicate a field of the full settings, shown only while those are hidden. */
+.settings-all .simple-only,
+.show-defaults .simple-only {
+  display: none !important;
+}
+
+/* A required field that is not set yet; in a field group only the rows that are not set. */
+[data-missing='true']:not([role='group']) :is(input, select, textarea) {
+  border-color: rgb(234 88 12);
+  box-shadow: 0 0 0 2px rgb(234 88 12 / 0.2);
+}
+
+/* Time left of a notice that closes itself (TimedAlert); hovering pauses it. */
+.notice-timer {
+  animation: notice-timer var(--notice-seconds) linear forwards;
+}
+@keyframes notice-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* A setting found with "Find a setting" is highlighted briefly. */
+.setting-flash {
+  animation: setting-flash 1.8s ease;
+}
+@keyframes setting-flash {
+  0%,
+  45% {
+    background-color: rgb(139 92 246 / 0.16);
+    box-shadow: 0 0 0 6px rgb(139 92 246 / 0.16);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .setting-flash {
+    animation: none;
+  }
 }

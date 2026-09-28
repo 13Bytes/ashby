@@ -17,6 +17,7 @@ except ImportError:
 
 
 CONFIG_NAME = "ashby-config-2026-08-03.json"
+DARK_BACKGROUND = '#121212'     # background of dark mode plots that are not transparent
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
@@ -55,7 +56,10 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
         # : General setup :
-        if frame.get('dark_mode', df_darkmode):
+        dark_mode = df_darkmode     # config version 6: set per dataframe only
+        # [True] above, [False] right, [None] no legend. Since config version 6 per dataframe; older configs set it per frame.
+        legend_above = dataframe.get('legend_above', frame.get('legend_above', False))
+        if dark_mode:
             font_color = 'white'
         else:
             font_color = 'black'
@@ -68,7 +72,10 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
             # fig = mpl_fig.figure
             # ax = fig.add_subplot(1,1, 1)        # & no subplots
         fig, ax = plt.subplots(1,1, figsize=figure_size)
-        if frame.get('legend_flag',True) != None:           # & ❗ ⇒  ui
+        if dark_mode:       # without this a non-transparent dark plot gets white text on matplotlib's white background
+            fig.patch.set_facecolor(DARK_BACKGROUND)
+            ax.set_facecolor(DARK_BACKGROUND)
+        if legend_above is not None and frame.get('legend_flag',True) != None:     # room for the legend
             plt.subplots_adjust(left=0.09, right=0.86)
         
         ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
@@ -111,13 +118,13 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         Plot_size = plot_size(frame, DATA, Marker, image_ratio) # § class §
                     
 
-        if frame.get('legend_above',True) != None:
+        if legend_above is not None:
             Graphics.legend.create_legend(
                 Format_Storage = Format_Storage,
                 font_color = font_color,
                 font_size  = df_font.get('legend_label_size',15),
                 title_size = df_font.get('legend_title_size',25),
-                above = frame.get("legend_above",False),
+                above = legend_above,
                 copyright = (dataframe.get('copyright', False) != False)
             )
 
@@ -174,7 +181,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         if dataframe.get('copyright', False) != False:          # & ❗ ⇒  ui
             copyright(ax, text=dataframe.get('copyright', True), font_color=font_color)
         if dataframe.get('watermark', False) != False:           # & ❗ ⇒  ui
-            watermark(fig, dataframe.get('watermark',True), alpha=0.6, dark_mode=df_darkmode, pos=[0.72, 0.13], size=.13)
+            watermark(fig, dataframe.get('watermark',True), alpha=0.6, dark_mode=bool(dark_mode), pos=[0.72, 0.13], size=.13)
 
 
         # ~ add grid lines 
@@ -210,7 +217,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
 if __name__ == '__main__':
-    print(f"\n\n{colored(' starting Ashby-Plot Generator                     Ⓒ afffe18 @ RPS (ASL) 2025 ', on_color='on_blue')}")
+    print(f"\n\n{colored(' starting PolyPlot                                 Ⓒ afffe18 @ RPS (ASL) 2025 ', on_color='on_blue')}")
 
     config = import_json(CONFIG_NAME) # + input config +
     create_dataframes  = config.get('create_all_dataframes', True)

@@ -1,6 +1,7 @@
-import type { ChangeEvent, ReactNode, RefObject } from 'react'
+import { useEffect, type ChangeEvent, type ReactNode, type RefObject } from 'react'
 import { cn } from '../lib/utils'
 import { useI18n } from '../uiTranslations'
+import { BrandLogo } from './BrandLogo'
 import { Button } from './ui/button'
 
 type AppPopoutsProps = {
@@ -65,7 +66,7 @@ function DialogActions({ children, className }: { children: ReactNode; className
 
 function highlightedTokenClassName(mode: JsonTokenMode) {
   if (mode === 'string') return 'text-emerald-700 dark:text-emerald-400'
-  if (mode === 'number') return 'text-sky-700 dark:text-sky-400'
+  if (mode === 'number') return 'text-violet-700 dark:text-violet-400'
   if (mode === 'keyword') return 'text-fuchsia-700 dark:text-fuchsia-400'
   return undefined
 }
@@ -168,11 +169,12 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
   const { t } = useI18n()
   return (
     <PopoutShell>
-      <h3 className="mt-0 text-lg">{t('about')}</h3>
+      <div className="mb-4 flex flex-col items-center gap-2 text-center">
+        <BrandLogo className="h-14 w-14 text-zinc-900 dark:text-zinc-100" />
+        <h3 className="m-0 text-xl font-semibold tracking-tight">PolyPlot</h3>
+        <p className="m-0 text-sm text-zinc-600 dark:text-zinc-300">{t('aboutIntro')}</p>
+      </div>
       <div className="space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
-        <p>{t('aboutIntro')}{' '}{t('aboutReworkSuffix')}{' '}
-          <ExternalLink href="https://aerospace-lab.de/repolysat/">RePolySat</ExternalLink>
-        </p>
         <div>
           <p className="font-medium text-zinc-800 dark:text-zinc-100">{t('credits')}</p>
           <ul className="ml-5 list-disc space-y-1">
@@ -189,9 +191,16 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
               <ExternalLink href="https://github.com/afffe18">afffe18</ExternalLink>
               {' & '}
               <ExternalLink href="https://github.com/13Bytes">13Bytes</ExternalLink>
+              {t('aboutUiSuffix')}
             </li>
           </ul>
         </div>
+        <p>
+          {t('aboutReworkSuffix')}{' '}
+          <ExternalLink href="https://aerospace-lab.de/repolysat/">RePolySat</ExternalLink>
+          {' @ '}
+          <ExternalLink href="https://aerospace-lab.de/">Aerospace-Lab</ExternalLink>.
+        </p>
       </div>
       <DialogActions>
         <Button variant="outline" onClick={onClose}>
@@ -199,6 +208,19 @@ function AboutPopout({ onClose }: { onClose: () => void }) {
         </Button>
       </DialogActions>
     </PopoutShell>
+  )
+}
+
+/** One line of the settings dialog: the name (and an optional hint) on the left, the control on the right. */
+export function SettingsRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="grid min-w-0 gap-0.5">
+        <span className="text-sm font-medium">{label}</span>
+        {hint ? <span className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</span> : null}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
   )
 }
 
@@ -210,15 +232,28 @@ function SettingsPopout({
   settingsContent: ReactNode
 }) {
   const { t } = useI18n()
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
   return (
-    <PopoutShell>
-      <h3 className="mt-0 text-lg">{t('settings')}</h3>
-      <div className="grid gap-2">{settingsContent}</div>
-      <DialogActions>
-        <Button variant="outline" onClick={onClose}>
-          {t('close')}
-        </Button>
-      </DialogActions>
+    <PopoutShell panelClassName="max-w-lg">
+      <div role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div className="flex items-center justify-between gap-2">
+          <h3 id="settings-title" className="m-0 text-lg">{t('settings')}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('close')}
+            title={t('close')}
+            className="grid h-8 w-8 place-items-center rounded-md text-lg leading-none text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          >
+            ×
+          </button>
+        </div>
+        <div className="mt-2 divide-y divide-zinc-200 dark:divide-zinc-800">{settingsContent}</div>
+      </div>
     </PopoutShell>
   )
 }

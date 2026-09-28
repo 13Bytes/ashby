@@ -20,13 +20,13 @@ import {
   reorderSelectionIndices,
   toggleIndexSelection,
 } from '../../src/utils/appState.ts'
-import { addColoredAreaToFrame } from '../../src/utils/coloredAreas.ts'
+import { addColoredAreaToFrame, setColoredAreaType } from '../../src/utils/coloredAreas.ts'
 import { resolvePreviewColor } from '../../src/utils/colors.ts'
-import { addAnnotationToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, setLocalizedLabel } from '../../src/utils/configEditing.ts'
+import { addAnnotationToFrame, addLayerToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, keepPointOpacityOnLastLayer, plotAxesChanged, setLocalizedLabel } from '../../src/utils/configEditing.ts'
 import { findExternalFrameOffset, parseImportedConfig, parseJsonField, toExternalConfig } from '../../src/utils/configIo.ts'
 import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
-import { createConfigSync, getWorkspaceId } from '../../src/utils/tabSync.ts'
+import { createConfigSync, getUrlWorkspaceId, getWorkspaceId } from '../../src/utils/tabSync.ts'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails } from '../../src/utils/backendErrors.ts'
 import { addLogEntry, clearLog, formatLogEntry, getLogState } from '../../src/utils/debugLog.ts'
 import { parseUIThemePreference, resolveUITheme } from '../../src/utils/uiTheme.ts'
@@ -38,10 +38,10 @@ const readJson = async (relativePath) => JSON.parse(await readFile(path.join(pro
 const roundTrip = (config) => normalizePlotConfig(JSON.parse(JSON.stringify(toExternalConfig(config))))
 const exported = (config) => JSON.parse(JSON.stringify(toExternalConfig(config)))
 
-test('appState derives axis bases only from complete low/high/unit column groups', () => {
+test('appState derives axis bases from low/high column pairs; a unit column is optional', () => {
   assert.deepEqual(
-    getAxisBasesFromColumns(['Density high', 'Density unit', 'Density low', 'Cost low', 'Cost high']),
-    ['Density'],
+    getAxisBasesFromColumns(['Density high', 'Density unit', 'Density low', 'Cost low', 'Cost high', 'Mass low', 'Price unit']),
+    ['Cost', 'Density'],
   )
 })
 
@@ -69,8 +69,22 @@ test('plot language helpers trim, dedupe, and preserve at least one language', (
   assert.deepEqual(addPlotLanguageToList(['en'], 'en'), ['en'])
 })
 
-test('a new colored area is a polygon with default corners', () => {
-  assert.deepEqual(addColoredAreaToFrame({ coloredAreas: [] }).coloredAreas[0], { x: [0, 1], y: [0, 1], color: '#ef4444', alpha: 0.2 })
+test('a new colored area is an axis range; as a polygon it gets a first corner, noted for the plot axes', () => {
+  const frame = { coloredAreas: [], xQuantity: 'tens', xRelQuantity: 'density', yQuantity: 'hdt' }
+  const area = addColoredAreaToFrame(frame).coloredAreas[0]
+  assert.deepEqual(area, { axes: {}, x: [], y: [], color: '#ef4444', alpha: 0.2 })
+  assert.deepEqual(setColoredAreaType(area, 'polygon', frame), { axes: undefined, x: [0], y: [0], plotAxes: ['tens/density', 'hdt'], color: '#ef4444', alpha: 0.2 })
+  // Existing corners are kept when switching back and forth.
+  const polygon = { x: [1, 2, 3], y: [1, 2, 1], color: 'red', alpha: 0.2 }
+  assert.deepEqual(setColoredAreaType(setColoredAreaType(polygon, 'axes', frame), 'polygon', frame), { ...polygon, axes: undefined })
+})
+
+test('coordinates warn only when the plot axes changed since they were entered', () => {
+  const frame = { xQuantity: 'tens', yQuantity: 'hdt' }
+  assert.equal(plotAxesChanged(undefined, frame), false)
+  assert.equal(plotAxesChanged(['tens', 'hdt'], frame), false)
+  assert.equal(plotAxesChanged(['tens', 'hdt'], { ...frame, yRelQuantity: 'density' }), true)
+  assert.equal(plotAxesChanged(['hdt', 'tens'], frame), true)
 })
 
 test('colored area axis ranges are normalized to [min, max] with open bounds', () => {
@@ -145,7 +159,7 @@ test('uiTheme validates stored values and resolves system preference', () => {
 })
 
 test('field help exists in every language for the documented paths', () => {
-  const paths = ['_extensions.source_mode', 'teable_url', 'import_sheet', 'x_rel_quantity', 'x_lim[0]', 'layers[2].whitelist', 'colored_areas[0].axes.density', 'guidelines[0].line_props.color', 'annotations[3].arrow.headwidth']
+  const paths = ['_extensions.source_mode', 'teable_url', 'import_sheet', 'x_rel_quantity', 'axis_margin.left', 'layers[2].whitelist', 'colored_areas[0].axes.density', 'guidelines[0].line_props.color', 'annotations[3].arrow.headwidth']
   for (const jsonPath of paths) {
     for (const language of ['en', 'de']) {
       assert.ok(getFieldHelp(language, jsonPath), `${language}: ${jsonPath}`)
@@ -155,8 +169,8 @@ test('field help exists in every language for the documented paths', () => {
 })
 
 test('English labels use sentence case', () => {
-  // Fragments that are embedded into other sentences start lowercase on purpose.
-  const embedded = new Set(['datasourceMissingItem', 'openBound'])
+  // Fragments embedded into other sentences, placeholders and abbreviations start lowercase on purpose.
+  const embedded = new Set(['datasourceMissingItem', 'openBound', 'customPreset', 'fmtMissing', 'fmtMore', 'notInThisPlot', 'marginRelative', 'marginAbsolute'])
   const lowercase = Object.entries(UI_LABELS.en).filter(([key, text]) => !embedded.has(key) && /^[a-z]/.test(text))
   assert.deepEqual(lowercase, [])
 })
@@ -170,17 +184,13 @@ test('translations fill placeholders and cover every key in every language', () 
   assert.equal(parseUILanguage('fr'), 'en')
 })
 
-test('frames inherit dataframe dark mode unless explicitly overridden', () => {
+test('dark mode is a dataframe setting; frames carry none', () => {
   const config = createDefaultPlotConfig()
   config.dataframes[0].darkMode = true
-
   const inherited = exported(config)
   assert.equal(inherited.dataframes[0].dark_mode, true)
   assert.equal('dark_mode' in inherited.dataframes[0].frames[0], false)
-
-  config.dataframes[0].frames[0].darkMode = false
-  assert.equal(exported(config).dataframes[0].frames[0].dark_mode, false)
-  assert.equal(roundTrip(config).dataframes[0].frames[0].darkMode, false)
+  assert.equal(roundTrip(config).dataframes[0].darkMode, true)
 })
 
 test('the export uses the backend key names', () => {
@@ -221,8 +231,7 @@ test('dataframe settings survive export and import', () => {
   const config = createDefaultPlotConfig()
   const [dataframe] = config.dataframes
   Object.assign(dataframe, { transparent: true, watermark: 'logo.png', copyright: false, fileformat: 'png', resolution: 250 })
-  dataframe.frames[0].xLim = [1, undefined]
-  dataframe.frames[0].yLim = [undefined, 5]
+  dataframe.frames[0].axisMargin = { left: 1, right: 0.1, bottom: 0.12, top: 5, absolute: ['left', 'top'], plotAxes: ['tens', 'hdt'] }
 
   const [imported] = roundTrip(config).dataframes
   assert.equal(imported.transparent, true)
@@ -230,8 +239,7 @@ test('dataframe settings survive export and import', () => {
   assert.equal(imported.copyright, false)
   assert.equal(imported.fileformat, 'png')
   assert.equal(imported.resolution, 250)
-  assert.deepEqual(imported.frames[0].xLim, [1, undefined])
-  assert.deepEqual(imported.frames[0].yLim, [undefined, 5])
+  assert.deepEqual(imported.frames[0].axisMargin, { left: 1, right: 0.1, bottom: 0.12, top: 5, absolute: ['left', 'top'], plotAxes: ['tens', 'hdt'] })
   assert.equal('transparent' in imported._extensions, false)
 })
 
@@ -326,9 +334,9 @@ test('config sync only delivers messages from other tabs of the same workspace',
     return channel
   }
   const received = { a: [], b: [], other: [] }
-  const a = createConfigSync((config) => received.a.push(config), 'workspace-1', createChannel)
-  createConfigSync((config) => received.b.push(config), 'workspace-1', createChannel)
-  createConfigSync((config) => received.other.push(config), 'workspace-2', createChannel)
+  const a = createConfigSync((config) => received.a.push(config), () => null, 'workspace-1', createChannel)
+  createConfigSync((config) => received.b.push(config), () => null, 'workspace-1', createChannel)
+  createConfigSync((config) => received.other.push(config), () => null, 'workspace-2', createChannel)
 
   a.publish('{"version":1}')
   assert.deepEqual(received, { a: [], b: ['{"version":1}'], other: [] })
@@ -337,9 +345,44 @@ test('config sync only delivers messages from other tabs of the same workspace',
   assert.equal(channels.length, 2)
 })
 
+test('a tab that starts empty gets the current config from the other tabs of its workspace', () => {
+  const channels = []
+  const createChannel = () => {
+    const channel = {
+      onmessage: null,
+      postMessage: (data) => channels.filter((other) => other !== channel).forEach((other) => other.onmessage?.({ data })),
+      close: () => {},
+    }
+    channels.push(channel)
+    return channel
+  }
+  const received = { duplicate: [], original: [], other: [] }
+  createConfigSync((config) => received.original.push(config), () => '{"from":"original"}', 'workspace-1', createChannel)
+  createConfigSync((config) => received.other.push(config), () => '{"from":"other"}', 'workspace-2', createChannel)
+  const duplicate = createConfigSync((config) => received.duplicate.push(config), () => null, 'workspace-1', createChannel)
+
+  duplicate.requestConfig()
+  // Only the tab of the same workspace answers; its answer also reaches nobody else in another workspace.
+  assert.deepEqual(received, { duplicate: ['{"from":"original"}'], original: [], other: [] })
+})
+
+test('the workspace id comes from sessionStorage, else from the URL, else it is new', () => {
+  const storage = () => {
+    const store = new Map()
+    return { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) }
+  }
+  const fromUrl = storage()
+  assert.equal(getWorkspaceId(fromUrl, '?dataframe=0&workspace=abcdef12-3456'), 'abcdef12-3456')
+  assert.equal(getWorkspaceId(fromUrl, '?workspace=another-workspace-id'), 'abcdef12-3456')
+  assert.notEqual(getWorkspaceId(storage(), '?workspace=bad id!'), 'bad id!')
+  assert.equal(getUrlWorkspaceId('?workspace=short'), null)
+  assert.equal(getUrlWorkspaceId(''), null)
+})
+
 test('config sync is a no-op without BroadcastChannel support', () => {
-  const sync = createConfigSync(() => assert.fail('no messages expected'), 'workspace-1', () => null)
+  const sync = createConfigSync(() => assert.fail('no messages expected'), () => '{}', 'workspace-1', () => null)
   sync.publish('{}')
+  sync.requestConfig()
   sync.close()
 })
 
@@ -403,4 +446,14 @@ test('the debug log keeps the newest entry first and formats entries as text', (
   assert.match(text, /ERROR render: Plot 2/)
   assert.match(text, /Location: plot\.py:1/)
   assert.match(text, /Backend output:\noutput/)
+})
+
+test('the opacity of points and ranges stays on the last layer, which the backend reads', () => {
+  const frame = createDefaultPlotConfig().dataframes[0].frames[0]
+  assert.deepEqual([frame.layers[0].alphaPoints, frame.layers[0].alphaAreas], [0.3, 0.6])
+  const added = addLayerToFrame(frame)
+  assert.equal(added.layers[1].alpha, 0.4)
+  assert.deepEqual(added.layers.map((layer) => [layer.alphaPoints, layer.alphaAreas]), [[undefined, undefined], [0.3, 0.6]])
+  const removed = keepPointOpacityOnLastLayer(added.layers, added.layers.slice(0, 1))
+  assert.deepEqual([removed[0].alphaPoints, removed[0].alphaAreas], [0.3, 0.6])
 })

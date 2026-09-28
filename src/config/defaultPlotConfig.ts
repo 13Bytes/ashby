@@ -6,6 +6,19 @@ export type AxisMode = (typeof AXIS_MODES)[number]
 
 export const FONT_STYLES = ['serif', 'sans-serif', 'cursive', 'fantasy', 'monospace'] as const
 
+/**
+ * Config format version this app reads and writes. Raise it together with CURRENT_VERSION in
+ * backend/import_data/import_json.py (a frontend test checks that both match) when the format
+ * changes. Importing a config of another version shows a warning.
+ *
+ * 6: `legend_above` moved from the frames to the dataframe; the frames' `dark_mode` was removed.
+ *    `automatic_Display_Area_margin` is now `axis_margin`; a side is a margin (share of the data
+ *    range) or `{ "absolute": 5 }`, a fixed value on the axis, which replaces `x_lim`/`y_lim`.
+ *    Guidelines, polygon areas and `axis_margin` note in `plot_axes` which plot axes their
+ *    coordinates were entered for.
+ */
+export const CONFIG_VERSION = 6
+
 export type UnknownConfigBucket = Record<string, unknown>
 
 export interface PlotConfig {
@@ -39,6 +52,8 @@ export interface DataframeConfig {
   language: string
   plotLanguages: string[]
   darkMode: boolean
+  /** Legend above the plots (true), to their right (false) or no legend (null). Since version 6. */
+  legendAbove: boolean | null
   transparent: boolean
   watermark: boolean|string
   copyright: boolean|string
@@ -49,22 +64,27 @@ export interface DataframeConfig {
   _extensions: UnknownConfigBucket
 }
 
+export const MARGIN_SIDES = ['left', 'right', 'bottom', 'top'] as const
+export type MarginSide = (typeof MARGIN_SIDES)[number]
+/**
+ * The plot's x and y axis when coordinates were entered, each the quantity or "quantity/relative
+ * quantity". The editor warns when the plot shows other axes now.
+ */
+export type PlotAxes = [string, string]
+/** Visible range per side: a margin as share of the data range, or for a side in `absolute` a fixed value on the axis. */
+export type AxisMargin = Record<MarginSide, number> & { absolute: MarginSide[]; plotAxes?: PlotAxes }
+
 export interface FrameConfig {
   name?: string
-  legendFlag: boolean
   title: Record<string, string>
-  darkMode?: boolean
-  legendAbove: boolean | null
   language: string
   xQuantity?: string
   xRelQuantity?: string
   logXFlag: boolean
-  xLim?: [number | undefined, number | undefined]
   yQuantity?: string
   yRelQuantity?: string
   logYFlag: boolean
-  yLim?: [number | undefined, number | undefined]
-  automaticDisplayAreaMargin: { left: number; right: number; top: number; bottom: number } | null
+  axisMargin: AxisMargin
   algorithm: PlotAlgorithm
   layers: LayerConfig[]
   filter?: Record<string, unknown>
@@ -99,6 +119,9 @@ export interface GuidelineConfig {
   /** Plain string or per-language labels (see PLACEHOLDER_LABEL in the backend docs). */
   label: string | Record<string, string>
   labelAbove: boolean
+  plotAxes?: PlotAxes
+  /** Label along the line (true) or horizontal (false). */
+  labelRotated: boolean
   labelPadding: number
 }
 
@@ -136,6 +159,8 @@ export interface ColoredAreaConfig {
   axes?: Record<string, [number | null, number | null]>
   x: number[]
   y: number[]
+  /** Axes the polygon corners were entered for. */
+  plotAxes?: PlotAxes
   color: string
   alpha: number
 }
@@ -156,7 +181,7 @@ export interface AxisConfig {
 
 export function createDefaultPlotConfig(): PlotConfig {
   return {
-    version: 0,
+    version: CONFIG_VERSION,
     createAllDataframes: true,
     dataframes: [
       {
@@ -179,6 +204,7 @@ export function createDefaultPlotConfig(): PlotConfig {
         language: 'en',
         plotLanguages: ['en'],
         darkMode: false,
+        legendAbove: false,
         transparent: false,
         watermark: true,
         copyright: true,
@@ -186,16 +212,12 @@ export function createDefaultPlotConfig(): PlotConfig {
         frames: [
           {
             title: { en: '' },
-            legendFlag: true,
-            legendAbove: false,
             language: 'en',
             xQuantity: undefined,
             logXFlag: false,
-            xLim: [undefined, undefined],
             yQuantity: undefined,
             logYFlag: false,
-            yLim: [undefined, undefined],
-            automaticDisplayAreaMargin: { left: 0.12, right: 0.12, top: 0.12, bottom: 0.12 },
+            axisMargin: { left: 0.12, right: 0.12, top: 0.12, bottom: 0.12, absolute: [] },
             algorithm: 'cubic',
             layers: [
               {
@@ -204,8 +226,8 @@ export function createDefaultPlotConfig(): PlotConfig {
                 whitelist: [],
                 alpha: 0.4,
                 linewidth: 1.5,
-                alphaPoints: undefined,
-                alphaAreas: undefined,
+                alphaPoints: 0.3,
+                alphaAreas: 0.6,
               },
             ],
             filter: {},

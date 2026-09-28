@@ -3,7 +3,40 @@ import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
 export type SourceMode = 'teable' | 'file' | 'dataset'
 export type MultiOption = { value: string; label: string }
 
+/** Name of a dataframe for the UI; unnamed dataframes are numbered ("DF 1"). */
+export const DATAFRAME_NAME_PREFIX = 'DF'
+export const dataframeLabel = (dataframe: { name?: string }, index: number): string => dataframe.name?.trim() || `${DATAFRAME_NAME_PREFIX} ${index + 1}`
+
+/** Default name for a new dataframe: "DF n" with n at least its position, skipping names in use. */
+export const nextDataframeName = (dataframes: Array<{ name?: string }>): string => {
+  const used = new Set(dataframes.map((dataframe, index) => dataframeLabel(dataframe, index)))
+  let number = dataframes.length + 1
+  while (used.has(`${DATAFRAME_NAME_PREFIX} ${number}`)) number += 1
+  return `${DATAFRAME_NAME_PREFIX} ${number}`
+}
+
 export const numberValue = (value: number, fallback: number): number => (Number.isFinite(value) ? value : fallback)
+/** A typed number that must be greater than 0 (sizes); anything else keeps `fallback`. */
+export const positiveValue = (value: number, fallback: number): number => (Number.isFinite(value) && value > 0 ? value : fallback)
+
+const parseDecimal = (text: string): number => Number(text.trim().replace(',', '.'))
+
+/** "16:9", "16/9", "16 x 9" or a single ratio such as "1.5"; undefined unless both parts are positive. */
+export const parseAspectRatio = (text: string): [number, number] | undefined => {
+  const parts = text.trim() === '' ? [] : text.split(/\s*[:/x×]\s*/i)
+  const numbers = parts.map(parseDecimal)
+  if (numbers.length === 1) numbers.push(1)
+  return numbers.length === 2 && numbers.every((value) => Number.isFinite(value) && value > 0) ? [numbers[0], numbers[1]] : undefined
+}
+export const formatAspectRatio = ([width, height]: [number, number]): string => `${width}:${height}`
+/** 6:4 and 3:2 are the same ratio. */
+export const isSameAspectRatio = (a: [number, number], b: [number, number]): boolean => Math.abs(a[0] * b[1] - a[1] * b[0]) < 1e-9 * Math.max(1, a[0] * b[1])
+
+/** A whole number greater than 0, e.g. a resolution in dpi. */
+export const parsePositiveInteger = (text: string): number | undefined => {
+  const value = parseDecimal(text)
+  return text.trim() !== '' && Number.isInteger(value) && value > 0 ? value : undefined
+}
 
 export const parseColumnsFromImportResult = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -48,7 +81,8 @@ export const getAxisBasesFromColumns = (columns: string[]): string[] => {
   }
 
   return [...buckets.entries()]
-    .filter(([, suffixes]) => suffixes.has('low') && suffixes.has('high') && suffixes.has('unit'))
+    // The plot reads "<name> low" and "<name> high"; a "<name> unit" column is optional.
+    .filter(([, suffixes]) => suffixes.has('low') && suffixes.has('high'))
     .map(([base]) => base)
     .sort((a, b) => a.localeCompare(b))
 }
@@ -192,3 +226,85 @@ export const ensureUiKeys = (config: PlotConfig): PlotConfig => {
   }
   return config
 }
+
+/** Re-keys per-dataframe state stored by UI key to the current dataframe positions. */
+export const byDataframeIndex = <T,>(dataframeKeys: string[], byKey: Record<string, T>): Record<number, T> => {
+  const result: Record<number, T> = {}
+  dataframeKeys.forEach((key, index) => {
+    if (key in byKey) result[index] = byKey[key]
+  })
+  return result
+}
+
+/** Where a plot is: its dataframe and its position among the dataframe's frames. */
+export type FramePosition = { dataframeIndex: number; frameIndex: number }
+
+/**
+ * Moves a plot to `targetIndex` (0 … number of plots; the plot is placed before the one currently
+ * there) of the same or another dataframe. The plot keeps its "include" state. A dataframe keeps
+ * at least one plot. Returns null when nothing changes.
+ */
+export const moveFrameInConfig = (
+  config: PlotConfig,
+  sourceDataframeIndex: number,
+  sourceFrameIndex: number,
+  targetDataframeIndex: number,
+  targetIndex: number,
+): { config: PlotConfig; position: FramePosition } | null => {
+  const source = config.dataframes[sourceDataframeIndex]
+  const target = config.dataframes[targetDataframeIndex]
+  const frame = source?.frames[sourceFrameIndex]
+  if (!source || !target || !frame) return null
+  if (sourceDataframeIndex === targetDataframeIndex) {
+    const to = Math.min(targetIndex > sourceFrameIndex ? targetIndex - 1 : targetIndex, source.frames.length - 1)
+    if (to === sourceFrameIndex || to < 0) return null
+    const frames = moveItem(source.frames, sourceFrameIndex, to)
+    return {
+      config: {
+        ...config,
+        dataframes: config.dataframes.map((df, index) => (index === sourceDataframeIndex
+          ? { ...df, frames, createAllFrames: reorderSelectionIndices(frames.length, df.createAllFrames, sourceFrameIndex, to) }
+          : df)),
+      },
+      position: { dataframeIndex: sourceDataframeIndex, frameIndex: to },
+    }
+  }
+  if (source.frames.length <= 1) return null
+  const included = getSelectedIndices(source.frames.length, source.createAllFrames).includes(sourceFrameIndex)
+  const insertAt = Math.min(Math.max(targetIndex, 0), target.frames.length)
+  return {
+    config: {
+      ...config,
+      dataframes: config.dataframes.map((df, index) => {
+        if (index === sourceDataframeIndex) {
+          const frames = df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex)
+          return { ...df, frames, createAllFrames: removeSelectionIndex(frames.length, df.createAllFrames, sourceFrameIndex) }
+        }
+        if (index === targetDataframeIndex) {
+          const frames = [...df.frames.slice(0, insertAt), frame, ...df.frames.slice(insertAt)]
+          const shifted = insertSelectionIndex(frames.length, df.createAllFrames, insertAt)
+          return { ...df, frames, createAllFrames: toggleIndexSelection(frames.length, shifted, insertAt, included) }
+        }
+        return df
+      }),
+    },
+    position: { dataframeIndex: targetDataframeIndex, frameIndex: insertAt },
+  }
+}
+
+/** Copies a plot of a dataframe right after the original, with a new name and the original's include state. */
+export const duplicateFrameInDataframe = (df: DataframeConfig, index: number): { dataframe: DataframeConfig; frameIndex: number } | null => {
+  const original = df.frames[index]
+  if (!original) return null
+  const clone = structuredClone(original)
+  clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+  refreshUiKey(clone, 'frame')
+  const included = getSelectedIndices(df.frames.length, df.createAllFrames).includes(index)
+  const frames = [...df.frames]
+  frames.splice(index + 1, 0, clone)
+  const shifted = insertSelectionIndex(frames.length, df.createAllFrames, index + 1)
+  return { dataframe: { ...df, frames, createAllFrames: toggleIndexSelection(frames.length, shifted, index + 1, included) }, frameIndex: index + 1 }
+}
+
+/** Tag of a value on a plot axis inside a field group, e.g. "X · Density". */
+export const axisTag = (axis: 'x' | 'y', quantity?: string) => (quantity ? `${axis.toUpperCase()} · ${quantity}` : axis.toUpperCase())

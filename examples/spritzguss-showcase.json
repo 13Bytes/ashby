@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 6,
   "create_all_dataframes": true,
   "dataframes": [
     {
@@ -32,6 +32,7 @@
         "de"
       ],
       "dark_mode": false,
+      "legend_above": false,
       "create_all_frames": true,
       "frames": [
         {
@@ -41,18 +42,15 @@
             "en": "Thermal capability versus tensile strength",
             "de": "Temperaturbestaendigkeit und Zugfestigkeit"
           },
-          "legend_above": false,
           "language": "en",
           "export_file_name": "spritzguss/01-thermal-strength-selection",
           "x_quantity": "heat_deflection",
           "x_rel_quantity": null,
           "log_x_flag": false,
-          "x_lim": null,
           "y_quantity": "tensile_strength",
           "y_rel_quantity": null,
           "log_y_flag": false,
-          "y_lim": null,
-          "automatic_Display_Area_margin": {
+          "axis_margin": {
             "left": 0.12,
             "right": 0.12,
             "top": 0.12,
@@ -142,18 +140,15 @@
             "en": "Lightweight stiffness map",
             "de": "Leichtbau-Steifigkeitskarte"
           },
-          "legend_above": false,
           "language": "en",
           "export_file_name": "spritzguss/02-lightweight-stiffness",
           "x_quantity": "density",
           "x_rel_quantity": null,
           "log_x_flag": false,
-          "x_lim": null,
           "y_quantity": "tensile_modulus",
           "y_rel_quantity": null,
           "log_y_flag": true,
-          "y_lim": null,
-          "automatic_Display_Area_margin": {
+          "axis_margin": {
             "left": 0.12,
             "right": 0.12,
             "top": 0.12,
@@ -191,18 +186,15 @@
             "en": "Impact resistance versus flexural stiffness",
             "de": "Schlagzaehigkeit und Biegesteifigkeit"
           },
-          "legend_above": false,
           "language": "en",
           "export_file_name": "spritzguss/03-impact-stiffness-tradeoff",
           "x_quantity": "flexural_modulus",
           "x_rel_quantity": null,
           "log_x_flag": true,
-          "x_lim": null,
           "y_quantity": "charpy_impact",
           "y_rel_quantity": null,
           "log_y_flag": true,
-          "y_lim": null,
-          "automatic_Display_Area_margin": {
+          "axis_margin": {
             "left": 0.12,
             "right": 0.12,
             "top": 0.12,

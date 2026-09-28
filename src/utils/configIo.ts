@@ -1,4 +1,10 @@
-import type { PlotConfig } from '../config/defaultPlotConfig'
+import { CONFIG_VERSION, MARGIN_SIDES, type AxisMargin, type PlotConfig } from '../config/defaultPlotConfig'
+
+/** A margin is a number, a fixed value on the axis `{ absolute: v }`; `plot_axes` only matters for fixed values. */
+const exportAxisMargin = (margin: AxisMargin) => ({
+  ...Object.fromEntries(MARGIN_SIDES.map((side) => [side, margin.absolute.includes(side) ? { absolute: margin[side] } : margin[side]])),
+  ...(margin.plotAxes && margin.absolute.length > 0 ? { plot_axes: margin.plotAxes } : {}),
+})
 
 /** Removes // and /* *\/ comments from JSONC while leaving string contents (e.g. URLs) untouched. */
 export function stripJsonComments(text: string): string {
@@ -40,7 +46,8 @@ export function downloadBlob(blob: Blob, filename: string): void {
 
 export function toExternalConfig(config: PlotConfig): unknown {
   return {
-    version: config.version,
+    // The editor model is always in the current format, also after importing an older config.
+    version: CONFIG_VERSION,
     create_all_dataframes: config.createAllDataframes,
     _extensions: config._extensions,
     dataframes: config.dataframes.map((dataframe) => ({
@@ -67,6 +74,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
       language: dataframe.language,
       plot_languages: dataframe.plotLanguages,
       dark_mode: dataframe.darkMode,
+      legend_above: dataframe.legendAbove,
       transparent: dataframe.transparent,
       watermark: dataframe.watermark,
       copyright: dataframe.copyright,
@@ -74,20 +82,15 @@ export function toExternalConfig(config: PlotConfig): unknown {
       _extensions: dataframe._extensions,
       frames: dataframe.frames.map((frame) => ({
         name: frame.name ?? null,
-        legend_flag: frame.legendFlag,
         title: frame.title,
-        ...(frame.darkMode === undefined ? {} : { dark_mode: frame.darkMode }),
-        legend_above: frame.legendAbove ?? false,
         language: frame.language,
         x_quantity: frame.xQuantity,
         x_rel_quantity: frame.xRelQuantity ?? null,
         log_x_flag: frame.logXFlag,
-        x_lim: frame.xLim ?? null,
         y_quantity: frame.yQuantity,
         y_rel_quantity: frame.yRelQuantity ?? null,
         log_y_flag: frame.logYFlag,
-        y_lim: frame.yLim ?? null,
-        automatic_Display_Area_margin: frame.automaticDisplayAreaMargin,
+        axis_margin: exportAxisMargin(frame.axisMargin),
         algorithm: frame.algorithm,
         layers: frame.layers.map((layer) => {
           const normalizedName = layer.name?.trim()
@@ -127,7 +130,9 @@ export function toExternalConfig(config: PlotConfig): unknown {
           font_color: guideline.fontColor,
           label: guideline.label,
           label_above: guideline.labelAbove,
+          label_rotated: guideline.labelRotated,
           label_padding: guideline.labelPadding,
+          ...(guideline.plotAxes ? { plot_axes: guideline.plotAxes } : {}),
         })),
         annotations: frame.annotations.map((annotation) => ({
           marker_size: annotation.markerSize,
@@ -152,7 +157,7 @@ export function toExternalConfig(config: PlotConfig): unknown {
             : undefined,
           arrow: annotation.arrow,
         })),
-        colored_areas: frame.coloredAreas,
+        colored_areas: frame.coloredAreas.map(({ plotAxes, ...area }) => ({ ...area, ...(plotAxes && !area.axes ? { plot_axes: plotAxes } : {}) })),
         highlighted_hulls: frame.highlightedHulls,
       })),
       axes: dataframe.axes,

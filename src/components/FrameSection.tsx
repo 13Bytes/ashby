@@ -1,8 +1,11 @@
-import { PLOT_ALGORITHMS, type DataframeConfig, type FrameConfig } from '../config/defaultPlotConfig'
+import { MARGIN_SIDES, type AxisMargin, type DataframeConfig, type FrameConfig, type MarginSide } from '../config/defaultPlotConfig'
+import { DEFAULT_MARGIN } from '../config/settingsSections'
+import { useAxesWarning } from '../hooks/useAxesWarning'
 import { useI18n } from '../uiTranslations'
 import { numberValue } from '../utils/appState'
-import { Field, SectionHeading } from './AppControls'
-import { Button } from './ui/button'
+import { plotAxesOf } from '../utils/configEditing'
+import { useSettings } from '../utils/settingsContext'
+import { Field, FieldGroup, GroupedField, LanguageFields, Toggle, SettingsGroup, SharedHint } from './AppControls'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 
@@ -10,51 +13,40 @@ type Props = {
   activeFrame: FrameConfig
   activeDataframe: DataframeConfig
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
-  patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
-  automaticDisplayAreaActive: boolean
 }
 
-type Margin = NonNullable<FrameConfig['automaticDisplayAreaMargin']>
-type Limits = NonNullable<FrameConfig['xLim']>
+/** The axis and bound each side of the axis margin belongs to. */
+const SIDE_BOUNDS: Record<MarginSide, ['X' | 'Y', 'min' | 'max']> = { left: ['X', 'min'], right: ['X', 'max'], bottom: ['Y', 'min'], top: ['Y', 'max'] }
+/** Where a side ends up when the x and y axis are swapped. */
+const SWAPPED_SIDE: Record<MarginSide, MarginSide> = { left: 'bottom', right: 'top', bottom: 'left', top: 'right' }
 
-const EMPTY_MARGIN: Margin = { left: 0, right: 0, top: 0, bottom: 0 }
+const swapMargin = (margin: AxisMargin): AxisMargin => ({
+  left: margin.bottom,
+  right: margin.top,
+  bottom: margin.left,
+  top: margin.right,
+  absolute: margin.absolute.map((side) => SWAPPED_SIDE[side]),
+  plotAxes: margin.plotAxes && [margin.plotAxes[1], margin.plotAxes[0]],
+})
 
-/** Empty input means "no limit" (null in the exported config), so the backend picks the bound automatically. */
-const withLimit = (limits: FrameConfig['xLim'], bound: 0 | 1, value: number): Limits => {
-  const next: Limits = [limits?.[0], limits?.[1]]
-  next[bound] = Number.isFinite(value) ? value : undefined
-  return next
-}
-
-export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, patchActiveDataframe, automaticDisplayAreaActive }: Props) {
+/** Title, the two axes and the display area of the active frame. */
+export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame }: Props) {
   const { t } = useI18n()
-  const setMargin = (side: keyof Margin, value: number) =>
+  const { goTo } = useSettings()
+  const axesWarning = useAxesWarning(activeFrame)
+  const margin = activeFrame.axisMargin
+  const marginChanged = MARGIN_SIDES.some((side) => margin[side] !== DEFAULT_MARGIN) || margin.absolute.length > 0
+  // Fixed values are coordinates on the axes; note the axes they were entered for.
+  const patchMargin = (patch: (margin: AxisMargin) => Partial<AxisMargin>) =>
     patchActiveFrame((c) => {
-      const margin = c.automaticDisplayAreaMargin ?? EMPTY_MARGIN
-      return { ...c, automaticDisplayAreaMargin: { ...margin, [side]: numberValue(value, margin[side]) } }
+      const next = { ...c.axisMargin, ...patch(c.axisMargin) }
+      return { ...c, axisMargin: next.absolute.length > 0 ? { ...next, plotAxes: plotAxesOf(c) } : next }
     })
-
-  const limitField = (axis: 'x' | 'y', bound: 0 | 1, side: keyof Margin) => {
-    const limitKey = axis === 'x' ? 'xLim' : 'yLim'
-    return (
-      <Field
-       
-        label={automaticDisplayAreaActive ? t(side) : bound === 0 ? t('min') : t('max')}
-        jsonPath={automaticDisplayAreaActive ? `automatic_Display_Area_margin.${side}` : `${axis}_lim[${bound}]`}
-      >
-        <Input
-          type="number"
-          value={automaticDisplayAreaActive ? (activeFrame.automaticDisplayAreaMargin?.[side] ?? 0) : (activeFrame[limitKey]?.[bound] ?? '')}
-          onChange={(e) => automaticDisplayAreaActive
-            ? setMargin(side, e.target.valueAsNumber)
-            : patchActiveFrame((c) => ({ ...c, [limitKey]: withLimit(c[limitKey], bound, e.target.valueAsNumber) }))}
-        />
-      </Field>
-    )
-  }
-
+  const setMarginValue = (side: MarginSide, value: number) => patchMargin((current) => ({ [side]: numberValue(value, current[side]) }))
+  const setMarginAbsolute = (side: MarginSide, absolute: boolean) =>
+    patchMargin((current) => ({ absolute: absolute ? [...current.absolute.filter((entry) => entry !== side), side] : current.absolute.filter((entry) => entry !== side) }))
   const axisOptions = activeDataframe.axes.map((axis) => <option key={axis.name} value={axis.name}>{axis.name}</option>)
-
+  // Values that belong to an axis move with it: fixed limits, and polygon corners, which are plot coordinates.
   const swapAxes = () => patchActiveFrame((c) => ({
     ...c,
     xQuantity: c.yQuantity,
@@ -63,101 +55,106 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame, p
     yRelQuantity: c.xRelQuantity,
     logXFlag: c.logYFlag,
     logYFlag: c.logXFlag,
-    xLim: c.yLim,
-    yLim: c.xLim,
+    axisMargin: swapMargin(c.axisMargin),
+    coloredAreas: c.coloredAreas.map((area) => (area.axes ? area : { ...area, x: area.y, y: area.x, plotAxes: area.plotAxes && [area.plotAxes[1], area.plotAxes[0]] })),
   }))
 
-  return (
-    <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent sm:grid-cols-2">
-      <SectionHeading className="sm:col-span-2" title={t('frame')} />
-      <div className="grid gap-3 dark:border-zinc-800 dark:bg-transparent sm:col-span-2 sm:grid-cols-4">
-        <Field label={t('algorithm')} jsonPath="frames[j].algorithm">
-          <Select value={activeFrame.algorithm} onChange={(e) => patchActiveFrame((c) => ({ ...c, algorithm: e.target.value as FrameConfig['algorithm'] }))}>
-            {PLOT_ALGORITHMS.map((a) => <option key={a} value={a}>{a}</option>)}
-          </Select>
-        </Field>
-        <Field label={t('automaticDisplayArea')} jsonPath="automatic_Display_Area_margin">
-          <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, automaticDisplayAreaMargin: c.automaticDisplayAreaMargin ? null : { ...EMPTY_MARGIN } }))}>
-            {automaticDisplayAreaActive ? t('enabled') : t('disabled')}
-          </Button>
-        </Field>
-      </div>
-      <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
-        <h4 className="m-0 text-sm font-semibold">{t('xAxis')}</h4>
-        <div className="grid gap-2 sm:grid-cols-4">
-          <Field label={t('quantity')} jsonPath="x_quantity">
-            <Select value={activeFrame.xQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xQuantity: e.target.value || undefined }))}>
+  const axisBox = (axis: 'x' | 'y') => {
+    const quantity = axis === 'x' ? activeFrame.xQuantity : activeFrame.yQuantity
+    const relQuantity = axis === 'x' ? activeFrame.xRelQuantity : activeFrame.yRelQuantity
+    const logFlag = axis === 'x' ? activeFrame.logXFlag : activeFrame.logYFlag
+    const title = axis === 'x' ? t('xAxis') : t('yAxis')
+    return (
+      <div className="grid gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <strong className="text-sm">{title}</strong>
+        <div className="grid gap-4 @lg:grid-cols-3">
+          <Field label={t('quantity')} jsonPath={`${axis}_quantity`} level="required" missing={!quantity} anchor={axis === 'x' ? 'xAxis' : 'yAxis'}>
+            <Select value={quantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, [axis === 'x' ? 'xQuantity' : 'yQuantity']: e.target.value || undefined }))}>
               <option value="" disabled>{t('selectRequiredAxis')}</option>
               {axisOptions}
             </Select>
           </Field>
-          <Field label={t('relativeQuantity')} jsonPath="x_rel_quantity">
-            <Select value={activeFrame.xRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, xRelQuantity: e.target.value || undefined }))}>
-              <option value="">{t('none')}</option>{axisOptions}
+          <Field label={t('Logarithmic')} jsonPath={`log_${axis}_flag`} level="check">
+            <Toggle<'linear' | 'log'>
+              ariaLabel={`${title} ${t('Logarithmic')}`}
+              value={logFlag ? 'log' : 'linear'}
+              onChange={(next) => patchActiveFrame((c) => ({ ...c, [axis === 'x' ? 'logXFlag' : 'logYFlag']: next === 'log' }))}
+              options={[{ value: 'linear', label: t('scaleLinear') }, { value: 'log', label: t('scaleLog') }]}
+            />
+          </Field>
+          <Field label={t('relativeQuantity')} jsonPath={`${axis}_rel_quantity`} level="default" changed={Boolean(relQuantity)}>
+            <Select value={relQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, [axis === 'x' ? 'xRelQuantity' : 'yRelQuantity']: e.target.value || undefined }))}>
+              <option value="">{t('none')}</option>
+              {axisOptions}
             </Select>
           </Field>
-          <Field label={t('Logarithmic')} jsonPath="log_x_flag">
-            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, logXFlag: !c.logXFlag }))}>{activeFrame.logXFlag ? t('scaleLog') : t('scaleLinear')}</Button>
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            {limitField('x', 0, 'left')}
-            {limitField('x', 1, 'right')}
-          </div>
         </div>
       </div>
-      <div className="flex items-center justify-center sm:col-span-2 sm:-my-1">
+    )
+  }
+
+  return (
+    <>
+      <div className="grid gap-4 @lg:grid-cols-2">
+        <LanguageFields
+          label={t('title')}
+          jsonPath="frames[j].title"
+          level="check"
+          languages={activeDataframe.plotLanguages}
+          selectedLanguage={activeDataframe.language}
+          value={(lang) => activeFrame.title[lang] ?? ''}
+          onChange={(lang, next) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: next } }))}
+        />
+      </div>
+
+      {axisBox('x')}
+      <div className="-my-3 flex justify-center" data-always>
         <button
           type="button"
           aria-label={t('swapAxes')}
           title={t('swapAxes')}
           onClick={swapAxes}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-500 hover:border-violet-500 hover:text-violet-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:border-violet-400 dark:hover:text-violet-300"
+          className="flex h-7 items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 text-xs text-zinc-600 hover:border-brand-500 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-brand-400 dark:hover:text-brand-300"
         >
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-            <path d="M4 13h9m0 0l-3-3m3 3l-3 3" />
-            <path d="M16 7H7m0 0l3 3m-3-3l3-3" />
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+            <path d="M7 4v12m0 0l-3-3m3 3l3-3" />
+            <path d="M13 16V4m0 0l-3 3m3-3l3 3" />
           </svg>
+          {t('swapAxes')}
         </button>
       </div>
-      <div className="sm:col-span-2 grid gap-2 rounded-lg border border-zinc-300 p-3 dark:border-zinc-700">
-        <h4 className="m-0 text-sm font-semibold">{t('yAxis')}</h4>
-        <div className="grid gap-2 sm:grid-cols-4">
-          <Field label={t('quantity')} jsonPath="y_quantity">
-            <Select value={activeFrame.yQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yQuantity: e.target.value || undefined }))}>
-              <option value="" disabled>{t('selectRequiredAxis')}</option>
-              {axisOptions}
-            </Select>
-          </Field>
-          <Field label={t('relativeQuantity')} jsonPath="y_rel_quantity">
-            <Select value={activeFrame.yRelQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, yRelQuantity: e.target.value || undefined }))}>
-              <option value="">{t('none')}</option>{axisOptions}
-            </Select>
-          </Field>
-          <Field label={t('Logarithmic')} jsonPath="log_y_flag">
-            <Button type="button" variant="outline" onClick={() => patchActiveFrame((c) => ({ ...c, logYFlag: !c.logYFlag }))}>{activeFrame.logYFlag ? t('scaleLog') : t('scaleLinear')}</Button>
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            {limitField('y', 0, 'bottom')}
-            {limitField('y', 1, 'top')}
-          </div>
-        </div>
-      </div>
-      <Field label={t('title')} jsonPath="frames[j].title">
-        {activeDataframe.plotLanguages.map((lang) => (
-          <div key={`title-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-            <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
-            <Input value={activeFrame.title[lang] ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, title: { ...c.title, [lang]: e.target.value } }))} />
-          </div>
-        ))}
-      </Field>
-      <Field label={t('legendTitle')} jsonPath="dataframes[i].legend_title">
-        {activeDataframe.plotLanguages.map((lang) => (
-          <div key={`legend-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-2">
-            <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
-            <Input value={activeDataframe.legendTitle[lang] ?? ''} onChange={(e) => patchActiveDataframe((c) => ({ ...c, legendTitle: { ...c.legendTitle, [lang]: e.target.value } }))} />
-          </div>
-        ))}
-      </Field>
-    </section>
+      {axisBox('y')}
+
+      <SharedHint text={t('quantitiesFromDefs')} linkLabel={t('editAxisDefs')} onOpen={() => goTo('axisDefs')} />
+
+      <SettingsGroup title={t('displayArea')} level="default">
+        <FieldGroup
+          label={t('axisLimits')}
+          jsonPath="axis_margin.left"
+          level="default"
+          changed={marginChanged}
+          columns="responsive"
+          warning={margin.absolute.length > 0 ? axesWarning(margin.plotAxes) : undefined}
+        >
+          {MARGIN_SIDES.map((side) => {
+            const absolute = margin.absolute.includes(side)
+            const [axis, bound] = SIDE_BOUNDS[side]
+            const tag = `${axis} ${t(bound)}`
+            return (
+              <GroupedField key={side} tag={tag} title={`${tag} (${t(side)})`}>
+                <Input type="number" step={absolute ? 'any' : 0.01} aria-label={`${t('axisLimits')}: ${tag}`} value={margin[side]} onChange={(e) => setMarginValue(side, e.target.valueAsNumber)} />
+                <Toggle<'relative' | 'absolute'>
+                  size="sm"
+                  ariaLabel={`${t('axisLimits')}: ${tag}`}
+                  value={absolute ? 'absolute' : 'relative'}
+                  onChange={(next) => setMarginAbsolute(side, next === 'absolute')}
+                  options={[{ value: 'relative', label: t('marginRelative'), title: t('marginRelativeTitle') }, { value: 'absolute', label: t('marginAbsolute'), title: t('marginAbsoluteTitle') }]}
+                />
+              </GroupedField>
+            )
+          })}
+        </FieldGroup>
+      </SettingsGroup>
+    </>
   )
 }

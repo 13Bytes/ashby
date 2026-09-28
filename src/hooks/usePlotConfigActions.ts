@@ -1,10 +1,9 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
 import { addAxisToDataframe, addGuidelineToFrame, addLayerToFrame, generateMaterialColorsForDataframe, updateAxisInDataframe, updateGuidelineInFrame } from '../utils/configEditing'
-import { getNextTabName, insertSelectionIndex, moveItem, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
+import { duplicateFrameInDataframe, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
-  activeDataframe: DataframeConfig
   activeDataframeIndex: number
   activeFrameIndex: number
   setActiveDataframeIndex: Dispatch<SetStateAction<number>>
@@ -14,7 +13,6 @@ type Params = {
 }
 
 export function usePlotConfigActions({
-  activeDataframe,
   activeDataframeIndex,
   activeFrameIndex,
   setActiveDataframeIndex,
@@ -22,25 +20,36 @@ export function usePlotConfigActions({
   setPlotConfig,
   setShowGenerateColorsConfirm,
 }: Params) {
+// A patch that returns its input unchanged keeps the config object, so nothing re-renders or syncs.
 const patchDataframe = (index: number, patch: (current: DataframeConfig) => DataframeConfig) => {
-  setPlotConfig((current) => ({ ...current, dataframes: current.dataframes.map((df, i) => (i === index ? patch(df) : df)) }))
+  setPlotConfig((current) => {
+    const dataframe = current.dataframes[index]
+    if (!dataframe) return current
+    const next = patch(dataframe)
+    return next === dataframe ? current : { ...current, dataframes: current.dataframes.map((df, i) => (i === index ? next : df)) }
+  })
 }
 const patchActiveDataframe = (patch: (current: DataframeConfig) => DataframeConfig) => patchDataframe(activeDataframeIndex, patch)
 const patchActiveFrame = (patch: (current: FrameConfig) => FrameConfig) => {
-  patchActiveDataframe((df) => ({ ...df, frames: df.frames.map((frame, i) => (i === activeFrameIndex ? patch(frame) : frame)) }))
+  patchActiveDataframe((df) => {
+    const frame = df.frames[activeFrameIndex]
+    if (!frame) return df
+    const next = patch(frame)
+    return next === frame ? df : { ...df, frames: df.frames.map((entry, i) => (i === activeFrameIndex ? next : entry)) }
+  })
 }
 const toggleDataframeGeneration = (index: number, enabled: boolean) => {
   setPlotConfig((current) => ({ ...current, createAllDataframes: toggleIndexSelection(current.dataframes.length, current.createAllDataframes, index, enabled) }))
 }
-const toggleFrameGeneration = (index: number, enabled: boolean) => {
-  patchActiveDataframe((df) => ({ ...df, createAllFrames: toggleIndexSelection(df.frames.length, df.createAllFrames, index, enabled) }))
+const toggleFrameGeneration = (dataframeIndex: number, index: number, enabled: boolean) => {
+  patchDataframe(dataframeIndex, (df) => ({ ...df, createAllFrames: toggleIndexSelection(df.frames.length, df.createAllFrames, index, enabled) }))
 }
 
 const addDataframe = () => {
   setPlotConfig((current) => {
     const nextIndex = current.dataframes.length
     const source = structuredClone(current.dataframes[0])
-    source.name = getNextTabName(current.dataframes.map((df, index) => df.name ?? `Dataframe ${index + 1}`), 'Dataframe')
+    source.name = nextDataframeName(current.dataframes)
     refreshUiKey(source, 'dataframe')
     source.frames = source.frames.map((frame, frameIndex) => {
       const nextFrame = { ...frame, name: `Frame ${frameIndex + 1}` }
@@ -58,16 +67,24 @@ const addDataframe = () => {
   })
 }
 
-const addFrame = () => {
-  patchActiveDataframe((df) => {
+/** Adds a frame (a copy of the first one) to a dataframe and selects it. */
+const addFrame = (dataframeIndex: number = activeDataframeIndex) => {
+  setPlotConfig((current) => {
+    const df = current.dataframes[dataframeIndex]
+    if (!df) return current
     const next = structuredClone(df.frames[0])
-    next.darkMode = undefined
     next.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
     refreshUiKey(next, 'frame')
     const nextFrames = [...df.frames, next]
-    return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, nextFrames.length - 1) }
+    setActiveDataframeIndex(dataframeIndex)
+    setActiveFrameIndex(nextFrames.length - 1)
+    return {
+      ...current,
+      dataframes: current.dataframes.map((entry, index) => (index === dataframeIndex
+        ? { ...entry, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, entry.createAllFrames, nextFrames.length - 1) }
+        : entry)),
+    }
   })
-  setActiveFrameIndex(activeDataframe.frames.length)
 }
 
 const duplicateDataframe = (index: number) => {
@@ -75,7 +92,7 @@ const duplicateDataframe = (index: number) => {
     const original = current.dataframes[index]
     if (!original) return current
     const clone = structuredClone(original)
-    clone.name = getNextTabName(current.dataframes.map((df) => df.name), 'Dataframe')
+    clone.name = nextDataframeName(current.dataframes)
     refreshUiKey(clone, 'dataframe')
     clone.frames.forEach((frame) => refreshUiKey(frame, 'frame'))
     const nextDataframes = [...current.dataframes]
@@ -90,48 +107,24 @@ const duplicateDataframe = (index: number) => {
   })
 }
 
-const duplicateFrame = (index: number) => {
-  patchActiveDataframe((df) => {
-    const original = df.frames[index]
-    if (!original) return df
-    const clone = structuredClone(original)
-    clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
-    refreshUiKey(clone, 'frame')
-    const nextFrames = [...df.frames]
-    nextFrames.splice(index + 1, 0, clone)
-    setActiveFrameIndex(index + 1)
-    return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, index + 1) }
+const duplicateFrame = (dataframeIndex: number, index: number) => {
+  patchDataframe(dataframeIndex, (df) => {
+    const result = duplicateFrameInDataframe(df, index)
+    if (!result) return df
+    setActiveDataframeIndex(dataframeIndex)
+    setActiveFrameIndex(result.frameIndex)
+    return result.dataframe
   })
 }
 
-const moveFrameToDataframe = (sourceDataframeIndex: number, sourceFrameIndex: number, targetDataframeIndex: number) => {
-  if (sourceDataframeIndex === targetDataframeIndex) return
+/** Moves a plot within or between dataframes (see `moveFrameInConfig`) and selects it. */
+const moveFrame = (sourceDataframeIndex: number, sourceFrameIndex: number, targetDataframeIndex: number, targetIndex: number) => {
   setPlotConfig((current) => {
-    const sourceDataframe = current.dataframes[sourceDataframeIndex]
-    const targetDataframe = current.dataframes[targetDataframeIndex]
-    if (!sourceDataframe || !targetDataframe || sourceDataframe.frames.length <= 1) {
-      return current
-    }
-    const frameToMove = sourceDataframe.frames[sourceFrameIndex]
-    if (!frameToMove) return current
-    const nextDataframes = current.dataframes.map((df, index) => {
-      if (index === sourceDataframeIndex) {
-        const nextFrames = df.frames.filter((_, frameIndex) => frameIndex !== sourceFrameIndex)
-        return { ...df, frames: nextFrames, createAllFrames: removeSelectionIndex(nextFrames.length, df.createAllFrames, sourceFrameIndex) }
-      }
-      if (index === targetDataframeIndex) {
-        const nextFrames = [...df.frames, frameToMove]
-        return { ...df, frames: nextFrames, createAllFrames: insertSelectionIndex(nextFrames.length, df.createAllFrames, nextFrames.length - 1) }
-      }
-      return df
-    })
-    setActiveDataframeIndex(targetDataframeIndex)
-    setActiveFrameIndex(nextDataframes[targetDataframeIndex].frames.length - 1)
-    return {
-      ...current,
-      dataframes: nextDataframes,
-      createAllDataframes: current.createAllDataframes,
-    }
+    const result = moveFrameInConfig(current, sourceDataframeIndex, sourceFrameIndex, targetDataframeIndex, targetIndex)
+    if (!result) return current
+    setActiveDataframeIndex(result.position.dataframeIndex)
+    setActiveFrameIndex(result.position.frameIndex)
+    return result.config
   })
 }
 
@@ -155,13 +148,13 @@ const removeDataframe = (index: number) => {
   })
 }
 
-const removeFrame = (index: number) => {
-  patchActiveDataframe((df) => {
+const removeFrame = (dataframeIndex: number, index: number) => {
+  patchDataframe(dataframeIndex, (df) => {
     if (df.frames.length <= 1) {
       return df
     }
     const nextFrames = df.frames.filter((_, i) => i !== index)
-    if (index < activeFrameIndex || activeFrameIndex >= nextFrames.length) {
+    if (dataframeIndex === activeDataframeIndex && (index < activeFrameIndex || activeFrameIndex >= nextFrames.length)) {
       setActiveFrameIndex(Math.max(0, activeFrameIndex - 1))
     }
     return { ...df, frames: nextFrames, createAllFrames: removeSelectionIndex(nextFrames.length, df.createAllFrames, index) }
@@ -183,20 +176,6 @@ const reorderDataframes = (from: number, to: number) => {
     setActiveDataframeIndex((prev) => prev - 1)
   } else if (from > activeDataframeIndex && to <= activeDataframeIndex) {
     setActiveDataframeIndex((prev) => prev + 1)
-  }
-}
-
-const reorderFrames = (from: number, to: number) => {
-  patchActiveDataframe((df) => {
-    const nextFrames = moveItem(df.frames, from, to)
-    return { ...df, frames: nextFrames, createAllFrames: reorderSelectionIndices(nextFrames.length, df.createAllFrames, from, to) }
-  })
-  if (activeFrameIndex === from) {
-    setActiveFrameIndex(to)
-  } else if (from < activeFrameIndex && to >= activeFrameIndex) {
-    setActiveFrameIndex((prev) => prev - 1)
-  } else if (from > activeFrameIndex && to <= activeFrameIndex) {
-    setActiveFrameIndex((prev) => prev + 1)
   }
 }
 
@@ -256,7 +235,7 @@ const removeAxis = (axisIndex: number) => {
     duplicateDataframe,
     duplicateFrame,
     generateMaterialColors,
-    moveFrameToDataframe,
+    moveFrame,
     patchActiveDataframe,
     patchActiveFrame,
     patchDataframe,
@@ -264,7 +243,6 @@ const removeAxis = (axisIndex: number) => {
     removeDataframe,
     removeFrame,
     reorderDataframes,
-    reorderFrames,
     toggleDataframeGeneration,
     toggleFrameGeneration,
     updateAxis,

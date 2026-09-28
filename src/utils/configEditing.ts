@@ -1,4 +1,7 @@
-import type { AnnotationConfig, AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig } from '../config/defaultPlotConfig'
+import type { AnnotationConfig, AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, LayerConfig, PlotAxes } from '../config/defaultPlotConfig'
+
+/** Hull opacity of a new layer; equal to the layer default in defaultPlotConfig. */
+const DEFAULT_HULL_ALPHA = 0.4
 
 // Pure config transformations shared by the section components and usePlotConfigActions.
 // Kept out of the component files so React fast refresh keeps working.
@@ -21,14 +24,41 @@ export const updateAxisInDataframe = (df: DataframeConfig, axisIndex: number, pa
   axes: df.axes.map((axis, index) => (index === axisIndex ? patch(axis) : axis)),
 })
 
+/**
+ * The backend reads the opacity of points and ranges from the last layer. After layers were added,
+ * removed or duplicated, this moves the values of the previous last layer to the new last one.
+ */
+export const keepPointOpacityOnLastLayer = (previous: LayerConfig[], layers: LayerConfig[]): LayerConfig[] => {
+  const { alphaPoints, alphaAreas } = previous.at(-1) ?? {}
+  return layers.map((layer, index) => ({
+    ...layer,
+    alphaPoints: index === layers.length - 1 ? alphaPoints : undefined,
+    alphaAreas: index === layers.length - 1 ? alphaAreas : undefined,
+  }))
+}
+
+/** The plot's x and y axis as noted with entered coordinates: the quantity or "quantity/relative quantity". */
+export const plotAxesOf = (frame: FrameConfig): PlotAxes => [
+  frame.xRelQuantity ? `${frame.xQuantity ?? ''}/${frame.xRelQuantity}` : frame.xQuantity ?? '',
+  frame.yRelQuantity ? `${frame.yQuantity ?? ''}/${frame.yRelQuantity}` : frame.yQuantity ?? '',
+]
+
+/** Coordinates were entered for other axes than the plot shows now. Without a note (older configs) there is no warning. */
+export const plotAxesChanged = (recorded: PlotAxes | undefined, frame: FrameConfig): boolean => {
+  if (!recorded) return false
+  const current = plotAxesOf(frame)
+  return recorded[0] !== current[0] || recorded[1] !== current[1]
+}
+
+/** A new layer draws hulls with the default opacity. */
 export const addLayerToFrame = (frame: FrameConfig): FrameConfig => ({
   ...frame,
-  layers: [...frame.layers, { name: '', whitelist: [], alphaPoints: undefined, alphaAreas: undefined, linewidth: 1.5, alpha: undefined, whitelistFlag: false }],
+  layers: keepPointOpacityOnLastLayer(frame.layers, [...frame.layers, { name: '', whitelist: [], linewidth: 1.5, alpha: DEFAULT_HULL_ALPHA, whitelistFlag: false }]),
 })
 
 export const addGuidelineToFrame = (frame: FrameConfig): FrameConfig => ({
   ...frame,
-  guidelines: [...frame.guidelines, { m: 1, lineProps: { linestyle: '--', color: 'aqua', linewidth: 4 }, fontsize: 18, fontColor: '', label: '', labelAbove: true, labelPadding: 6 }],
+  guidelines: [...frame.guidelines, { m: 1, lineProps: { linestyle: '--', color: 'aqua', linewidth: 4 }, fontsize: 18, fontColor: '', label: '', labelAbove: true, labelRotated: true, labelPadding: 6, plotAxes: plotAxesOf(frame) }],
 })
 
 export const updateGuidelineInFrame = (frame: FrameConfig, guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig): FrameConfig => ({

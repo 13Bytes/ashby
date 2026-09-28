@@ -2,18 +2,17 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Select } from './ui/select'
 import type { DataframeConfig, FrameConfig, GuidelineConfig } from '../config/defaultPlotConfig'
+import { DEFAULT_GUIDELINE } from '../config/settingsSections'
 import { useI18n } from '../uiTranslations'
-import { numberValue } from '../utils/appState'
-import { getLocalizedLabel, setLocalizedLabel } from '../utils/configEditing'
-import { ColorOrMaterialInput, DuplicateIconButton, Field, RemoveIconButton, SectionHeading } from './AppControls'
+import { axisTag, numberValue } from '../utils/appState'
+import { getLocalizedLabel, plotAxesOf, setLocalizedLabel } from '../utils/configEditing'
+import { useAxesWarning } from '../hooks/useAxesWarning'
+import { ColorOrMaterialInput, EmptyItems, Field, FieldGroup, GroupedField, ItemCard, LanguageFields, Toggle, SettingsGroup } from './AppControls'
+import { useOpenItems } from '../hooks/useOpenItems'
 
 type Props = {
   activeDataframe: DataframeConfig
   activeFrame: FrameConfig
-  hoveredRemoveGroup: string | null
-  setHoveredRemoveGroup: (value: string | null) => void
-  hoveredDuplicateGroup: string | null
-  setHoveredDuplicateGroup: (value: string | null) => void
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
   updateGuideline: (guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig) => void
   addGuideline: () => void
@@ -22,76 +21,118 @@ type Props = {
 
 const LINE_STYLE_OPTIONS = ['-', '--', '-.', ':', 'None']
 
-export function GuidelinesSection({ activeDataframe, activeFrame, hoveredRemoveGroup, setHoveredRemoveGroup, hoveredDuplicateGroup, setHoveredDuplicateGroup, patchActiveFrame, updateGuideline, addGuideline, materialColors }: Props) {
+/** Guidelines of the active frame, as a group of the "Areas, guidelines & annotations" section. */
+export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFrame, updateGuideline, addGuideline, materialColors }: Props) {
   const { t } = useI18n()
+  const language = activeDataframe.language
+  const openItems = useOpenItems(String(activeFrame._extensions.uiKey))
+  const axesWarning = useAxesWarning(activeFrame)
+  // Anchor point and slope are plot coordinates; note the axes they were entered for.
+  const updateCoordinates = (guidelineIndex: number, patch: (guideline: GuidelineConfig) => GuidelineConfig) =>
+    updateGuideline(guidelineIndex, (g) => ({ ...patch(g), plotAxes: plotAxesOf(activeFrame) }))
   return (
-    <section className="grid gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 dark:bg-transparent">
-      <div className="flex items-center gap-2">
-        <SectionHeading title={t('guidelines')} jsonPath="guidelines" />
-        <Button variant="outline" size="sm" onClick={addGuideline}>+ {t('guideline')}</Button>
-      </div>
-      {activeFrame.guidelines.map((guideline, guidelineIndex) => (
-        <div key={guidelineIndex} className={`relative grid gap-2 rounded-lg border p-2 pr-15 sm:col-span-2 sm:grid-cols-3 ${hoveredRemoveGroup === `guideline-${guidelineIndex}` ? 'border-red-500' : hoveredDuplicateGroup === `guideline-${guidelineIndex}` ? 'border-blue-500' : 'border-zinc-300 dark:border-zinc-700'}`}>
-          <DuplicateIconButton onHoverChange={(hovered) => setHoveredDuplicateGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (
-            { ...f, guidelines: [...f.guidelines.slice(0, guidelineIndex + 1), structuredClone(f.guidelines[guidelineIndex]), ...f.guidelines.slice(guidelineIndex + 1)] }))} />
-          <RemoveIconButton onHoverChange={(hovered) => setHoveredRemoveGroup(hovered ? `guideline-${guidelineIndex}` : null)} onClick={() => patchActiveFrame((f) => (
-            { ...f, guidelines: f.guidelines.filter((_, i) => i !== guidelineIndex) }))} />
-
-          <Field label={t('guidelineX')} jsonPath={`guidelines[${guidelineIndex}].x`}>
-            <Input type="number" value={guideline.x ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
-              { ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
-          </Field>
-          <Field label={t('guidelineY')} jsonPath={`guidelines[${guidelineIndex}].y`}>
-            <Input type="number" value={guideline.y ?? ''} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
-          </Field>
-          <Field label={t('guidelineSlope')} jsonPath={`guidelines[${guidelineIndex}].m`}>
-            <Input type="number" value={guideline.m} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} />
-          </Field>
-          <Field label={t('color')} jsonPath={`guidelines[${guidelineIndex}].line_props.color`}>
-            <ColorOrMaterialInput materialColors={materialColors} value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => (
-              { ...g, lineProps: { ...g.lineProps, color: next } }))} />
-          </Field>
-          <Field label={t('lineStyle')} jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`}>
-            <Select value={guideline.lineProps.linestyle} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
-              { ...g, lineProps: { ...g.lineProps, linestyle: e.target.value } }))}>
-              {LINE_STYLE_OPTIONS.map((option) => <option key={`linestyle-${option}`} value={option}>{option}</option>)}
-            </Select>
-          </Field>
-          <Field label={t('lineWidth')} jsonPath={`guidelines[${guidelineIndex}].line_props.linewidth`}>
-            <Input type="number" value={guideline.lineProps.linewidth} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
-              { ...g, lineProps: { ...g.lineProps, linewidth: numberValue(e.target.valueAsNumber, g.lineProps.linewidth) } }))} />
-          </Field>
-          <div className="relative grid gap-2 sm:col-span-2 sm:grid-cols-2">
-            <Field label={t('fontColor')} jsonPath={`guidelines[${guidelineIndex}].font_color`}>
-              <ColorOrMaterialInput materialColors={materialColors} value={guideline.fontColor} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
-            </Field>
-            <Field label={t('fontSize')} jsonPath={`guidelines[${guidelineIndex}].fontsize`}>
-              <Input type="number" value={guideline.fontsize} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontsize: numberValue(e.target.valueAsNumber, g.fontsize) }))} />
-            </Field>
-            <Field label={t('labelPadding')} jsonPath={`guidelines[${guidelineIndex}].label_padding`}>
-              <Input type="number" value={guideline.labelPadding} onChange={(e) => updateGuideline(guidelineIndex, (g) => (
-                { ...g, labelPadding: numberValue(e.target.valueAsNumber, g.labelPadding) }))} />
-            </Field>
-            <Field label={t('labelPosition')} jsonPath={`guidelines[${guidelineIndex}].label_above`}>
-              <Button type="button" variant="outline" onClick={() => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: !g.labelAbove }))}>
-                {guideline.labelAbove ? t('above') : t('below')}
-              </Button>
-            </Field>
-          </div>
-
-          <Field label={t('text')} jsonPath={`guidelines[${guidelineIndex}].label`}>
-            {activeDataframe.plotLanguages.map((lang) => (
-              <div key={`label-${lang}`} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2">
-                <span className="text-xs uppercase text-zinc-600 dark:text-zinc-300">{lang}</span>
-                <Input
-                  value={getLocalizedLabel(guideline.label, lang)}
-                  onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, label: setLocalizedLabel(g.label, lang, e.target.value, activeDataframe.plotLanguages) }))}
-                />
+    <SettingsGroup
+      title={<>{t('guidelines')} <span className="ml-1 font-sans normal-case tracking-normal text-zinc-400">{activeFrame.guidelines.length}</span></>}
+      actions={<Button variant="outline" size="sm" data-always onClick={() => {
+        openItems.added(activeFrame.guidelines.length)
+        addGuideline()
+      }}>+ {t('guideline')}</Button>}
+    >
+      <div className="grid gap-2">
+        {activeFrame.guidelines.length === 0 ? <EmptyItems>{t('noItems')}</EmptyItems> : null}
+        {activeFrame.guidelines.map((guideline, guidelineIndex) => {
+          const text = getLocalizedLabel(guideline.label, language)
+          const warning = axesWarning(guideline.plotAxes)
+          const anchor = [guideline.x, guideline.y].every((value) => value !== undefined) ? `(${guideline.x}, ${guideline.y})` : guideline.x !== undefined ? `x = ${guideline.x}` : guideline.y !== undefined ? `y = ${guideline.y}` : ''
+          return (
+            <ItemCard
+              key={guidelineIndex}
+              icon="╱"
+              title={text || `${t('guideline')} ${guidelineIndex + 1}`}
+              summary={[warning ? `⚠ ${t('axesChangedShort')}` : '', anchor, `m = ${guideline.m}`].filter(Boolean).join(' · ')}
+              open={openItems.isOpen(guidelineIndex)}
+              onOpenChange={(next) => openItems.setOpen(guidelineIndex, next)}
+              onDuplicate={() => {
+                openItems.inserted(guidelineIndex + 1)
+                patchActiveFrame((f) => ({ ...f, guidelines: [...f.guidelines.slice(0, guidelineIndex + 1), structuredClone(f.guidelines[guidelineIndex]), ...f.guidelines.slice(guidelineIndex + 1)] }))
+              }}
+              onRemove={() => {
+                openItems.removed(guidelineIndex)
+                patchActiveFrame((f) => ({ ...f, guidelines: f.guidelines.filter((_, i) => i !== guidelineIndex) }))
+              }}
+            >
+              <div className="grid gap-4 @lg:grid-cols-3">
+                <div className="@lg:col-span-2">
+                  <FieldGroup label={t('anchorPoint')} jsonPath={`guidelines[${guidelineIndex}].x`} level="check" columns={2} inline warning={warning}>
+                    <GroupedField tag={axisTag('x', activeFrame.xQuantity)} title={axisTag('x', activeFrame.xQuantity)}>
+                      <Input type="number" aria-label={t('guidelineX')} value={guideline.x ?? ''} onChange={(e) => updateCoordinates(guidelineIndex, (g) => ({ ...g, x: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                    </GroupedField>
+                    <GroupedField tag={axisTag('y', activeFrame.yQuantity)} title={axisTag('y', activeFrame.yQuantity)}>
+                      <Input type="number" aria-label={t('guidelineY')} value={guideline.y ?? ''} onChange={(e) => updateCoordinates(guidelineIndex, (g) => ({ ...g, y: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : undefined }))} />
+                    </GroupedField>
+                  </FieldGroup>
+                </div>
+                <Field label={t('guidelineSlope')} jsonPath={`guidelines[${guidelineIndex}].m`} level="check">
+                  <Input type="number" value={guideline.m} onChange={(e) => updateCoordinates(guidelineIndex, (g) => ({ ...g, m: numberValue(e.target.valueAsNumber, g.m) }))} />
+                </Field>
+                <Field label={t('lineStyle')} jsonPath={`guidelines[${guidelineIndex}].line_props.linestyle`} level="default" changed={guideline.lineProps.linestyle !== DEFAULT_GUIDELINE.lineProps.linestyle}>
+                  <Select value={guideline.lineProps.linestyle} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linestyle: e.target.value } }))}>
+                    {LINE_STYLE_OPTIONS.map((option) => <option key={`linestyle-${option}`} value={option}>{option}</option>)}
+                  </Select>
+                </Field>
+                <Field label={t('lineWidth')} jsonPath={`guidelines[${guidelineIndex}].line_props.linewidth`} level="default" changed={guideline.lineProps.linewidth !== DEFAULT_GUIDELINE.lineProps.linewidth}>
+                  <Input type="number" value={guideline.lineProps.linewidth} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, linewidth: numberValue(e.target.valueAsNumber, g.lineProps.linewidth) } }))} />
+                </Field>
+                <Field label={t('color')} jsonPath={`guidelines[${guidelineIndex}].line_props.color`} level="check">
+                  <ColorOrMaterialInput materialColors={materialColors} value={guideline.lineProps.color} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, lineProps: { ...g.lineProps, color: next } }))} />
+                </Field>
               </div>
-            ))}
-          </Field>
-        </div>
-      ))}
-    </section>
+              <div className="grid gap-4 @lg:grid-cols-2">
+                <div className="grid">
+                  <LanguageFields
+                    label={t('text')}
+                    jsonPath={`guidelines[${guidelineIndex}].label`}
+                    level="check"
+                    languages={activeDataframe.plotLanguages}
+                    selectedLanguage={language}
+                    value={(lang) => getLocalizedLabel(guideline.label, lang)}
+                    onChange={(lang, next) => updateGuideline(guidelineIndex, (g) => ({ ...g, label: setLocalizedLabel(g.label, lang, next, activeDataframe.plotLanguages) }))}
+                  />
+                </div>
+                <div className="flex flex-wrap content-start gap-4">
+                  <Field label={t('labelPosition')} jsonPath={`guidelines[${guidelineIndex}].label_above`} level="default" changed={guideline.labelAbove !== DEFAULT_GUIDELINE.labelAbove}>
+                    <Toggle<'above' | 'below'>
+                      ariaLabel={t('labelPosition')}
+                      value={guideline.labelAbove ? 'above' : 'below'}
+                      onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelAbove: next === 'above' }))}
+                      options={[{ value: 'above', label: t('above') }, { value: 'below', label: t('below') }]}
+                    />
+                  </Field>
+                  <Field label={t('labelDirection')} jsonPath={`guidelines[${guidelineIndex}].label_rotated`} level="default" changed={guideline.labelRotated !== DEFAULT_GUIDELINE.labelRotated}>
+                    <Toggle<'along' | 'horizontal'>
+                      ariaLabel={t('labelDirection')}
+                      value={guideline.labelRotated ? 'along' : 'horizontal'}
+                      onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelRotated: next === 'along' }))}
+                      options={[{ value: 'along', label: t('alongLine') }, { value: 'horizontal', label: t('horizontal') }]}
+                    />
+                  </Field>
+                </div>
+              </div>
+              <div className="grid gap-4 @lg:grid-cols-3">
+                <Field label={t('fontSize')} jsonPath={`guidelines[${guidelineIndex}].fontsize`} level="default" changed={guideline.fontsize !== DEFAULT_GUIDELINE.fontsize}>
+                  <Input type="number" value={guideline.fontsize} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontsize: numberValue(e.target.valueAsNumber, g.fontsize) }))} />
+                </Field>
+                <Field label={t('labelPadding')} jsonPath={`guidelines[${guidelineIndex}].label_padding`} level="default" changed={guideline.labelPadding !== DEFAULT_GUIDELINE.labelPadding}>
+                  <Input type="number" value={guideline.labelPadding} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelPadding: numberValue(e.target.valueAsNumber, g.labelPadding) }))} />
+                </Field>
+                <Field label={t('fontColor')} jsonPath={`guidelines[${guidelineIndex}].font_color`} level="default" changed={Boolean(guideline.fontColor)}>
+                  <ColorOrMaterialInput materialColors={materialColors} value={guideline.fontColor} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
+                </Field>
+              </div>
+            </ItemCard>
+          )
+        })}
+      </div>
+    </SettingsGroup>
   )
 }
