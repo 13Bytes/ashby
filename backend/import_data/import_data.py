@@ -183,7 +183,8 @@ def import_excel_metadata(import_file_name: str, import_sheet: int):
 
 def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     wanted_fields = columns_list(axes, layers)
-    records = teable.fetch_records(teable_url, api_key, verify_tls=verify_tls, filter_clause=filter or None)
+    # filtered here like Excel rows (by column name), not by Teable, whose filter needs field IDs
+    records = filter_data(teable.fetch_records(teable_url, api_key, verify_tls=verify_tls), filter or None)
     dataframe = pd.DataFrame(records, columns=wanted_fields)        # & raise error if _low or layer column not found
     print(f"data received successfully  (Total of {len(records)} points)")
     return dataframe

@@ -3,12 +3,12 @@ import { isHiddenInMode, type SettingsSectionId } from '../../config/settingsSec
 import { useI18n } from '../../uiTranslations'
 import { dataframeLabel } from '../../utils/appState'
 import { useSettings } from '../../utils/settingsContext'
-import { AdvancedJsonSection } from './AdvancedJsonSection'
 import { AnnotationsSection } from './AnnotationsSection'
 import { ScopeTag } from '../common/AppControls'
 import { AxesSection } from './AxesSection'
 import { ColoredAreasSection } from './ColoredAreasSection'
 import { DataSection } from './DataSection'
+import { FilterSection } from './FilterSection'
 import { FrameSection } from './FrameSection'
 import { GuidelinesSection } from './GuidelinesSection'
 import { LayersSection } from './LayersSection'
@@ -23,10 +23,10 @@ type Props =
   & ComponentProps<typeof MaterialColorsSection>
   & ComponentProps<typeof FrameSection>
   & ComponentProps<typeof LayersSection>
+  & ComponentProps<typeof FilterSection>
   & ComponentProps<typeof ColoredAreasSection>
   & ComponentProps<typeof GuidelinesSection>
   & ComponentProps<typeof AnnotationsSection>
-  & ComponentProps<typeof AdvancedJsonSection>
   & {
     activeSection: SettingsSectionId
     /** All sections below each other instead of only the active one. */
@@ -70,15 +70,16 @@ export function ConfigSections(props: Props) {
       {scopeBanner('plot', activeFrame.name || 'Frame')}
       <SettingsSection {...section('titleAxes')}><FrameSection {...props} /></SettingsSection>
       {divider}
-      <SettingsSection {...section('hulls')}><LayersSection {...props} /></SettingsSection>
+      <SettingsSection {...section('hulls')}>
+        <LayersSection {...props} />
+        <FilterSection {...props} />
+      </SettingsSection>
       {divider}
       <SettingsSection {...section('extras')}>
         <ColoredAreasSection {...props} />
         <GuidelinesSection {...props} />
         <AnnotationsSection {...props} />
       </SettingsSection>
-      {divider}
-      <SettingsSection {...section('json')}><AdvancedJsonSection {...props} /></SettingsSection>
     </>
   )
 }

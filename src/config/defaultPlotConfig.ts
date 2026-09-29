@@ -92,7 +92,6 @@ export interface FrameConfig {
   guidelines: GuidelineConfig[]
   annotations: AnnotationConfig[]
   coloredAreas: ColoredAreaConfig[]
-  highlightedHulls: HighlightedHullConfig[]
   _extensions: UnknownConfigBucket
 }
 
@@ -166,13 +165,6 @@ export interface ColoredAreaConfig {
   alpha: number
 }
 
-export interface HighlightedHullConfig {
-  layer: string
-  label: string
-  alpha: number
-  color: string
-}
-
 export interface AxisConfig {
   name: string
   columns: string[]
@@ -240,7 +232,6 @@ export function createDefaultPlotConfig(): PlotConfig {
               },
             ],
             coloredAreas: [],
-            highlightedHulls: [],
             _extensions: {},
           },
         ],

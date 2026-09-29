@@ -89,7 +89,7 @@
                 }],
     
         // + filter +
-            "filter":{},                        // create and copy value via Teable API {null}   // ToDo: not fully functional with Excel import
+            "filter":{},                        // rows to plot, in Teable's format {"conjunction","filterSet":[{"fieldId": column name,"operator","value"}]}; applied to every source (import_data/filter.py) {}
     
         // + guidelines +
             "guidelines":[{
@@ -151,14 +151,6 @@
                 "plot_axes": ["", ""],  // written by the editor: x and y axis the corner points were entered for (see axis_margin)
                 "color": "",        // color (#12)  ["red"]
                 "alpha": 0          // [num] opacity ∈[0,1]  {0.2}
-            }],
-    
-        // + highlighted hulls +
-            "highlighted_hulls":[{      // ToDo: not yet implemented
-                "layer":"",
-                "label":"",
-                "alpha": 0,
-                "color": ""
             }]
         }],
         // : end of Frame :

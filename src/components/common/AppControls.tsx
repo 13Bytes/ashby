@@ -692,7 +692,7 @@ export function MultiSelectInput({
           aria-expanded={expanded}
           title={expanded ? t('collapse') : t('expand')}
           onClick={onToggleExpanded}
-          className="absolute bottom-1.5 right-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-brand-400 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-brand-300"
+          className="absolute bottom-2 right-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-brand-400 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-brand-300"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
             <path d="M5.5 7.5l4.5 4.5 4.5-4.5" />
@@ -800,7 +800,7 @@ export function ItemCard({
   return (
     <div
       ref={rootRef}
-      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 shadow-[0_0_0_3px_rgb(139_92_246/0.12)] dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
+      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 ring-3 ring-brand-500/12 dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
     >
       <div className="flex min-w-0 items-center gap-1 pr-2">
         <button

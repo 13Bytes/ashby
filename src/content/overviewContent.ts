@@ -26,9 +26,8 @@ export type OverviewContent = {
   lead: string
   openEditor: string
   keptNote: string
-  chartX: string
-  chartY: string
-  chartGuideline: string
+  heroPlotAlt: string
+  heroPlotDarkAlt: string
 
   whyHeading: string
   whyParagraphs: RichText[]
@@ -81,9 +80,8 @@ const en: OverviewContent = {
   lead: 'PolyPlot turns a spreadsheet of material properties into Ashby plots: two properties against each other, one colored hull per material family, rendered live while you adjust it.',
   openEditor: 'Open the editor',
   keptNote: 'Your current project is kept.',
-  chartX: 'Density',
-  chartY: 'Tensile strength',
-  chartGuideline: 'σ/ρ = const',
+  heroPlotAlt: 'Example plot: tensile strength against heat deflection temperature, one colored hull per polymer family',
+  heroPlotDarkAlt: 'Example plot in dark mode: elongation at break per density against heat deflection temperature, with annotations',
 
   whyHeading: 'Why PolyPlot exists',
   whyParagraphs: [
@@ -176,9 +174,8 @@ const de: OverviewContent = {
   lead: 'PolyPlot macht aus einer Tabelle mit Materialeigenschaften Ashby-Plots: zwei Eigenschaften gegeneinander, eine farbige Hülle je Materialfamilie, live gerendert, während du anpasst.',
   openEditor: 'Zum Editor',
   keptNote: 'Dein aktuelles Projekt bleibt erhalten.',
-  chartX: 'Dichte',
-  chartY: 'Zugfestigkeit',
-  chartGuideline: 'σ/ρ = konst.',
+  heroPlotAlt: 'Beispielplot: Zugfestigkeit über der Verformungstemperatur, eine farbige Hülle je Polymerfamilie',
+  heroPlotDarkAlt: 'Beispielplot im Dunkelmodus: Bruchdehnung je Dichte über der Verformungstemperatur, mit Annotationen',
 
   whyHeading: 'Warum es PolyPlot gibt',
   whyParagraphs: [

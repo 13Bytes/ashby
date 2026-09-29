@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent } from 'react'
 import { PlotPage } from './components/layout/PlotPage'
 import { Alert, TimedAlert } from './components/ui/alert'
 import { Button } from './components/ui/button'
@@ -28,6 +28,7 @@ import { addLogEntry } from './utils/debugLog'
 import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
 import { getDataframeMissing, getFrameMissing } from './utils/settingsStatus'
 import { SettingsContext } from './utils/settingsContext'
+import { ResizeDivider } from './components/layout/ResizeDivider'
 import { SettingsNav, type SectionStatus } from './components/layout/SettingsNav'
 import { cn } from './lib/utils'
 import { describeFormatWarning, parseFormatWarnings, type ExcelFormatWarning } from './utils/excelFormat'
@@ -46,14 +47,18 @@ const EMPTY_FORMAT_WARNINGS: ExcelFormatWarning[] = []
 const CONFIG_STORAGE_KEY = 'ashby-plot-config'
 const SETTINGS_MODE_STORAGE_KEY = 'ashby-settings-mode'
 const PREVIEW_WIDTH_STORAGE_KEY = 'ashby-preview-width'
+const NAV_WIDTH_STORAGE_KEY = 'ashby-nav-width'
 const AUTO_REFRESH_STORAGE_KEY = 'ashby-auto-refresh'
 const SCROLL_SECTIONS_STORAGE_KEY = 'ashby-scroll-sections'
 /** URL flag of tabs opened from a plot (middle-click): they start in the editor instead of the overview. */
 const VIEW_URL_PARAM = 'view'
 const DEFAULT_PREVIEW_WIDTH = 460
 const MIN_PREVIEW_WIDTH = 280
-/** Width kept for the settings list and the editor when the preview is dragged wider. */
-const MIN_EDITOR_AREA_WIDTH = 240 + 440
+const DEFAULT_NAV_WIDTH = 240
+const MIN_NAV_WIDTH = 180
+const MAX_NAV_WIDTH = 480
+/** Width kept for the editor when the settings list or the preview is dragged wider (+ the 1px and 9px dividers). */
+const MIN_EDITOR_WIDTH = 440 + 10
 
 /** Identifies what an import of a dataframe read, to skip importing the same source again. */
 const sourceSignature = (sourceMode: SourceMode, fileName: string | undefined, sheet: number) => `${sourceMode}:${fileName ?? ''}:${sheet}`
@@ -152,6 +157,7 @@ function App() {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>('data')
   const [shownDefaults, setShownDefaults] = useState<ReadonlySet<SettingsSectionId>>(() => new Set())
   const [previewWidth, setPreviewWidth] = useState(() => readStored(PREVIEW_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_PREVIEW_WIDTH))
+  const [navWidth, setNavWidth] = useState(() => readStored(NAV_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_NAV_WIDTH))
   const [autoRefresh, setAutoRefresh] = useState(() => readStored(AUTO_REFRESH_STORAGE_KEY, (value) => value !== 'false'))
   /** All settings sections in one scrollable column instead of one section at a time. */
   const [scrollSections, setScrollSections] = useState(() => readStored(SCROLL_SECTIONS_STORAGE_KEY, (value) => value === 'true'))
@@ -958,29 +964,22 @@ function App() {
   }
   const activeSectionScope = SETTINGS_SECTIONS.find((section) => section.id === activeSection)?.scope
 
-  // Preview width: dragged with the divider, reset by double-click, kept in localStorage.
-  const clampPreviewWidth = (width: number) => {
-    const available = workRef.current?.clientWidth ?? window.innerWidth
-    return Math.round(Math.min(Math.max(MIN_PREVIEW_WIDTH, available - MIN_EDITOR_AREA_WIDTH), Math.max(MIN_PREVIEW_WIDTH, width)))
-  }
+  // Widths of the settings list and the preview: dragged with the dividers, reset by double-click, kept in localStorage.
+  // Each keeps the editor between them at least MIN_EDITOR_WIDTH wide.
+  const workBox = () => workRef.current?.getBoundingClientRect() ?? { left: 0, right: window.innerWidth, width: window.innerWidth }
+  const clampPreviewWidth = (width: number) =>
+    Math.round(Math.min(Math.max(MIN_PREVIEW_WIDTH, workBox().width - navWidth - MIN_EDITOR_WIDTH), Math.max(MIN_PREVIEW_WIDTH, width)))
+  const clampNavWidth = (width: number) =>
+    Math.round(Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, workBox().width - previewWidth - MIN_EDITOR_WIDTH), Math.max(MIN_NAV_WIDTH, width)))
   const commitPreviewWidth = (width: number) => {
     const next = clampPreviewWidth(width)
     setPreviewWidth(next)
     writeStored(PREVIEW_WIDTH_STORAGE_KEY, String(next))
   }
-  const startPreviewResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    const handle = event.currentTarget
-    handle.setPointerCapture(event.pointerId)
-    const right = workRef.current?.getBoundingClientRect().right ?? window.innerWidth
-    const move = (moveEvent: PointerEvent) => setPreviewWidth(clampPreviewWidth(right - moveEvent.clientX - 4))
-    const stop = (upEvent: PointerEvent) => {
-      handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', stop)
-      commitPreviewWidth(right - upEvent.clientX - 4)
-    }
-    handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', stop)
+  const commitNavWidth = (width: number) => {
+    const next = clampNavWidth(width)
+    setNavWidth(next)
+    writeStored(NAV_WIDTH_STORAGE_KEY, String(next))
   }
 
   const tabProps = {
@@ -1013,7 +1012,7 @@ function App() {
       setPlotActionNonce((current) => current + 1)
     },
   }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
     sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
@@ -1100,8 +1099,8 @@ function App() {
         ) : null}
         <div
           ref={workRef}
-          style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}
-          className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)_9px_var(--preview-width)]"
+          style={{ '--nav-width': `${navWidth}px`, '--preview-width': `${previewWidth}px` } as CSSProperties}
+          className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[var(--nav-width)_1px_minmax(0,1fr)_9px_var(--preview-width)]"
         >
           <SettingsNav
             mode={settingsMode}
@@ -1113,30 +1112,32 @@ function App() {
             frameName={activeFrame.name || `Frame ${activeFrameIndex + 1}`}
             editorRef={editorRef}
           />
+          <ResizeDivider
+            label={t('resizeNav')}
+            hint={t('resizeNavHint')}
+            width={navWidth}
+            widthAt={(clientX) => clientX - workBox().left}
+            growKey="ArrowRight"
+            onResize={(width) => setNavWidth(clampNavWidth(width))}
+            onCommit={commitNavWidth}
+            defaultWidth={DEFAULT_NAV_WIDTH}
+            thin
+          />
           <main ref={editorRef} className="min-h-0 min-w-0 overflow-auto px-6 pb-10 pt-5">
             <div className="@container mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
               <ConfigSections {...sectionProps} />
             </div>
           </main>
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t('resizePreview')}
-            aria-valuenow={previewWidth}
-            tabIndex={0}
-            title={t('resizePreviewHint')}
-            onPointerDown={startPreviewResize}
-            onDoubleClick={() => commitPreviewWidth(DEFAULT_PREVIEW_WIDTH)}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-                event.preventDefault()
-                commitPreviewWidth(previewWidth + (event.key === 'ArrowLeft' ? 24 : -24))
-              }
-            }}
-            className="group hidden cursor-col-resize touch-none place-items-center border-x border-zinc-200 bg-zinc-100 focus-visible:outline-none lg:grid dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-brand-500 group-focus-visible:bg-brand-500 dark:bg-zinc-700" />
-          </div>
+          <ResizeDivider
+            label={t('resizePreview')}
+            hint={t('resizePreviewHint')}
+            width={previewWidth}
+            widthAt={(clientX) => workBox().right - clientX - 4}
+            growKey="ArrowLeft"
+            onResize={(width) => setPreviewWidth(clampPreviewWidth(width))}
+            onCommit={commitPreviewWidth}
+            defaultWidth={DEFAULT_PREVIEW_WIDTH}
+          />
           <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets}
             missing={activeMissing}
             onJump={goTo}

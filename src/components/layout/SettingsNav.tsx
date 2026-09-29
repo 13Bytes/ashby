@@ -97,7 +97,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
   )
 
   return (
-    <nav aria-label={t('settings')} className="flex min-h-0 flex-col gap-4 overflow-auto border-r border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+    <nav aria-label={t('settings')} className="flex min-h-0 flex-col gap-4 overflow-auto bg-zinc-50 p-3 dark:bg-zinc-900/50">
       <input
         type="search"
         value={query}

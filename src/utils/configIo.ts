@@ -158,7 +158,6 @@ export function toExternalConfig(config: PlotConfig): unknown {
           arrow: annotation.arrow,
         })),
         colored_areas: frame.coloredAreas.map(({ plotAxes, ...area }) => ({ ...area, ...(plotAxes && !area.axes ? { plot_axes: plotAxes } : {}) })),
-        highlighted_hulls: frame.highlightedHulls,
       })),
       axes: dataframe.axes,
       material_colors: dataframe.materialColors,
