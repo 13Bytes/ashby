@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LINKS, OVERVIEW_CONTENT, type OverviewContent } from '../../content/overviewContent'
 import { cn } from '../../lib/utils'
 import { useI18n } from '../../uiTranslations'
 import { BrandLogo } from '../common/BrandLogo'
 import { RichText, TextLink } from '../common/RichText'
 import { Button } from '../ui/button'
+import { DonateDialog } from './DonateDialog'
 import examplePlotLight from '../../../backend/docs/graphics/Ashbyplot_complete.png'
 import examplePlotDark from '../../../backend/docs/graphics/Ashbyplot_transparent.png'
 
@@ -245,6 +246,7 @@ function ExcelDiagram({ content }: { content: OverviewContent }) {
 export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: () => void; onOpenPrivacy: () => void }) {
   const { language } = useI18n()
   const content = OVERVIEW_CONTENT[language]
+  const [showDonate, setShowDonate] = useState(false)
 
   const openButton = (
     <Button onClick={onOpenEditor} className="h-11 gap-2 px-5 text-base shadow-sm">
@@ -372,7 +374,9 @@ export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: ()
               <TextLink href={LINKS.feedback}>{LINKS.feedbackAddress}</TextLink>
             </SupportCard>
             <SupportCard icon={<HeartIcon />} title={content.donateTitle} text={content.donateText}>
-              <TextLink href={LINKS.donate}>{content.donateLink}</TextLink>
+              <button type="button" onClick={() => setShowDonate(true)} className="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-brand-700 hover:decoration-brand-400 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-brand-300">
+                {content.donateButton}
+              </button>
             </SupportCard>
             <SupportCard icon={<MegaphoneIcon />} title={content.followTitle} text={content.followText}>
               <div className="flex flex-wrap gap-2">
@@ -423,6 +427,7 @@ export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: ()
           </nav>
         </div>
       </footer>
+      {showDonate ? <DonateDialog onClose={() => setShowDonate(false)} /> : null}
     </div>
   )
 }
