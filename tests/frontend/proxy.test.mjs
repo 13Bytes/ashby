@@ -207,5 +207,8 @@ test('all plots are listed next to the preview, rendered only from the first edi
   // nothing on load: a config change after the page was used starts it, one plot at a time
   assert.match(gallery, /if \(navigator\.userActivation\?\.hasBeenActive \?\? true\) setEdited\(true\)/)
   assert.match(gallery, /const next = edited && autoRefresh && availableDatasets !== null && rendering === null/)
-  assert.match(gallery, /plot\.canRender && thumbnails\[plot\.id\]\?\.key !== plot\.key/)
+  assert.match(gallery, /plot\.canRender && images\[plot\.id\]\?\.key !== plot\.key/)
+  // a selected plot with an up-to-date image is shown, not rendered again
+  assert.match(plotPage, /if \(!requested && image\?\.blob && !image\.error && image\.key === imageKey\?\.key\) \{\s*showImage/)
+  assert.match(plotPage, /if \(imageKey\) storeImage\(imageKey\.id, imageKey\.key, \{ blob: imageBlob/)
 })

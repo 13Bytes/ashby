@@ -11,6 +11,7 @@ import { attributionHeaders, useAttributionUnlocked } from '../../utils/attribut
 import { getCachedDatasourceFile, readDatasourceWithFallback } from '../../utils/datasourceStorage'
 import { ErrorDetails } from './DebugLog'
 import { AllPlotsGallery } from './AllPlotsGallery'
+import { plotId, renderKey, usePlotImages, type PlotImage } from '../../hooks/usePlotImages'
 import type { SettingsSectionId } from '../../config/settingsSections'
 import type { MissingSetting } from '../../utils/settingsStatus'
 
@@ -287,6 +288,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex]
   const activeFrame = activeDataframe?.frames[activeFrameIndex]
   const canRender = missing.length === 0
+  const { images: plotImages, storeImage } = usePlotImages()
+  /** A plot's id and the settings its image depends on (see renderKey). */
+  const plotImageKey = (dataframeIndex: number, frameIndex: number) => {
+    const dataframe = plotConfig.dataframes[dataframeIndex]
+    const frame = dataframe?.frames[frameIndex]
+    return dataframe && frame ? { id: plotId(dataframe, frame), key: renderKey(dataframe, frame, datasourceFilesByDataframe[dataframeIndex], attributionUnlocked) } : null
+  }
 
   const getDownloadName = (entry: Pick<RenderedPlotEntry, 'dataframeIndex' | 'frameIndex' | 'mediaType'>) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
@@ -329,6 +337,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     const elapsed = () => Math.round(performance.now() - startedAt)
     const unreachable = t('backendUnreachable')
     const isPreview = dataframeIndex === activeDataframeIndex && frameIndex === activeFrameIndex
+    const imageKey = plotImageKey(dataframeIndex, frameIndex)
     const requestId = isPreview ? ++latestPreviewRequestRef.current : latestPreviewRequestRef.current
     const showMessages = (next: string[]) =>
       includeInCreated
@@ -399,6 +408,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       showMessages(nextMessages)
       addLogEntry({ level: nextMessages.length > 0 ? 'warning' : 'info', source: 'render', title: label, message: t('renderSucceeded'), messages: nextMessages, log, status: response.status, durationMs: elapsed() })
 
+      if (imageKey) storeImage(imageKey.id, imageKey.key, { blob: imageBlob, messages: nextMessages })
       const nextUrl = URL.createObjectURL(imageBlob)
       // Ignore responses for previews that were superseded by a newer request.
       if (isPreview && requestId === latestPreviewRequestRef.current) {
@@ -439,6 +449,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         details = { ...details, message: `${details.message} ${t('renderNotReceived')}` }
       }
       addLogEntry({ level: 'error', source: 'render', title: label, ...details, durationMs: elapsed() })
+      if (imageKey) storeImage(imageKey.id, imageKey.key, { error: details.message })
       if (!includeInCreated) setError({ title: t('renderErrorTitle', { plot: label }), details })
       return details
     } finally {
@@ -539,11 +550,24 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     }
   }
 
+  /** Shows an image rendered before, e.g. in the list of all plots, instead of rendering it again. */
+  const showImage = (image: PlotImage & { blob: Blob }) => {
+    // a render of the plot shown before that is still running does not replace it
+    latestPreviewRequestRef.current += 1
+    imageBlobRef.current = image.blob
+    setImageUrl(URL.createObjectURL(image.blob))
+    setError(null)
+    setMessages(image.messages ?? [])
+    setStatus('ok')
+  }
+
   // One effect for these triggers, so mounting renders once: a new plot action runs that action, a
-  // selection change re-renders the preview. Plots with missing required settings are not sent.
+  // selection change shows the plot's image, rendering it if it has none for its current settings.
+  // Plots with missing required settings are not sent.
   useEffect(() => {
     if (availableDatasets === null) return
-    if (handledPlotActionNonceRef.current !== plotActionNonce) {
+    const requested = handledPlotActionNonceRef.current !== plotActionNonce
+    if (requested) {
       handledPlotActionNonceRef.current = plotActionNonce
       if (plotAction === 'create-all') {
         void createPlots()
@@ -551,6 +575,12 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       }
     }
     if (!canRender) return
+    const imageKey = plotImageKey(activeDataframeIndex, activeFrameIndex)
+    const image = imageKey ? plotImages[imageKey.id] : undefined
+    if (!requested && image?.blob && !image.error && image.key === imageKey?.key) {
+      showImage({ ...image, blob: image.blob })
+      return
+    }
     void fetchPlot()
     // canRender: renders as soon as the last required setting is set, e.g. when an Excel file is
     // restored from browser storage after the page loaded.
@@ -696,6 +726,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         datasourceFilesByDataframe={datasourceFilesByDataframe}
         availableDatasets={availableDatasets}
         autoRefresh={autoRefresh}
+        images={plotImages}
+        storeImage={storeImage}
         renderPlot={renderPlotImage}
         onSelectPlot={onSelectPlot}
       />
