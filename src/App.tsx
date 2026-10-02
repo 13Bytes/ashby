@@ -1156,6 +1156,7 @@ function App() {
               setAutoRefresh(next)
               writeStored(AUTO_REFRESH_STORAGE_KEY, String(next))
             }}
+            onSelectPlot={selectPlot}
           />
         </div>
       </>)}

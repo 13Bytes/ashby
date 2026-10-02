@@ -10,6 +10,7 @@ import { addLogEntry } from '../../utils/debugLog'
 import { attributionHeaders, useAttributionUnlocked } from '../../utils/attributionKey'
 import { getCachedDatasourceFile, readDatasourceWithFallback } from '../../utils/datasourceStorage'
 import { ErrorDetails } from './DebugLog'
+import { AllPlotsGallery } from './AllPlotsGallery'
 import type { SettingsSectionId } from '../../config/settingsSections'
 import type { MissingSetting } from '../../utils/settingsStatus'
 
@@ -27,6 +28,8 @@ interface Props {
   onJump: (section: SettingsSectionId, anchor?: string) => void
   autoRefresh: boolean
   onAutoRefreshChange: (next: boolean) => void
+  /** Selects a plot from the list of all plots. */
+  onSelectPlot: (dataframeIndex: number, frameIndex: number) => void
 }
 interface RenderedPlotEntry {
   dataframeIndex: number
@@ -254,7 +257,7 @@ type PreviewStatus = 'idle' | 'loading' | 'ok' | 'error' | 'stale'
  * on), runs "Generate all" and offers the downloads. Plots with missing required settings are not
  * sent to the backend; the missing settings are listed with links to them instead.
  */
-export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets, missing, onJump, autoRefresh, onAutoRefreshChange }: Props) {
+export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, activeFrameIndex, plotAction, plotActionNonce, datasourceFilesByDataframe, availableDatasets, missing, onJump, autoRefresh, onAutoRefreshChange, onSelectPlot }: Props) {
   const { t } = useI18n()
   const attributionUnlocked = useAttributionUnlocked()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -442,6 +445,27 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       stopPolling()
       setRenderProgress((current) => (current?.id === statusId ? null : current))
       setLoading(false)
+    }
+  }
+
+  /** One plot for the list of all plots: only the image, errors are thrown (and logged). */
+  const renderPlotImage = async (dataframeIndex: number, frameIndex: number): Promise<Blob> => {
+    const label = plotLabel(dataframeIndex, frameIndex)
+    const startedAt = performance.now()
+    const unreachable = t('backendUnreachable')
+    try {
+      const response = await fetchBackend(
+        '/api/render-plot',
+        await buildPlotRequest({ config: toExternalConfig(plotConfig), dataframe_index: dataframeIndex, frame_index: frameIndex }, plotConfig, datasourceFilesByDataframe, availableDatasets, [dataframeIndex], t),
+        { unreachable, foreign: t('backendForeign'), timeoutMs: RENDER_TIMEOUT_MS, timedOut: t('renderTimedOut', { seconds: RENDER_TIMEOUT_MS / 1000 }) },
+      )
+      if (!response.ok) throw await readBackendError(response, { fallback: t('renderFailed', { status: response.status }), unreachable })
+      const blob = await response.blob()
+      if (blob.size === 0) throw new BackendError({ message: t('emptyImage'), messages: [], status: response.status })
+      return blob
+    } catch (renderError) {
+      addLogEntry({ level: 'error', source: 'render', title: label, ...toErrorDetails(renderError, t('renderFailedGeneric')), durationMs: Math.round(performance.now() - startedAt) })
+      throw renderError
     }
   }
 
@@ -664,6 +688,17 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         <input type="checkbox" className="accent-brand-600" checked={autoRefresh} onChange={(event) => onAutoRefreshChange(event.target.checked)} />
         {t('autoRefresh')}
       </label>
+
+      <AllPlotsGallery
+        plotConfig={plotConfig}
+        activeDataframeIndex={activeDataframeIndex}
+        activeFrameIndex={activeFrameIndex}
+        datasourceFilesByDataframe={datasourceFilesByDataframe}
+        availableDatasets={availableDatasets}
+        autoRefresh={autoRefresh}
+        renderPlot={renderPlotImage}
+        onSelectPlot={onSelectPlot}
+      />
 
       {batchProgress ? <p className="m-0 text-xs text-zinc-500">{t('batchProgress', { current: batchProgress.current, total: batchProgress.total })}</p> : null}
       {batchFailures.length > 0 ? (

@@ -199,3 +199,13 @@ test('every setting marked as changed from its default can be reset with ⭮', a
     assert.equal(resettable, marked, `${name}: ${marked - resettable} changed setting(s) without onReset`)
   }
 })
+
+test('all plots are listed next to the preview, rendered only from the first edit on', async () => {
+  const gallery = await readSource('components/layout/AllPlotsGallery.tsx')
+  const plotPage = await readSource('components/layout/PlotPage.tsx')
+  assert.match(plotPage, /<AllPlotsGallery/)
+  // nothing on load: a config change after the page was used starts it, one plot at a time
+  assert.match(gallery, /if \(navigator\.userActivation\?\.hasBeenActive \?\? true\) setEdited\(true\)/)
+  assert.match(gallery, /const next = edited && autoRefresh && availableDatasets !== null && rendering === null/)
+  assert.match(gallery, /plot\.canRender && thumbnails\[plot\.id\]\?\.key !== plot\.key/)
+})
