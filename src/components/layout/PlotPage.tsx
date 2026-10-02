@@ -446,12 +446,15 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
         setStatus('error')
       }
       let details = toErrorDetails(renderError, t('renderFailedGeneric'))
-      // Without an error report from the backend (e.g. a timeout), show the last state it reported.
+      // Without an error report from the backend (e.g. a timeout), show the last state it reported. It is
+      // where the render was, not where an error happened: part of the message, not the error location.
       const known = lastStatus.current
       if (known && !details.location) {
         details = {
           ...details,
-          location: known.location,
+          message: details.message === unreachable
+            ? t('backendLostDuringRender', { location: known.location || '?' })
+            : known.location ? `${details.message} ${t('backendLastStep', { location: known.location })}` : details.message,
           log: [details.log, `${t('lastBackendState', { seconds: known.elapsedSeconds })}:`, known.waitingIn && `${t('backendWaitingIn')}: ${known.waitingIn}`, ...known.outputTail].filter(Boolean).join('\n'),
         }
       } else if (isNotReceived()) {

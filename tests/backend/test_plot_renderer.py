@@ -91,5 +91,18 @@ class RenderStatusTest(unittest.TestCase):
             time.sleep(0.01)
 
 
+class RenderMemoryTest(unittest.TestCase):
+    def test_every_render_frees_its_figure_right_away(self) -> None:
+        # Figures are full of reference cycles; left to Python's next full collection, renders in a
+        # row piled up about 100 MB each.
+        for outcome in ({'return_value': object()}, {'side_effect': RuntimeError('render failed')}):
+            with mock.patch.object(plot_renderer, '_render_plot_image', **outcome), mock.patch.object(plot_renderer.gc, 'collect') as collect, mock.patch.object(plot_renderer.gc, 'freeze'):
+                try:
+                    render_plot_image({'dataframes': []})
+                except RuntimeError:
+                    pass
+            self.assertEqual(collect.call_count, 1)
+
+
 if __name__ == '__main__':
     unittest.main()
