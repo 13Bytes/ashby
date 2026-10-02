@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react'
 
 /**
- * Plots rendered on the server carry an attribution instead of the copyright notice, and no
- * watermark (ATTRIBUTION_TEXT in backend/security.py). The attribution key (ASHBY_ATTRIBUTION_KEY on
+ * Plots rendered on the server carry an attribution instead of the copyright notice, and the
+ * standard watermark (ATTRIBUTION_TEXT and apply_attribution in backend/security.py). The attribution key (ASHBY_ATTRIBUTION_KEY on
  * the server) unlocks switching both on or off. The backend decides; the editor only shows the switches.
  */
 export const ATTRIBUTION_KEY_HEADER = 'X-Ashby-Attribution-Key'

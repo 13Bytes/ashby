@@ -54,7 +54,7 @@ class AttributionRuleTest(unittest.TestCase):
         for copyright_value, watermark_value in [(False, True), (True, 'logo.png'), ('my own notice', False)]:
             dataframe = security.apply_attribution({'copyright': copyright_value, 'watermark': watermark_value}, unlocked=False)
             self.assertEqual(dataframe['copyright'], security.ATTRIBUTION_TEXT)
-            self.assertIs(dataframe['watermark'], False)
+            self.assertIs(dataframe['watermark'], True)     # the standard logo, not the config's file
 
     def test_with_the_key_both_are_switches_with_the_standard_text_and_logo(self):
         self.assertEqual(security.apply_attribution({'copyright': 'my own notice', 'watermark': 'logo.png'}, unlocked=True), {'copyright': True, 'watermark': True})
@@ -90,7 +90,7 @@ class AttributionApiTest(unittest.TestCase):
 
     def test_render_endpoints_apply_the_attribution_unless_the_key_is_sent(self):
         payload = json.loads(FIXTURE_PATH.read_text(encoding='utf-8'))
-        payload['config']['dataframes'][0].update({'copyright': 'my own notice', 'watermark': True})
+        payload['config']['dataframes'][0].update({'copyright': 'my own notice', 'watermark': False})
         rendered: list[dict] = []
 
         def fake_main(dataframe, **_kwargs):
@@ -108,8 +108,8 @@ class AttributionApiTest(unittest.TestCase):
             for path, body, headers in requests:
                 post(path, body, headers)
 
-        attribution = {'copyright': security.ATTRIBUTION_TEXT, 'watermark': False}
-        unlocked = {'copyright': True, 'watermark': True}
+        attribution = {'copyright': security.ATTRIBUTION_TEXT, 'watermark': True}
+        unlocked = {'copyright': True, 'watermark': False}
         self.assertEqual(rendered, [attribution, unlocked, attribution, attribution, unlocked])
 
     def test_only_the_key_gets_the_data_preview(self):

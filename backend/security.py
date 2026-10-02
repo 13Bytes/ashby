@@ -170,14 +170,15 @@ def attribution_key_valid(key: str | None) -> bool:
 
 
 def apply_attribution(dataframe: dict[str, Any], unlocked: bool) -> dict[str, Any]:
-    '''copyright and watermark as the server allows them: switches with the key, the attribution without'''
+    '''copyright and watermark as the server allows them: switches with the key; without it the
+    attribution text and the standard watermark'''
     if unlocked:
         # on / off only: custom texts and files from the config are not used
         dataframe['copyright'] = dataframe.get('copyright', False) not in (False, None, '')
         dataframe['watermark'] = dataframe.get('watermark', False) not in (False, None, '')
     else:
         dataframe['copyright'] = ATTRIBUTION_TEXT
-        dataframe['watermark'] = False
+        dataframe['watermark'] = True
     return dataframe
 
 
