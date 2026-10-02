@@ -1,7 +1,8 @@
 import type { DataframeConfig, PlotConfig } from '../config/defaultPlotConfig'
 
 export type SourceMode = 'teable' | 'file' | 'dataset'
-export type MultiOption = { value: string; label: string }
+/** `count`: shown after the label, e.g. the rows with a value of an axis column. */
+export type MultiOption = { value: string; label: string; count?: number }
 
 /** Name of a dataframe for the UI; unnamed dataframes are numbered ("DF 1"). */
 export const DATAFRAME_NAME_PREFIX = 'DF'

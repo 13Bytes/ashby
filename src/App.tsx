@@ -10,11 +10,12 @@ import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAG
 import { AppPopouts, SettingsRow } from './components/layout/AppPopouts'
 import { AttributionKeySetting } from './components/layout/AttributionKeySetting'
 import { layerIncludedKeywords } from './utils/configEditing'
-import { checkAttributionKey, readAttributionKey, setAttributionKey } from './utils/attributionKey'
+import { attributionHeaders, checkAttributionKey, readAttributionKey, setAttributionKey, useAttributionUnlocked } from './utils/attributionKey'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
 import { AppHeader } from './components/layout/AppHeader'
 import { OverviewPage } from './components/overview/OverviewPage'
 import { PrivacyDialog } from './components/overview/PrivacyDialog'
+import type { DataPreview } from './components/settings/DataPreviewDialog'
 import { ConfigSections } from './components/settings/ConfigSections'
 import { ConfigTabs } from './components/layout/ConfigTabs'
 import { Toggle, Switch } from './components/common/AppControls'
@@ -39,9 +40,10 @@ type AlertTone = 'success' | 'warning' | 'error'; interface AlertState { tone: A
 const NOTICE_SECONDS: Record<AlertTone, number> = { success: 6, warning: 15, error: 15 }
 type PlotAction = 'preview-current' | 'create-all'
 
-type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown }
+type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown; value_counts?: Record<string, number>; preview?: DataPreview }
 /** What the last datasource import of a dataframe returned; kept per dataframe (by UI key). */
-type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[] }
+/** `valueCounts`: rows with a value per axis column (quantity); `preview`: the first rows, sent with the attribution key only. */
+type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[]; valueCounts: Record<string, number>; preview?: DataPreview }
 const EMPTY_KEYWORDS: Record<string, string[]> = {}
 const EMPTY_FORMAT_WARNINGS: ExcelFormatWarning[] = []
 
@@ -164,6 +166,9 @@ function App() {
   const [scrollSections, setScrollSections] = useState(() => readStored(SCROLL_SECTIONS_STORAGE_KEY, (value) => value === 'true'))
   const editorRef = useRef<HTMLElement | null>(null)
   const datasetsLoadRef = useRef<'idle' | 'loading' | 'loaded' | 'failed'>('idle')
+  /** Whether the dataset catalog was loaded with the attribution key, which also lists the key-only datasets. */
+  const datasetsUnlockedRef = useRef(false)
+  const attributionUnlocked = useAttributionUnlocked()
   const pinnedSectionRef = useRef<SettingsSectionId | null>(null)
   const workRef = useRef<HTMLDivElement | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
@@ -191,7 +196,7 @@ function App() {
     () => (activeImportedSource
       ? getAxisBasesFromColumns(availableColumns)
       : [...new Set(activeDataframe.axes.flatMap((axis) => axis.columns))].sort((a, b) => a.localeCompare(b))
-    ).map((column) => ({ value: column, label: column })),
+    ).map((column) => ({ value: column, label: column, count: activeImportedSource?.valueCounts[column] })),
     [activeDataframe.axes, activeImportedSource, availableColumns],
   )
   const layerNameOptions = useMemo(() => {
@@ -410,14 +415,17 @@ function App() {
       window.clearInterval(interval)
     }
   }, [])
-  // The dataset catalog; loaded again once the backend becomes available if the first try failed.
+  // The dataset catalog; loaded again once the backend becomes available if the first try failed, and
+  // after unlocking or locking with the attribution key (key-only datasets).
   // One request at a time: a request in flight is not cancelled when the backend status changes.
   useEffect(() => {
-    if (backendAvailable === false || datasetsLoadRef.current === 'loading' || datasetsLoadRef.current === 'loaded') return
+    const current = datasetsLoadRef.current === 'loaded' && datasetsUnlockedRef.current === attributionUnlocked
+    if (backendAvailable === false || datasetsLoadRef.current === 'loading' || current) return
     datasetsLoadRef.current = 'loading'
+    datasetsUnlockedRef.current = attributionUnlocked
     const loadDatasets = async () => {
       try {
-        const response = await fetch('/api/import-database/datasets', { cache: 'no-store' })
+        const response = await fetch('/api/import-database/datasets', { cache: 'no-store', headers: attributionHeaders() })
         const payload = await response.json().catch(() => ({})) as { datasets?: unknown }
         datasetsLoadRef.current = response.ok ? 'loaded' : 'failed'
         setAvailableDatasets(Array.isArray(payload.datasets) ? payload.datasets.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [])
@@ -427,7 +435,7 @@ function App() {
       }
     }
     void loadDatasets()
-  }, [backendAvailable])
+  }, [attributionUnlocked, backendAvailable])
   useEffect(() => {
     let cancelled = false
 
@@ -505,7 +513,8 @@ function App() {
       }
       const response = await fetchBackend('/api/import-database', {
         method: 'POST',
-        headers: selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
+        // the key opens key-only provided datasets
+        headers: { ...(selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : {}), ...attributionHeaders() },
         body:
           selectedSourceMode === 'teable'
             ? JSON.stringify({
@@ -596,7 +605,7 @@ function App() {
       }))
       setImportedSources((current) => ({
         ...current,
-        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames, formatWarnings },
+        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload.value_counts ?? {}, preview: payload.preview },
       }))
       importedSignaturesRef.current.set(selectedDataframeKey, sourceSignature(selectedSourceMode, payload.import_file_name ?? file?.name ?? selectedDataframe.importFileName, selectedDataframe.importSheet))
       const messageParts = [
@@ -1000,7 +1009,7 @@ function App() {
       setPlotActionNonce((current) => current + 1)
     },
   }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, dataPreview: attributionUnlocked ? activeImportedSource?.preview : undefined, attributionUnlocked, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
     sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
 import sys
 import unittest
@@ -12,8 +13,10 @@ PROJECT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_DIR))
 
 from backend import app as app_module, plot_renderer, security  # noqa: E402
+import_data = importlib.import_module('backend.import_data.import_data')
 
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
+DATASET_PATH = PROJECT_DIR / 'tests' / 'dataset_1.xlsx'
 KEY = 'correct-horse-battery-staple-42'
 
 
@@ -108,6 +111,20 @@ class AttributionApiTest(unittest.TestCase):
         attribution = {'copyright': security.ATTRIBUTION_TEXT, 'watermark': False}
         unlocked = {'copyright': True, 'watermark': True}
         self.assertEqual(rendered, [attribution, unlocked, attribution, attribution, unlocked])
+
+    def test_only_the_key_gets_the_data_preview(self):
+        with mock.patch.object(import_data, 'MATERIAL_PROPERTIES_DIR', DATASET_PATH.parent):
+            responses = [
+                json.loads(post('/api/import-database', {'import_file_name': DATASET_PATH.name}, headers)[1])
+                for headers in ({}, {security.ATTRIBUTION_KEY_HEADER: 'wrong'}, {security.ATTRIBUTION_KEY_HEADER: KEY})
+            ]
+        self.assertTrue(all(response['success'] for response in responses))
+        self.assertNotIn('preview', responses[0])
+        self.assertNotIn('preview', responses[1])
+        preview = responses[2]['preview']
+        self.assertEqual(preview['columns'][:len(responses[2]['columns'])], responses[2]['columns'])
+        self.assertEqual(len(preview['rows']), min(preview['total_rows'], import_data.PREVIEW_ROW_LIMIT))
+        self.assertTrue(all(len(row) == len(preview['columns']) for row in preview['rows']))
 
 
 if __name__ == '__main__':

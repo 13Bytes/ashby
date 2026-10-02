@@ -1,10 +1,11 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select } from '../ui/select'
 import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../../config/defaultPlotConfig'
 import { useI18n } from '../../uiTranslations'
 import type { MultiOption } from '../../utils/appState'
+import { addAxisToDataframe } from '../../utils/configEditing'
 import { Field, ItemCard, LanguageFields, MultiSelectInput } from '../common/AppControls'
 import { useOpenItems } from '../../hooks/useOpenItems'
 
@@ -33,6 +34,14 @@ export function AxesSection({
   const { t } = useI18n()
   const language = activeDataframe.language
   const openItems = useOpenItems(String(activeDataframe._extensions.uiKey))
+  // A dataset without axes gets two empty ones (for X and Y) when this section is shown, opened.
+  const withoutAxes = activeDataframe.axes.length === 0
+  useEffect(() => {
+    if (!withoutAxes) return
+    patchActiveDataframe((df) => (df.axes.length > 0 ? df : addAxisToDataframe(addAxisToDataframe(df))))
+    openItems.added(0)
+    openItems.added(1)
+  }, [withoutAxes, patchActiveDataframe, openItems])
   return (
     <>
       <div className="grid gap-2" data-anchor="axes">

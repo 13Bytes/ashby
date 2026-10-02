@@ -71,7 +71,7 @@ test('App keeps datasource import results per dataframe', async () => {
   const source = await readSource('App.tsx')
 
   assert.match(source, /importedSources\[activeDataframeKey\]/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings \}/)
+  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload\.value_counts \?\? \{\}, preview: payload\.preview \}/)
   // Excel files and import status stay with their dataframe when dataframes are reordered or removed.
   assert.match(source, /\[selectedDataframeKey\]: cachedFile/)
   assert.match(source, /\[selectedDataframeKey\]: \{ imported: true, source: selectedSourceMode \}/)

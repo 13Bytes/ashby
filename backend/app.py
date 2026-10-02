@@ -194,14 +194,18 @@ class DownloadPlotsRequest(BaseModel):
     plots: list[DownloadPlotItem]
 
 
-def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[list[str], dict[str, list[str]], list[str], list[dict]]:
-    '''Columns, text values per column, sheet names and format warnings (see check_excel_format) of an uploaded workbook.'''
+ExcelMetadata = tuple[list[str], dict[str, list[str]], list[str], list[dict], dict[str, int], dict]
+
+
+def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> ExcelMetadata:
+    '''Columns, text values per column, sheet names, format warnings (see check_excel_format), rows
+    with a value per quantity (count_quantity_values) and the preview table (preview_table) of an uploaded workbook.'''
     # Only the selected sheet is parsed; the other sheets are just listed by name.
     check_xlsx_bytes(file_bytes)
     workbook = pd.ExcelFile(io.BytesIO(file_bytes), engine=import_data_module.EXCEL_ENGINE)
     sheet_names = [str(name) for name in workbook.sheet_names]
     if not sheet_names:
-        return [], {}, [], [{'code': 'empty_sheet'}]
+        return [], {}, [], [{'code': 'empty_sheet'}], {}, import_data_module.preview_table(pd.DataFrame())
 
     index = min(max(sheet_index, 0), len(sheet_names) - 1)
     selected = workbook.parse(workbook.sheet_names[index])
@@ -222,11 +226,12 @@ def _extract_metadata_from_xlsx(file_bytes: bytes, sheet_index: int) -> tuple[li
         }, key=lambda entry: entry.lower())
         keywords_by_column[column] = keywords
 
-    return columns, keywords_by_column, sheet_names, import_data_module.check_excel_format(selected)
+    return columns, keywords_by_column, sheet_names, import_data_module.check_excel_format(selected), import_data_module.count_quantity_values(selected), import_data_module.preview_table(selected)
 
 
-def _excel_import_response(metadata: tuple[list[str], dict[str, list[str]], list[str], list[dict]], import_file_name: str) -> JSONResponse:
-    columns, keywords_by_column, sheet_names, format_warnings = metadata
+def _excel_import_response(metadata: ExcelMetadata, import_file_name: str, unlocked: bool) -> JSONResponse:
+    '''`unlocked` (a valid attribution key): with the data preview.'''
+    columns, keywords_by_column, sheet_names, format_warnings, value_counts, preview = metadata
     return JSONResponse({
         'success': True,
         'columns': columns,
@@ -234,6 +239,8 @@ def _excel_import_response(metadata: tuple[list[str], dict[str, list[str]], list
         'import_file_name': import_file_name,
         'sheet_names': sheet_names,
         'format_warnings': format_warnings,
+        'value_counts': value_counts,
+        **({'preview': preview} if unlocked else {}),
     })
 
 
@@ -244,7 +251,7 @@ def _extract_columns_and_keywords_from_teable(
     teable_url: str,
     api_key: str,
     verify_tls: bool = True,
-) -> tuple[list[str], dict[str, list[str]]]:
+) -> tuple[list[str], dict[str, list[str]], dict[str, int], dict]:
     # Columns come from the table's field list: records omit empty cells, so reading them from
     # records would miss columns that happen to be empty in the fetched rows.
     columns = teable_api.fetch_field_names(teable_url, api_key, verify_tls=verify_tls)
@@ -264,17 +271,29 @@ def _extract_columns_and_keywords_from_teable(
         column: sorted(values, key=lambda entry: entry.lower())
         for column, values in keywords_by_column.items()
     }
-    return columns, normalized_keywords
+    # of the fetched records (at most TEABLE_KEYWORD_RECORD_LIMIT)
+    fetched = pd.DataFrame([fields for fields in records if isinstance(fields, dict)])
+    value_counts = import_data_module.count_quantity_values(fetched)
+    # the table's field order; fields the field list lacks come last
+    preview = import_data_module.preview_table(fetched.reindex(columns=[*columns, *(column for column in fetched.columns if column not in columns)]))
+    return columns, normalized_keywords, value_counts, preview
 
 
-def _teable_import_response(teable_url: str, api_key: str, verify_tls: bool = True) -> JSONResponse:
+def _teable_import_response(teable_url: str, api_key: str, unlocked: bool, verify_tls: bool = True) -> JSONResponse:
+    '''`unlocked` (a valid attribution key): with the data preview of the fetched records.'''
     try:
-        columns, keywords_by_column = _extract_columns_and_keywords_from_teable(teable_url, api_key, verify_tls=verify_tls)
+        columns, keywords_by_column, value_counts, preview = _extract_columns_and_keywords_from_teable(teable_url, api_key, verify_tls=verify_tls)
     except teable_api.TeableError as error:
         return JSONResponse({'success': False, 'message': str(error)}, status_code=400)
     except requests.RequestException as error:
         return JSONResponse({'success': False, 'message': f'Teable request failed: {redact_paths(str(error))[:300]}'}, status_code=502)
-    return JSONResponse({'success': True, 'columns': columns, 'keywords_by_column': keywords_by_column})
+    return JSONResponse({
+        'success': True,
+        'columns': columns,
+        'keywords_by_column': keywords_by_column,
+        'value_counts': value_counts,
+        **({'preview': preview} if unlocked else {}),
+    })
 
 
 def _encode_messages_header(messages: list[str]) -> str:
@@ -347,18 +366,19 @@ async def _parse_plot_request(request: Request) -> tuple[dict[str, Any], dict[in
     raise ValueError('Content-Type must be application/json or multipart/form-data.')
 
 
+def _attribution_unlocked(request: Request) -> bool:
+    return attribution_key_valid(request.headers.get(ATTRIBUTION_KEY_HEADER))
+
+
 @app.get('/api/import-database/datasets')
-def import_database_datasets() -> JSONResponse:
-    return JSONResponse({'success': True, 'datasets': import_data_module.list_available_import_files()})
+def import_database_datasets(request: Request) -> JSONResponse:
+    '''provided datasets; the key-only ones (import_data.KEY_ONLY_PREFIX) only with the attribution key'''
+    return JSONResponse({'success': True, 'datasets': import_data_module.list_available_import_files(_attribution_unlocked(request))})
 
 
 @app.get('/api/health')
 def health() -> JSONResponse:
     return JSONResponse({'status': 'ok'})
-
-
-def _attribution_unlocked(request: Request) -> bool:
-    return attribution_key_valid(request.headers.get(ATTRIBUTION_KEY_HEADER))
 
 
 @app.post('/api/attribution-key')
@@ -482,22 +502,22 @@ async def import_database(
             if not isinstance(import_file_name_json, str) or not import_file_name_json.strip():
                 return JSONResponse({'success': False, 'message': 'Missing teable_url, API_Key, or import_file_name.'}, status_code=400)
             try:
-                metadata = await run_in_threadpool(import_data_module.import_excel_metadata, import_file_name_json, int(import_sheet_json))
+                metadata = await run_in_threadpool(import_data_module.import_excel_metadata, import_file_name_json, int(import_sheet_json), _attribution_unlocked(request))
             except Exception as error:
                 return JSONResponse({'success': False, 'message': redact_paths(f'Excel import failed: {type(error).__name__}: {error}')}, status_code=400)
-            return _excel_import_response(metadata, import_file_name_json)
-        return await run_in_threadpool(_teable_import_response, teable_url_json, api_key_json, verify_tls=verify_tls_json is not False)
+            return _excel_import_response(metadata, import_file_name_json, _attribution_unlocked(request))
+        return await run_in_threadpool(_teable_import_response, teable_url_json, api_key_json, _attribution_unlocked(request), verify_tls=verify_tls_json is not False)
 
     if file is None:
         if import_file_name:
             try:
-                metadata = await run_in_threadpool(import_data_module.import_excel_metadata, import_file_name, import_sheet)
+                metadata = await run_in_threadpool(import_data_module.import_excel_metadata, import_file_name, import_sheet, _attribution_unlocked(request))
             except Exception as error:
                 return JSONResponse({'success': False, 'message': redact_paths(f'Excel import failed: {type(error).__name__}: {error}')}, status_code=400)
-            return _excel_import_response(metadata, import_file_name)
+            return _excel_import_response(metadata, import_file_name, _attribution_unlocked(request))
         if not teable_url or not API_Key:
             return JSONResponse({'success': False, 'message': 'Missing teable_url or API_Key.'}, status_code=400)
-        return await run_in_threadpool(_teable_import_response, teable_url, API_Key)
+        return await run_in_threadpool(_teable_import_response, teable_url, API_Key, _attribution_unlocked(request))
 
     file_bytes = await file.read()
     try:
@@ -505,7 +525,7 @@ async def import_database(
     except Exception as error:
         return JSONResponse({'success': False, 'message': redact_paths(f'Excel import failed: {type(error).__name__}: {error}')}, status_code=400)
 
-    return _excel_import_response(metadata, file.filename or 'uploaded.xlsx')
+    return _excel_import_response(metadata, file.filename or 'uploaded.xlsx', _attribution_unlocked(request))
 
 
 if FRONTEND_ASSETS_DIR.is_dir() and FRONTEND_INDEX_PATH.is_file():

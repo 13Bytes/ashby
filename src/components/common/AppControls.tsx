@@ -677,6 +677,9 @@ export function MultiSelectInput({
                 />
                 {color ? <ColorSwatch color={color} /> : null}
                 <span>{option.label}</span>
+                {option.count !== undefined ? (
+                  <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400" title={t('rowsWithValue', { count: option.count })}>{option.count}</span>
+                ) : null}
               </label>
             )
           })

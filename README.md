@@ -19,7 +19,8 @@ PolyPlot turns a spreadsheet of material properties into Ashby plots: every mate
   sent with each render request; the server never stores it. A copy is cached in the browser so
   the workbook is still available after a reload.
 - **Provided datasets** – workbooks placed on the server (in `backend/material_properties`) show
-  up as a dropdown.
+  up as a dropdown. A workbook or folder whose name starts with `#` (e.g. `#Partners.xlsx`) is
+  only listed and read for holders of the attribution key (`ASHBY_ATTRIBUTION_KEY`).
 - **Teable** – paste the link to a [Teable](https://teable.io) table and an API key to plot
   straight from the database.
 
@@ -122,8 +123,8 @@ npm run backend
 | `POST /api/render-plot` | Renders one plot from the full JSON config. Returns the image; non-fatal plot messages come back in the `X-Ashby-Messages` header. |
 | `GET /api/render-status/{request_id}` | Progress of a running render. |
 | `POST /api/download-plots` | Renders several plots and returns them as a `.zip`. |
-| `POST /api/import-database` | Reads columns, keywords and sheet names from an uploaded workbook or a Teable table, without storing anything. |
-| `GET /api/import-database/datasets` | Lists the workbooks in `backend/material_properties`. |
+| `POST /api/import-database` | Reads columns, keywords and sheet names from an uploaded workbook, a provided dataset or a Teable table, without storing anything. With the attribution key it also returns the first 500 rows for the data preview. |
+| `GET /api/import-database/datasets` | Lists the workbooks in `backend/material_properties`; those starting with `#` only with the attribution key. |
 | `GET /api/health` | Health check. |
 
 ### Validation
@@ -215,4 +216,4 @@ python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
 | --- | --- | --- |
 | `PORT` | `8000` | Port of the Docker container's server. |
 | `ASHBY_MATERIAL_PROPERTIES_DIR` | `backend/material_properties` | Folder with the provided Excel datasets. |
-| `ASHBY_ATTRIBUTION_KEY` | unset | Key that unlocks the copyright and watermark switches in the editor (settings dialog). Without it, rendered plots carry "created using ashby.aerospace-lab.de" and no watermark. Unset: nobody can unlock them. Use a long random value, e.g. `openssl rand -base64 24`. |
+| `ASHBY_ATTRIBUTION_KEY` | unset | Key that unlocks the copyright and watermark switches in the editor (settings dialog). Without it, rendered plots carry "created using ashby.aerospace-lab.de" and no watermark. It also opens the provided datasets whose name starts with `#` and the data preview. Unset: nobody can unlock them. Use a long random value, e.g. `openssl rand -base64 24`. |
