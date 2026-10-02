@@ -29,8 +29,9 @@ def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
 
 
 
-def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> None:
+def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> list:
     handler = []
+    all_points = []     # clicked-point data for the frontend (figure-fraction coords), one frame's worth when frontend=True
 
     df_language = dataframe.get('language', "en")
     df_darkmode = dataframe.get('dark_mode', False)
@@ -208,12 +209,31 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
             plt.pause(.3)
 
         else:
+            # + point data for the frontend's clickable points (figure-fraction coords, y flipped to a top-left origin) +
+            for point in Graphics.points:
+                x, y = point.label_pos
+                if x is None or y is None:
+                    continue
+                fx, fy = fig.transFigure.inverted().transform(ax.transData.transform((x, y)))
+                if not (0 <= fx <= 1 and 0 <= fy <= 1):
+                    continue
+                all_points.append({
+                    'x': float(fx),
+                    'y': float(1 - fy),
+                    'label': point.label,
+                    'hierarchy': [None if category is None else str(category) for category in point.hirachie],
+                    'row': getattr(point, 'row', None),
+                })
+            # +                +
+
             os.makedirs(os.path.dirname(os.path.join('export',frame['export_file_name'])), exist_ok=True)       # mkdir
             plt.savefig(os.path.join('export', frame['export_file_name']), dpi=resolution, transparent=dataframe.get('transparent', True))     # save    # & export = true  → save at /dataframe x/frame y   or   dataframename/framename       # & ❗ ⇒  ui
             cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
             plt.close()
 
         # mpl_fig.update()
+
+    return all_points
 
 
 if __name__ == '__main__':

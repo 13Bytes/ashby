@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DataframeConfig, FrameConfig } from '../config/defaultPlotConfig'
 
+/** A clickable point on a rendered plot: `x`/`y` are fractions (0-1, top-left origin) of the image. */
+export type PlotPoint = { x: number; y: number; label: string; hierarchy: (string | null)[]; row: Record<string, unknown> | null }
+
 /** The last image of a plot and the settings it was rendered with (`key`). */
-export type PlotImage = { key: string; blob?: Blob; url?: string; messages?: string[]; error?: string }
+export type PlotImage = { key: string; blob?: Blob; url?: string; messages?: string[]; points?: PlotPoint[]; error?: string }
 
 /** Identifies a plot across moves and renames. */
 export const plotId = (dataframe: DataframeConfig, frame: FrameConfig) => `${String(dataframe._extensions.uiKey)}/${String(frame._extensions.uiKey)}`
@@ -22,12 +25,12 @@ export const renderKey = (dataframe: DataframeConfig, frame: FrameConfig, file: 
  */
 export function usePlotImages() {
   const [images, setImages] = useState<Record<string, PlotImage>>({})
-  const storeImage = useCallback((id: string, key: string, result: { blob: Blob; messages?: string[] } | { error: string }) => {
+  const storeImage = useCallback((id: string, key: string, result: { blob: Blob; messages?: string[]; points?: PlotPoint[] } | { error: string }) => {
     if ('blob' in result) {
       const url = URL.createObjectURL(result.blob)
       setImages((current) => {
         if (current[id]?.url && current[id].url !== url) URL.revokeObjectURL(current[id].url)
-        return { ...current, [id]: { key, blob: result.blob, url, messages: result.messages } }
+        return { ...current, [id]: { key, blob: result.blob, url, messages: result.messages, points: result.points } }
       })
     } else {
       // the last image stays, with the error below it, until the settings change again

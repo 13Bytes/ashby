@@ -127,7 +127,8 @@ export function toExternalConfig(config: PlotConfig): unknown {
           m: guideline.m,
           line_props: guideline.lineProps,
           fontsize: guideline.fontsize,
-          font_color: guideline.fontColor,
+          // left out: the line color
+          ...(guideline.fontColor ? { font_color: guideline.fontColor } : {}),
           label: guideline.label,
           label_above: guideline.labelAbove,
           label_rotated: guideline.labelRotated,
@@ -148,14 +149,15 @@ export function toExternalConfig(config: PlotConfig): unknown {
           axes: annotation.axes,
           marker: annotation.marker
             ? {
-                color: annotation.marker.color,
+                // left out: the text color
+                ...(annotation.marker.color ? { color: annotation.marker.color } : {}),
                 marker_symbol: annotation.marker.markerSymbol,
                 size_factor: annotation.marker.sizeFactor,
                 linewidths: annotation.marker.linewidths,
                 edgecolors: annotation.marker.edgecolors,
               }
             : undefined,
-          arrow: annotation.arrow,
+          arrow: annotation.arrow ? (({ facecolor, ...arrow }) => (facecolor ? { ...arrow, facecolor } : arrow))(annotation.arrow) : undefined,
         })),
         colored_areas: frame.coloredAreas.map(({ plotAxes, ...area }) => ({ ...area, ...(plotAxes && !area.axes ? { plot_axes: plotAxes } : {}) })),
       })),

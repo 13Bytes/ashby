@@ -11,9 +11,10 @@ import { attributionHeaders, useAttributionUnlocked } from '../../utils/attribut
 import { getCachedDatasourceFile, readDatasourceWithFallback } from '../../utils/datasourceStorage'
 import { ErrorDetails } from './DebugLog'
 import { AllPlotsGallery } from './AllPlotsGallery'
-import { plotId, renderKey, usePlotImages, type PlotImage } from '../../hooks/usePlotImages'
+import { plotId, renderKey, usePlotImages, type PlotImage, type PlotPoint } from '../../hooks/usePlotImages'
 import type { SettingsSectionId } from '../../config/settingsSections'
 import type { MissingSetting } from '../../utils/settingsStatus'
+import { PointDetailsDialog } from './PointDetailsDialog'
 
 interface Props {
   plotConfig: PlotConfig
@@ -64,7 +65,7 @@ type PlotRequestPayload = {
 }
 
 /** Successful render with `include_log`: the image as base64 plus the plot output. */
-type RenderPlotResponse = { image: string; media_type: string; messages?: string[]; log?: string }
+type RenderPlotResponse = { image: string; media_type: string; messages?: string[]; log?: string; points?: PlotPoint[] }
 
 function base64ToBlob(base64: string, mediaType: string): Blob {
   const binary = atob(base64)
@@ -263,6 +264,9 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
   const attributionUnlocked = useAttributionUnlocked()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const imageBlobRef = useRef<Blob | null>(null)
+  /** Clickable points of the current preview, and the one shown in the details dialog. */
+  const [previewPoints, setPreviewPoints] = useState<PlotPoint[]>([])
+  const [selectedPoint, setSelectedPoint] = useState<PlotPoint | null>(null)
   const [createdPlots, setCreatedPlots] = useState<RenderedPlotEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState<PreviewStatus>('idle')
@@ -349,6 +353,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       setMessages([])
       setStatus('loading')
     }
+    if (isPreview) setSelectedPoint(null)
 
     // Progress: the backend reports where the render is while we wait for it.
     const statusId = crypto.randomUUID()
@@ -393,11 +398,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       let imageBlob: Blob
       let nextMessages: string[]
       let log: string | undefined
+      let nextPoints: PlotPoint[] = []
       if (response.headers.get('Content-Type')?.includes('application/json')) {
         const payload = await response.json() as RenderPlotResponse
         imageBlob = base64ToBlob(payload.image, payload.media_type)
         nextMessages = payload.messages ?? []
         log = payload.log
+        nextPoints = payload.points ?? []
       } else {
         nextMessages = parseBackendMessages(response.headers.get('X-Ashby-Messages'))
         imageBlob = await response.blob()
@@ -408,12 +415,13 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       showMessages(nextMessages)
       addLogEntry({ level: nextMessages.length > 0 ? 'warning' : 'info', source: 'render', title: label, message: t('renderSucceeded'), messages: nextMessages, log, status: response.status, durationMs: elapsed() })
 
-      if (imageKey) storeImage(imageKey.id, imageKey.key, { blob: imageBlob, messages: nextMessages })
+      if (imageKey) storeImage(imageKey.id, imageKey.key, { blob: imageBlob, messages: nextMessages, points: nextPoints })
       const nextUrl = URL.createObjectURL(imageBlob)
       // Ignore responses for previews that were superseded by a newer request.
       if (isPreview && requestId === latestPreviewRequestRef.current) {
         imageBlobRef.current = imageBlob
         setImageUrl(nextUrl)
+        setPreviewPoints(nextPoints)
         setStatus('ok')
       } else {
         URL.revokeObjectURL(nextUrl)
@@ -434,6 +442,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       if (isPreview && requestId === latestPreviewRequestRef.current) {
         imageBlobRef.current = null
         setImageUrl(null)
+        setPreviewPoints([])
         setStatus('error')
       }
       let details = toErrorDetails(renderError, t('renderFailedGeneric'))
@@ -556,6 +565,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
     latestPreviewRequestRef.current += 1
     imageBlobRef.current = image.blob
     setImageUrl(URL.createObjectURL(image.blob))
+    setPreviewPoints(image.points ?? [])
+    setSelectedPoint(null)
     setError(null)
     setMessages(image.messages ?? [])
     setStatus('ok')
@@ -709,7 +720,26 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       ) : null}
 
       <section className="grid min-h-48 place-items-center overflow-hidden rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900">
-        {imageUrl && !isBatchMode && canRender ? <img src={imageUrl} alt={t('renderedPlotAlt')} className={`block max-w-full rounded ${imageBackgroundClassName(activeDataframeIndex)} ${expanded ? 'max-h-[calc(100svh-11rem)] w-auto' : 'h-auto'}`} /> : (
+        {imageUrl && !isBatchMode && canRender ? (
+          <div className="relative inline-block">
+            <img src={imageUrl} alt={t('renderedPlotAlt')} className={`block max-w-full rounded ${imageBackgroundClassName(activeDataframeIndex)} ${expanded ? 'max-h-[calc(100svh-11rem)] w-auto' : 'h-auto'}`} />
+            {/* Clickable markers over the plotted points, positioned by the backend's figure-fraction coords. */}
+            {previewPoints.map((point, index) => {
+              const pointTitle = point.hierarchy.filter(Boolean).join(', ') || point.label.trim() || t('pointDetailsTitle')
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setSelectedPoint(point)}
+                  aria-label={pointTitle}
+                  title={pointTitle}
+                  className="absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-transparent hover:border-brand-500 hover:bg-brand-500/25 focus-visible:border-brand-500 focus-visible:bg-brand-500/25 focus-visible:outline-none"
+                  style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }}
+                />
+              )
+            })}
+          </div>
+        ) : (
           <span className="p-6 text-center text-sm text-zinc-500">{canRender ? (loading ? t('renderingShort') : t('nothingRendered')) : t('cannotRender')}</span>
         )}
       </section>
@@ -765,6 +795,8 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
           ))}
         </div>
       ) : null}
+
+      {selectedPoint ? <PointDetailsDialog point={selectedPoint} onClose={() => setSelectedPoint(null)} /> : null}
 
       {showExport && activeDataframe ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6" onClick={(event) => { if (event.target === event.currentTarget) setShowExport(false) }}>

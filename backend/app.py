@@ -426,6 +426,7 @@ async def render_plot(request: Request) -> Response:
             'media_type': rendered_plot.media_type,
             'messages': rendered_plot.messages,
             'log': rendered_plot.log,
+            'points': rendered_plot.points,
         })
 
     response = Response(content=rendered_plot.content, media_type=rendered_plot.media_type)

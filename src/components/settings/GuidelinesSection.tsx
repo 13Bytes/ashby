@@ -126,7 +126,7 @@ export function GuidelinesSection({ activeDataframe, activeFrame, patchActiveFra
                   <Input type="number" value={guideline.labelPadding} onChange={(e) => updateGuideline(guidelineIndex, (g) => ({ ...g, labelPadding: numberValue(e.target.valueAsNumber, g.labelPadding) }))} />
                 </Field>
                 <Field label={t('fontColor')} jsonPath={`guidelines[${guidelineIndex}].font_color`} level="default" changed={Boolean(guideline.fontColor)} onReset={() => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: '' }))}>
-                  <ColorOrMaterialInput materialColors={materialColors} value={guideline.fontColor} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
+                  <ColorOrMaterialInput materialColors={materialColors} value={guideline.fontColor} same={{ label: t('colorModeSameAsLine'), value: guideline.lineProps.color }} onChange={(next) => updateGuideline(guidelineIndex, (g) => ({ ...g, fontColor: next }))} />
                 </Field>
               </div>
             </ItemCard>

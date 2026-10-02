@@ -36,5 +36,6 @@ export const DEFAULT_GUIDELINE: Pick<GuidelineConfig, 'lineProps' | 'fontsize' |
   labelPadding: 6,
 }
 export const DEFAULT_ANNOTATION_TEXT: NonNullable<AnnotationConfig['text']> = { name: '', relPos: [0, 0], color: '#111827' }
-export const DEFAULT_ANNOTATION_MARKER: NonNullable<AnnotationConfig['marker']> = { color: 'default', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }
-export const DEFAULT_ANNOTATION_ARROW: NonNullable<AnnotationConfig['arrow']> = { width: 1, facecolor: 'blue', headlength: 10, headwidth: 6, linewidth: 1 }
+// '' colors: the annotation's text color (see ColorOrMaterialInput `same`)
+export const DEFAULT_ANNOTATION_MARKER: NonNullable<AnnotationConfig['marker']> = { color: '', markerSymbol: 'o', sizeFactor: 1, linewidths: 0, edgecolors: 'black' }
+export const DEFAULT_ANNOTATION_ARROW: NonNullable<AnnotationConfig['arrow']> = { width: 1, facecolor: '', headlength: 10, headwidth: 6, linewidth: 1 }
