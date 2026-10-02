@@ -299,7 +299,7 @@ export const duplicateFrameInDataframe = (df: DataframeConfig, index: number): {
   const original = df.frames[index]
   if (!original) return null
   const clone = structuredClone(original)
-  clone.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+  clone.name = getNextTabName(df.frames.map(frameLabel), 'Frame')
   refreshUiKey(clone, 'frame')
   const included = getSelectedIndices(df.frames.length, df.createAllFrames).includes(index)
   const frames = [...df.frames]

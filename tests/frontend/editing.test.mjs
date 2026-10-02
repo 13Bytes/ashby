@@ -240,3 +240,8 @@ test('renaming an axis ID carries the frames along; an empty or taken ID waits',
     assert.equal(waiting.frames[0].xQuantity, 'density')
   }
 })
+
+test('a new plot is named after the plots as shown, unnamed ones count as "Frame n"', () => {
+  const dataframe = normalizePlotConfig({ dataframes: [{ frames: [{}, {}] }] }).dataframes[0]
+  assert.equal(duplicateFrameInDataframe(dataframe, 0).dataframe.frames[1].name, 'Frame 3')
+})
