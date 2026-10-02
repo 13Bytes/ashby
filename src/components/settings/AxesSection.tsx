@@ -1,10 +1,11 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select } from '../ui/select'
 import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../../config/defaultPlotConfig'
 import { useI18n } from '../../uiTranslations'
 import type { MultiOption } from '../../utils/appState'
+import { addAxisToDataframe, axisRenameMovesReferences, renameAxisInDataframe } from '../../utils/configEditing'
 import { Field, ItemCard, LanguageFields, MultiSelectInput } from '../common/AppControls'
 import { useOpenItems } from '../../hooks/useOpenItems'
 
@@ -33,6 +34,25 @@ export function AxesSection({
   const { t } = useI18n()
   const language = activeDataframe.language
   const openItems = useOpenItems(String(activeDataframe._extensions.uiKey))
+  /**
+   * While an ID is being edited: the name the frames still refer to, when the field is empty or holds
+   * another axis' ID for a moment. The references follow once the ID is unique again.
+   */
+  const pendingNames = useRef<Record<number, string>>({})
+  const renameAxis = (axisIndex: number, name: string) => {
+    const previousName = pendingNames.current[axisIndex] ?? activeDataframe.axes[axisIndex].name
+    if (axisRenameMovesReferences(activeDataframe, axisIndex, name, previousName) || name === previousName) delete pendingNames.current[axisIndex]
+    else pendingNames.current[axisIndex] = previousName
+    patchActiveDataframe((df) => renameAxisInDataframe(df, axisIndex, name, previousName))
+  }
+  // A dataset without axes gets two empty ones (for X and Y) when this section is shown, opened.
+  const withoutAxes = activeDataframe.axes.length === 0
+  useEffect(() => {
+    if (!withoutAxes) return
+    patchActiveDataframe((df) => (df.axes.length > 0 ? df : addAxisToDataframe(addAxisToDataframe(df))))
+    openItems.added(0)
+    openItems.added(1)
+  }, [withoutAxes, patchActiveDataframe, openItems])
   return (
     <>
       <div className="grid gap-2" data-anchor="axes">
@@ -64,7 +84,7 @@ export function AxesSection({
               <div className="grid items-stretch gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
                 <div className="grid content-start gap-4">
                   <Field label={t('axisName', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].name`} level="required" missing={!axis.name.trim()}>
-                    <Input value={axis.name} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, name: e.target.value }))} />
+                    <Input value={axis.name} onChange={(e) => renameAxis(axisIndex, e.target.value)} onBlur={() => { delete pendingNames.current[axisIndex] }} />
                   </Field>
                   <LanguageFields
                     label={t('axisLabel', { n: axisIndex + 1 })}
@@ -75,7 +95,7 @@ export function AxesSection({
                     value={(lang) => axis.labels[lang] ?? ''}
                     onChange={(lang, next) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: next } }))}
                   />
-                  <Field label={t('axisMode', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].mode`} level="default" changed={axis.mode !== 'default'}>
+                  <Field label={t('axisMode', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].mode`} level="default" changed={axis.mode !== 'default'} onReset={() => updateAxis(axisIndex, (a) => ({ ...a, mode: 'default' }))}>
                     <Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>
                       {AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
                     </Select>

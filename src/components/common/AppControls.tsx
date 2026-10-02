@@ -93,7 +93,8 @@ const EyeIcon = () => (
 )
 
 /** Small icon for a setting level with a tooltip that explains it. */
-export function LevelIcon({ level, missing, changed }: { level: SettingLevel; missing?: boolean; changed?: boolean }) {
+/** `onReset`: for a changed default setting, shown as ⭮ that sets the default again. */
+export function LevelIcon({ level, missing, changed, onReset }: { level: SettingLevel; missing?: boolean; changed?: boolean; onReset?: () => void }) {
   const { t } = useI18n()
   const tooltipId = useId()
   const { anchorRef, position, updateAlignment } = useTooltipAlignment()
@@ -114,6 +115,26 @@ export function LevelIcon({ level, missing, changed }: { level: SettingLevel; mi
       : changed
         ? 'm-0.5 h-3 w-3 bg-brand-500'
         : 'm-0.5 h-3 w-3 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-600'
+
+  if (level === 'default' && changed && onReset) {
+    return (
+      <span ref={anchorRef} className="group relative inline-flex align-middle" onPointerEnter={updateAlignment} onFocus={updateAlignment}>
+        <button
+          type="button"
+          onClick={onReset}
+          aria-label={t('resetToDefault')}
+          aria-describedby={tooltipId}
+          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[13px] leading-none text-brand-600 hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 dark:text-brand-400 dark:hover:bg-brand-950 dark:hover:text-brand-200"
+        >
+          ⭮
+        </button>
+        <TooltipBubble id={tooltipId} position={position}>
+          <strong className="block font-semibold">{t('resetToDefault')}</strong>
+          <span className="block">{t('levelChangedResetTip')}</span>
+        </TooltipBubble>
+      </span>
+    )
+  }
 
   return (
     <span ref={anchorRef} className="group relative inline-flex align-middle" onPointerEnter={updateAlignment} onFocus={updateAlignment}>
@@ -152,14 +173,14 @@ function WarningIcon({ text }: { text: string }) {
 }
 
 /** Label with the level icon and an optional help tooltip; the help text is looked up by the config path. */
-function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, changed, lang, warning }: { label: string; jsonPath: string; as?: 'label' | 'span'; level?: SettingLevel; missing?: boolean; changed?: boolean; lang?: string; warning?: string }) {
+function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, changed, onReset, lang, warning }: { label: string; jsonPath: string; as?: 'label' | 'span'; level?: SettingLevel; missing?: boolean; changed?: boolean; onReset?: () => void; lang?: string; warning?: string }) {
   const { language } = useI18n()
   const help = getFieldHelp(language, jsonPath)
   return (
     <span className="flex min-h-5 flex-wrap items-center gap-1.5">
       <Tag title={help ? undefined : jsonPath} className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</Tag>
       {lang ? <span className="rounded px-1 font-mono text-[10px] uppercase leading-4 text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700">{lang}</span> : null}
-      {level ? <LevelIcon level={level} missing={missing} changed={changed} /> : null}
+      {level ? <LevelIcon level={level} missing={missing} changed={changed} onReset={onReset} /> : null}
       {warning ? <WarningIcon text={warning} /> : null}
       {help ? <InfoTooltip label={label} text={help} jsonPath={jsonPath} /> : null}
     </span>
@@ -172,6 +193,7 @@ export function Field({
   level,
   missing,
   changed,
+  onReset,
   lang,
   otherLang,
   anchor,
@@ -190,6 +212,8 @@ export function Field({
   missing?: boolean
   /** For default settings: the value differs from the default. */
   changed?: boolean
+  /** Sets the default again; the ⭮ next to the label while `changed`. */
+  onReset?: () => void
   /** Language of a per-language text field; shown as a tag. */
   lang?: string
   /** Text field of a plot language other than the selected one (hidden in Simple mode). */
@@ -215,7 +239,7 @@ export function Field({
       data-missing={missing ? 'true' : undefined}
       data-lang-other={otherLang ? 'true' : undefined}
     >
-      <FieldLabel label={label} jsonPath={jsonPath} level={level} missing={missing} changed={changed} lang={lang} warning={warning} />
+      <FieldLabel label={label} jsonPath={jsonPath} level={level} missing={missing} changed={changed} onReset={onReset} lang={lang} warning={warning} />
       <div className={cn('grid gap-2', fill && 'min-h-0', className)}>
         {children}
       </div>
@@ -243,6 +267,7 @@ export function FieldGroup({
   level,
   missing,
   changed,
+  onReset,
   anchor,
   columns = 1,
   inline,
@@ -254,6 +279,8 @@ export function FieldGroup({
   level?: SettingLevel
   missing?: boolean
   changed?: boolean
+  /** Sets the default again (see Field). */
+  onReset?: () => void
   anchor?: string
   columns?: keyof typeof GROUP_COLUMNS
   /** Without the frame, laid out like a Field, so its inputs line up with plain fields next to it. */
@@ -273,7 +300,7 @@ export function FieldGroup({
       data-changed={level === 'default' && changed ? 'true' : undefined}
       data-missing={missing ? 'true' : undefined}
     >
-      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} warning={warning} />
+      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} onReset={onReset} warning={warning} />
       <div className={cn('grid items-center gap-x-2 gap-y-2', GROUP_COLUMNS[columns])}>{children}</div>
     </div>
   )
@@ -677,6 +704,9 @@ export function MultiSelectInput({
                 />
                 {color ? <ColorSwatch color={color} /> : null}
                 <span>{option.label}</span>
+                {option.count !== undefined ? (
+                  <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400" title={t('rowsWithValue', { count: option.count })}>{option.count}</span>
+                ) : null}
               </label>
             )
           })
@@ -692,7 +722,7 @@ export function MultiSelectInput({
           aria-expanded={expanded}
           title={expanded ? t('collapse') : t('expand')}
           onClick={onToggleExpanded}
-          className="absolute bottom-1.5 right-3.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-brand-400 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-brand-300"
+          className="absolute bottom-2 right-2.5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white/95 text-zinc-500 shadow-sm hover:border-brand-400 hover:text-brand-600 dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-400 dark:hover:text-brand-300"
         >
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}>
             <path d="M5.5 7.5l4.5 4.5 4.5-4.5" />
@@ -800,7 +830,7 @@ export function ItemCard({
   return (
     <div
       ref={rootRef}
-      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 shadow-[0_0_0_3px_rgb(139_92_246/0.12)] dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
+      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 ring-3 ring-brand-500/12 dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
     >
       <div className="flex min-w-0 items-center gap-1 pr-2">
         <button

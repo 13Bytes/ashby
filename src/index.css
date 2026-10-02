@@ -86,8 +86,8 @@ body {
 @keyframes setting-flash {
   0%,
   45% {
-    background-color: rgb(139 92 246 / 0.16);
-    box-shadow: 0 0 0 6px rgb(139 92 246 / 0.16);
+    background-color: color-mix(in oklab, var(--color-brand-500) 16%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-brand-500) 16%, transparent);
   }
   100% {
     background-color: transparent;

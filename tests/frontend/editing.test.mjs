@@ -209,3 +209,39 @@ test('per-dataframe state follows its dataframe when dataframes are reordered or
   assert.deepEqual(byDataframeIndex(['df-c', 'df-a'], files), { 0: 'c.xlsx', 1: 'a.xlsx' })
   assert.deepEqual(byDataframeIndex(['df-b'], files), {})
 })
+
+test('renaming an axis ID carries the frames along; an empty or taken ID waits', async () => {
+  const { renameAxisInDataframe } = await import('../../src/utils/configEditing.ts')
+  const config = normalizePlotConfig({
+    dataframes: [{
+      axes: [{ name: 'density', columns: [] }, { name: 'price', columns: [] }],
+      frames: [{
+        x_quantity: 'density', y_quantity: 'price', y_rel_quantity: 'density',
+        guidelines: [{ m: 1, plot_axes: ['density', 'price/density'] }],
+        annotations: [{ axes: { density: 1, price: 2 } }],
+        colored_areas: [{ axes: { density: [0, 1] }, x: [0], y: [0], color: 'red', alpha: 0.2 }],
+      }],
+    }],
+  })
+  const df = config.dataframes[0]
+  const renamed = renameAxisInDataframe(df, 0, 'rho', 'density')
+  const frame = renamed.frames[0]
+  assert.equal(renamed.axes[0].name, 'rho')
+  assert.deepEqual([frame.xQuantity, frame.yQuantity, frame.yRelQuantity], ['rho', 'price', 'rho'])
+  assert.deepEqual(frame.guidelines[0].plotAxes, ['rho', 'price/rho'])
+  assert.deepEqual(Object.keys(frame.annotations[0].axes), ['rho', 'price'])
+  assert.deepEqual(Object.keys(frame.coloredAreas[0].axes), ['rho'])
+  assert.equal(df.frames[0].xQuantity, 'density')     // the original config is unchanged
+
+  // empty for a moment, or the other axis' ID: the frames keep the old ID
+  for (const name of ['', 'price']) {
+    const waiting = renameAxisInDataframe(df, 0, name, 'density')
+    assert.equal(waiting.axes[0].name, name)
+    assert.equal(waiting.frames[0].xQuantity, 'density')
+  }
+})
+
+test('a new plot is named after the plots as shown, unnamed ones count as "Frame n"', () => {
+  const dataframe = normalizePlotConfig({ dataframes: [{ frames: [{}, {}] }] }).dataframes[0]
+  assert.equal(duplicateFrameInDataframe(dataframe, 0).dataframe.frames[1].name, 'Frame 3')
+})

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '../ui/button'
 import type { DataframeConfig } from '../../config/defaultPlotConfig'
 import { CUSTOM_SELECT_VALUE } from '../../config/uiOptions'
@@ -37,6 +37,14 @@ export function MaterialColorsSection({
   setShowGenerateColorsConfirm,
 }: Props) {
   const { t } = useI18n()
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  useEffect(() => {
+    if (!confirmDeleteAll) return
+    const timer = window.setTimeout(() => setConfirmDeleteAll(false), 3000)
+    return () => window.clearTimeout(timer)
+  }, [confirmDeleteAll])
+  // "default" (points without a material color) is kept
+  const deletableCount = Object.keys(activeDataframe.materialColors).filter((material) => material !== 'default').length
   const setColor = (material: string, color: string) =>
     patchActiveDataframe((df) => ({ ...df, materialColors: { ...df.materialColors, [material]: color } }))
 
@@ -52,7 +60,7 @@ export function MaterialColorsSection({
           value={(lang) => activeDataframe.legendTitle[lang] ?? ''}
           onChange={(lang, next) => patchActiveDataframe((df) => ({ ...df, legendTitle: { ...df.legendTitle, [lang]: next } }))}
         />
-        <Field label={t('legendPosition')} jsonPath="dataframes[i].legend_above" level="default" changed={activeDataframe.legendAbove !== DEFAULT_DATAFRAME.legendAbove}>
+        <Field label={t('legendPosition')} jsonPath="dataframes[i].legend_above" level="default" changed={activeDataframe.legendAbove !== DEFAULT_DATAFRAME.legendAbove} onReset={() => patchActiveDataframe((df) => ({ ...df, legendAbove: DEFAULT_DATAFRAME.legendAbove }))}>
           <Toggle<'right' | 'above' | 'none'>
             ariaLabel={t('legendPosition')}
             value={activeDataframe.legendAbove === null ? 'none' : activeDataframe.legendAbove ? 'above' : 'right'}
@@ -84,6 +92,24 @@ export function MaterialColorsSection({
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setShowGenerateColorsConfirm(true)}>
               {t('generateColors')}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={deletableCount === 0}
+              className={confirmDeleteAll ? 'border-red-500 bg-red-600 text-white hover:bg-red-700 dark:border-red-500 dark:bg-red-600 dark:text-white' : 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40'}
+              title={t('deleteAllColorsHint')}
+              onClick={() => {
+                if (!confirmDeleteAll) {
+                  setConfirmDeleteAll(true)
+                  return
+                }
+                setConfirmDeleteAll(false)
+                patchActiveDataframe((df) => ({ ...df, materialColors: Object.fromEntries(Object.entries(df.materialColors).filter(([key]) => key === 'default')) }))
+              }}
+            >
+              {confirmDeleteAll ? t('deleteAllColorsConfirm', { count: deletableCount }) : t('deleteAllColors')}
             </Button>
           </>
         )}

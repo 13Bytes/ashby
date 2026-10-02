@@ -6,22 +6,26 @@ import { HoverNote, ScopeTag } from '../common/AppControls'
 /** Sidebar status of a section: missing required settings, or the number of items it holds. */
 export type SectionStatus = { missing: number; items?: number }
 
-type SearchHit = { label: string; section: SettingsSectionId; element: HTMLElement; hidden: boolean }
+/** `frameIndex`: of a plot section's field. */
+type SearchHit = { label: string; section: SettingsSectionId; frameIndex?: number; element: HTMLElement; hidden: boolean }
 
 type Props = {
   mode: SettingsMode
   activeSection: SettingsSectionId
-  onSelect: (section: SettingsSectionId) => void
+  activeFrameIndex: number
+  /** `frameIndex`: the plot of a plot section. */
+  onSelect: (section: SettingsSectionId, frameIndex?: number) => void
   /** Jumps to a field found by the search. */
   onReveal: (section: SettingsSectionId, element: HTMLElement) => void
-  statusFor: (section: SettingsSectionId) => SectionStatus
+  statusFor: (section: SettingsSectionId, frameIndex?: number) => SectionStatus
   dataframeName: string
-  frameName: string
+  /** Names of the plots of the dataset. */
+  frameNames: string[]
   editorRef: RefObject<HTMLElement | null>
 }
 
-/** Settings list: search, the shared dataset sections and the sections of the active plot. */
-export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor, dataframeName, frameName, editorRef }: Props) {
+/** Settings list: search, the shared dataset sections and the sections of every plot of the dataset. */
+export function SettingsNav({ mode, activeSection, activeFrameIndex, onSelect, onReveal, statusFor, dataframeName, frameNames, editorRef }: Props) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<SearchHit[]>([])
@@ -36,12 +40,14 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
       const seen = new Set<string>()
       for (const element of editorRef.current.querySelectorAll<HTMLElement>('[data-setting]')) {
         const label = element.dataset.setting ?? ''
-        const sectionId = element.closest<HTMLElement>('[data-section-id]')?.dataset.sectionId ?? ''
+        const sectionElement = element.closest<HTMLElement>('[data-section-id]')
+        const sectionId = sectionElement?.dataset.sectionId ?? ''
         if (!label.toLowerCase().includes(needle) || !isSettingsSectionId(sectionId)) continue
-        const key = `${sectionId}|${label}`
+        const frameIndex = sectionElement?.dataset.frameIndex === undefined ? undefined : Number(sectionElement.dataset.frameIndex)
+        const key = `${sectionId}|${frameIndex ?? ''}|${label}`
         if (seen.has(key)) continue
         seen.add(key)
-        next.push({ label, section: sectionId, element, hidden: mode === 'simple' && (isHiddenInMode(sectionId, mode) || Boolean(element.closest('[data-level="default"]'))) })
+        next.push({ label, section: sectionId, frameIndex, element, hidden: mode === 'simple' && (isHiddenInMode(sectionId, mode) || Boolean(element.closest('[data-level="default"]'))) })
         if (next.length >= 12) break
       }
     }
@@ -54,10 +60,10 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
     return null
   }
 
-  const group = (scope: 'dataset' | 'plot') => (
+  const group = (scope: 'dataset' | 'plot', frameIndex?: number) => (
     <ul className="m-0 grid list-none gap-px p-0">
       {SETTINGS_SECTIONS.filter((section) => section.scope === scope).map((section) => {
-        const active = section.id === activeSection
+        const active = section.id === activeSection && (frameIndex === undefined || frameIndex === activeFrameIndex)
         if (isHiddenInMode(section.id, mode)) {
           // Not clickable in Simple mode; hovering or focusing it explains why.
           return (
@@ -80,7 +86,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
             <button
               type="button"
               aria-current={active ? 'true' : undefined}
-              onClick={() => onSelect(section.id)}
+              onClick={() => onSelect(section.id, frameIndex)}
               className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] ${active
                 ? scope === 'dataset'
                   ? 'bg-violet-100 font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200'
@@ -88,7 +94,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
                 : 'text-zinc-700 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-zinc-800'}`}
             >
               <span className="min-w-0">{t(section.titleKey)}</span>
-              {renderStatus(statusFor(section.id))}
+              {renderStatus(statusFor(section.id, frameIndex))}
             </button>
           </li>
         )
@@ -97,7 +103,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
   )
 
   return (
-    <nav aria-label={t('settings')} className="flex min-h-0 flex-col gap-4 overflow-auto border-r border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
+    <nav aria-label={t('settings')} className="flex min-h-0 flex-col gap-4 overflow-auto bg-zinc-50 p-3 dark:bg-zinc-900/50">
       <input
         type="search"
         value={query}
@@ -111,7 +117,7 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
         <ul className="m-0 grid list-none gap-px p-0">
           {hits.length === 0 ? <li className="px-2 py-1 text-xs text-zinc-500">{t('noSettingMatch', { query: query.trim() })}</li> : null}
           {hits.map((hit) => (
-            <li key={`${hit.section}|${hit.label}`}>
+            <li key={`${hit.section}|${hit.frameIndex ?? ''}|${hit.label}`}>
               <button
                 type="button"
                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-zinc-200/70 dark:hover:bg-zinc-800"
@@ -122,7 +128,9 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
               >
                 <span className="min-w-0 truncate">{hit.label}</span>
                 <span className="ml-auto shrink-0 text-[10px] text-zinc-400">
-                  {t(SETTINGS_SECTIONS.find((section) => section.id === hit.section)!.titleKey)}{hit.hidden ? ` · ${t('hiddenSuffix')}` : ''}
+                  {t(SETTINGS_SECTIONS.find((section) => section.id === hit.section)!.titleKey)}
+                  {hit.frameIndex !== undefined && frameNames.length > 1 ? ` · ${frameNames[hit.frameIndex]}` : ''}
+                  {hit.hidden ? ` · ${t('hiddenSuffix')}` : ''}
                 </span>
               </button>
             </li>
@@ -130,15 +138,24 @@ export function SettingsNav({ mode, activeSection, onSelect, onReveal, statusFor
         </ul>
       ) : (
         <>
-          <div className="grid gap-1 border-l-[3px] border-violet-500 pl-2.5">
+          {/* the scope tag above its bars: the dataset, then one bar per plot */}
+          <div className="grid justify-items-start gap-1.5">
             <ScopeTag scope="dataset">{t('datasetShared')}</ScopeTag>
-            <strong className="truncate text-xs" title={dataframeName}>{dataframeName}</strong>
-            {group('dataset')}
+            <div className="grid w-full gap-1 border-l-[3px] border-violet-500 pl-2.5">
+              <strong className="truncate text-xs" title={dataframeName}>{dataframeName}</strong>
+              {group('dataset')}
+            </div>
           </div>
-          <div className="grid gap-1 border-l-[3px] border-brand-500 pl-2.5">
+          <div className="grid justify-items-start gap-1.5">
             <ScopeTag scope="plot">{t('plotOnly')}</ScopeTag>
-            <strong className="truncate text-xs" title={frameName}>{frameName}</strong>
-            {group('plot')}
+            <div className="grid w-full gap-3">
+              {frameNames.map((frameName, frameIndex) => (
+                <div key={frameIndex} className="grid gap-1 border-l-[3px] border-brand-500 pl-2.5">
+                  <strong className={`truncate text-xs ${frameIndex === activeFrameIndex ? '' : 'font-medium text-zinc-500 dark:text-zinc-400'}`} title={frameName}>{frameName}</strong>
+                  {group('plot', frameIndex)}
+                </div>
+              ))}
+            </div>
           </div>
         </>
       )}

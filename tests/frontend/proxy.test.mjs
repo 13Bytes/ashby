@@ -71,7 +71,7 @@ test('App keeps datasource import results per dataframe', async () => {
   const source = await readSource('App.tsx')
 
   assert.match(source, /importedSources\[activeDataframeKey\]/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings \}/)
+  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload\.value_counts \?\? \{\}, preview: payload\.preview \}/)
   // Excel files and import status stay with their dataframe when dataframes are reordered or removed.
   assert.match(source, /\[selectedDataframeKey\]: cachedFile/)
   assert.match(source, /\[selectedDataframeKey\]: \{ imported: true, source: selectedSourceMode \}/)
@@ -109,7 +109,21 @@ test('scrolling through all settings sections is a setting that is off by defaul
   assert.match(app, /readStored\(SCROLL_SECTIONS_STORAGE_KEY, \(value\) => value === 'true'\)/)
   assert.match(app, /label=\{t\('scrollSections'\)\}/)
   assert.match(app, /if \(!editor \|\| !scrollSections\) return/)
-  assert.match(sections, /hidden: isHiddenInMode\(id, mode\) \|\| \(!scrollSections && activeSection !== id\)/)
+  assert.match(sections, /hidden: isHiddenInMode\(id, mode\) \|\| \(!scrollSections && \(activeSection !== id \|\| \(frameIndex !== undefined && frameIndex !== activeFrameIndex\)\)\)/)
+})
+
+test('the sidebar and the editor have the plot sections of every plot of the dataset', async () => {
+  const sections = await readSource('components/settings/ConfigSections.tsx')
+  const nav = await readSource('components/layout/SettingsNav.tsx')
+  const app = await readSource('App.tsx')
+
+  assert.match(sections, /activeDataframe\.frames\.map\(frameSections\)/)
+  assert.match(sections, /section\('hulls', frameIndex\)/)
+  assert.match(nav, /frameNames\.map\(\(frameName, frameIndex\) =>/)
+  assert.match(nav, /onSelect\(section\.id, frameIndex\)/)
+  // the scroll position and search hits select the plot of the section
+  assert.match(app, /if \(current\.dataset\.frameIndex !== undefined\) setActiveFrameIndex\(Number\(current\.dataset\.frameIndex\)\)/)
+  assert.match(app, /closest<HTMLElement>\('\[data-frame-index\]'\)/)
 })
 
 test('image output (with aspect ratio and dark mode) is a group of Text & look that the export dialog links to', async () => {
@@ -172,4 +186,26 @@ test('a duplicated tab without sessionStorage joins its workspace from the URL a
   assert.match(app, /if \(startedEmpty && getUrlWorkspaceId\(initialSearch\) === workspaceId\) \{/)
   assert.match(app, /sync\.requestConfig\(\)/)
   assert.match(app, /\(\) => lastSyncedConfigRef\.current, workspaceId\)/)
+})
+
+test('every setting marked as changed from its default can be reset with ⭮', async () => {
+  const controls = await readSource('components/common/AppControls.tsx')
+  assert.match(controls, /if \(level === 'default' && changed && onReset\)/)
+  for (const name of await readdir(path.join(projectDir, 'src', 'components', 'settings'))) {
+    const source = await readSource(`components/settings/${name}`)
+    // a changed={…} expression may span lines (FieldGroup); its onReset follows it
+    const marked = source.match(/\bchanged=\{/g)?.length ?? 0
+    const resettable = source.match(/\bonReset=\{/g)?.length ?? 0
+    assert.equal(resettable, marked, `${name}: ${marked - resettable} changed setting(s) without onReset`)
+  }
+})
+
+test('all plots are listed next to the preview, rendered only from the first edit on', async () => {
+  const gallery = await readSource('components/layout/AllPlotsGallery.tsx')
+  const plotPage = await readSource('components/layout/PlotPage.tsx')
+  assert.match(plotPage, /<AllPlotsGallery/)
+  // nothing on load: a config change after the page was used starts it, one plot at a time
+  assert.match(gallery, /if \(navigator\.userActivation\?\.hasBeenActive \?\? true\) setEdited\(true\)/)
+  assert.match(gallery, /const next = edited && autoRefresh && availableDatasets !== null && rendering === null/)
+  assert.match(gallery, /plot\.canRender && thumbnails\[plot\.id\]\?\.key !== plot\.key/)
 })

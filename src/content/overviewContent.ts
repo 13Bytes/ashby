@@ -16,6 +16,18 @@ export const LINKS = {
   github: 'https://github.com/Aerospace-Lab-e-V/',
 } as const
 
+/**
+ * The lab's bank account for donations, as on aerospace-lab.de (home page, section "Verein"; checked
+ * 2026-10-02: IBAN check digits valid, sort code and BIC as on kskbb.de). Change only together with the lab.
+ */
+export const DONATION_ACCOUNT = {
+  recipient: 'Jugendforschungszentrum Herrenberg-Gäu „Aerospace Lab“ e.V.',
+  iban: 'DE14 6035 0130 0000 0474 27',
+  bic: 'BBKRDE6BXXX',
+  bank: 'Kreissparkasse Böblingen',
+  reference: 'Spende für Ashby Plots',
+} as const
+
 /** Text with links: plain strings and linked parts. */
 export type RichText = Array<string | { text: string; href: string }>
 
@@ -26,9 +38,8 @@ export type OverviewContent = {
   lead: string
   openEditor: string
   keptNote: string
-  chartX: string
-  chartY: string
-  chartGuideline: string
+  heroPlotAlt: string
+  heroPlotDarkAlt: string
 
   whyHeading: string
   whyParagraphs: RichText[]
@@ -60,7 +71,17 @@ export type OverviewContent = {
   feedbackText: string
   donateTitle: string
   donateText: string
-  donateLink: string
+  donateButton: string
+  donateDialogText: string
+  donateRecipient: string
+  donateBank: string
+  donateReference: string
+  /** After the reference text: what else belongs in the payment reference. */
+  donateReferenceNote: string
+  donateReceipt: string
+  donateSource: RichText
+  copy: string
+  copied: string
   followTitle: string
   followText: string
   sourceTitle: string
@@ -81,9 +102,8 @@ const en: OverviewContent = {
   lead: 'PolyPlot turns a spreadsheet of material properties into Ashby plots: two properties against each other, one colored hull per material family, rendered live while you adjust it.',
   openEditor: 'Open the editor',
   keptNote: 'Your current project is kept.',
-  chartX: 'Density',
-  chartY: 'Tensile strength',
-  chartGuideline: 'σ/ρ = const',
+  heroPlotAlt: 'Example plot: tensile strength against heat deflection temperature, one colored hull per polymer family',
+  heroPlotDarkAlt: 'Example plot in dark mode: elongation at break per density against heat deflection temperature, with annotations',
 
   whyHeading: 'Why PolyPlot exists',
   whyParagraphs: [
@@ -155,8 +175,15 @@ const en: OverviewContent = {
   feedbackText: 'Found a bug, missing a feature, or just want to say something? Write to us.',
   donateTitle: 'Donate',
   donateText: 'The Aerospace Lab is a non-profit association. Donations help it run projects like this one.',
-  donateLink: 'Bank details on aerospace-lab.de',
-  followTitle: 'Follow the lab',
+  donateButton: 'Show bank details',
+  donateDialogText: 'The Aerospace Lab is a non-profit association and an out-of-school youth research centre recognised by the state. Its offers for school students have been free of charge so far. Your donation helps to run and extend them. Thank you!',
+  donateRecipient: 'Recipient',
+  donateBank: 'Bank',
+  donateReference: 'Payment reference',
+  donateSource: ['Bank details as published on ', { text: 'aerospace-lab.de', href: LINKS.donate }, '.'],
+  copy: 'Copy',
+  copied: 'Copied',
+  followTitle: 'Follow the Lab',
   followText: 'News from the Aerospace Lab and its projects.',
   sourceTitle: 'Source code',
   sourceText: 'The code of PolyPlot is on GitHub: issues and pull requests are welcome.',
@@ -176,9 +203,8 @@ const de: OverviewContent = {
   lead: 'PolyPlot macht aus einer Tabelle mit Materialeigenschaften Ashby-Plots: zwei Eigenschaften gegeneinander, eine farbige Hülle je Materialfamilie, live gerendert, während du anpasst.',
   openEditor: 'Zum Editor',
   keptNote: 'Dein aktuelles Projekt bleibt erhalten.',
-  chartX: 'Dichte',
-  chartY: 'Zugfestigkeit',
-  chartGuideline: 'σ/ρ = konst.',
+  heroPlotAlt: 'Beispielplot: Zugfestigkeit über der Verformungstemperatur, eine farbige Hülle je Polymerfamilie',
+  heroPlotDarkAlt: 'Beispielplot im Dunkelmodus: Bruchdehnung je Dichte über der Verformungstemperatur, mit Annotationen',
 
   whyHeading: 'Warum es PolyPlot gibt',
   whyParagraphs: [
@@ -250,7 +276,14 @@ const de: OverviewContent = {
   feedbackText: 'Einen Fehler gefunden, eine Funktion vermisst oder einfach etwas loswerden? Schreib uns.',
   donateTitle: 'Spenden',
   donateText: 'Das Aerospace Lab ist ein gemeinnütziger Verein. Spenden helfen, Projekte wie dieses umzusetzen.',
-  donateLink: 'Bankverbindung auf aerospace-lab.de',
+  donateButton: 'Bankverbindung anzeigen',
+  donateDialogText: 'Das Aerospace Lab ist ein gemeinnütziger Verein und ein vom Land anerkanntes außerschulisches Jugendforschungszentrum. Seine Angebote für Schülerinnen und Schüler sind bisher kostenfrei. Deine Spende hilft, sie zu betreiben und auszubauen. Vielen Dank!',
+  donateRecipient: 'Empfänger',
+  donateBank: 'Bank',
+  donateReference: 'Verwendungszweck',
+  donateSource: ['Bankverbindung wie auf ', { text: 'aerospace-lab.de', href: LINKS.donate }, ' veröffentlicht.'],
+  copy: 'Kopieren',
+  copied: 'Kopiert',
   followTitle: 'Dem Lab folgen',
   followText: 'Neuigkeiten aus dem Aerospace Lab und seinen Projekten.',
   sourceTitle: 'Quellcode',

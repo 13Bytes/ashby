@@ -319,7 +319,7 @@ const normalizeFrame = (
     'markers',
     'colored_areas',
     'coloredAreas',
-    'highlighted_hulls',
+    'highlighted_hulls',        // never implemented; dropped from older configs
     'highlightedHulls',
   ])
 
@@ -369,9 +369,6 @@ const normalizeFrame = (
         ? normalizeAnnotations(partial.markers, fallback.annotations)
         : fallback.annotations),
     coloredAreas: normalizeColoredAreas(partial.coloredAreas ?? partial.colored_areas),
-    highlightedHulls: Array.isArray(partial.highlightedHulls ?? partial.highlighted_hulls)
-      ? ((partial.highlightedHulls ?? partial.highlighted_hulls) as FrameConfig['highlightedHulls'])
-      : fallback.highlightedHulls,
     _extensions: extensions,
   }
 }

@@ -166,7 +166,7 @@ export function ConfigTabs(props: Props) {
         return (
           <div
             key={getUiKey(df, 'dataframe')}
-            className={`flex shrink-0 items-stretch rounded-lg p-px transition-shadow ${dataframeDropTarget ? 'bg-brand-500 text-white shadow-[0_0_0_3px_rgb(139_92_246/0.25)]' : isActiveDataframe ? `bg-violet-600 text-white dark:bg-violet-700 ${shared ? 'shadow-[0_0_0_3px_rgb(14_165_233/0.25)]' : ''}` : 'bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200'} ${drag?.kind === 'dataframe' && drag.dataframe === dataframeIndex ? 'opacity-50' : ''}`}
+            className={`flex shrink-0 items-stretch rounded-lg p-px transition-shadow ${dataframeDropTarget ? 'bg-brand-500 text-white ring-3 ring-brand-500/25' : isActiveDataframe ? `bg-violet-600 text-white dark:bg-violet-700 ${shared ? 'ring-3 ring-violet-500/25' : ''}` : 'bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200'} ${drag?.kind === 'dataframe' && drag.dataframe === dataframeIndex ? 'opacity-50' : ''}`}
             onDragOver={(event: DragEvent<HTMLDivElement>) => {
               if (drag?.kind === 'frame') {
                 // Anywhere else on the group (name, gaps, "+"): behind the last plot.

@@ -1,5 +1,5 @@
 import { MARGIN_SIDES, type AxisMargin, type DataframeConfig, type FrameConfig, type MarginSide } from '../../config/defaultPlotConfig'
-import { DEFAULT_MARGIN } from '../../config/settingsSections'
+import { DEFAULT_FRAME, DEFAULT_MARGIN } from '../../config/settingsSections'
 import { useAxesWarning } from '../../hooks/useAxesWarning'
 import { useI18n } from '../../uiTranslations'
 import { numberValue } from '../../utils/appState'
@@ -82,7 +82,7 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame }:
               options={[{ value: 'linear', label: t('scaleLinear') }, { value: 'log', label: t('scaleLog') }]}
             />
           </Field>
-          <Field label={t('relativeQuantity')} jsonPath={`${axis}_rel_quantity`} level="default" changed={Boolean(relQuantity)}>
+          <Field label={t('relativeQuantity')} jsonPath={`${axis}_rel_quantity`} level="default" changed={Boolean(relQuantity)} onReset={() => patchActiveFrame((c) => ({ ...c, [axis === 'x' ? 'xRelQuantity' : 'yRelQuantity']: undefined }))}>
             <Select value={relQuantity ?? ''} onChange={(e) => patchActiveFrame((c) => ({ ...c, [axis === 'x' ? 'xRelQuantity' : 'yRelQuantity']: e.target.value || undefined }))}>
               <option value="">{t('none')}</option>
               {axisOptions}
@@ -133,6 +133,7 @@ export function FrameSection({ activeFrame, activeDataframe, patchActiveFrame }:
           jsonPath="axis_margin.left"
           level="default"
           changed={marginChanged}
+          onReset={() => patchActiveFrame((c) => ({ ...c, axisMargin: structuredClone(DEFAULT_FRAME.axisMargin) }))}
           columns="responsive"
           warning={margin.absolute.length > 0 ? axesWarning(margin.plotAxes) : undefined}
         >

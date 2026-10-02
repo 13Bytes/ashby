@@ -1,4 +1,5 @@
 import io
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -26,28 +27,53 @@ try:
 except ImportError:
     EXCEL_ENGINE = 'openpyxl'
 
+# Provided datasets for holders of the attribution key only: a file or folder whose name starts with
+# this character, e.g. "#Prices.xlsx" or "#partners/Prices.xlsx". Others neither see nor read them.
+KEY_ONLY_PREFIX = '#'
 
-def _resolve_import_file_path(import_file_name: str) -> Path:
-    candidate = Path(import_file_name)
 
-    search_roots = [MATERIAL_PROPERTIES_DIR.resolve()]
-    for root in search_roots:
-        resolved_candidate = (root / candidate).resolve()
-        if root in resolved_candidate.parents and resolved_candidate.suffix.lower() == '.xlsx':
-            if resolved_candidate.is_file():
-                return resolved_candidate
+def is_key_only(relative_path: Path) -> bool:
+    return any(part.startswith(KEY_ONLY_PREFIX) for part in relative_path.parts)
+
+
+def _resolve_import_file_path(import_file_name: str, unlocked: bool = True) -> Path:
+    '''The provided dataset of that name. `unlocked`: a valid attribution key (scripts run locally have it);
+    without it a key-only dataset is reported as missing, like one that does not exist.'''
+    root = MATERIAL_PROPERTIES_DIR.resolve()
+    resolved_candidate = (root / Path(import_file_name)).resolve()
+    if (
+        root in resolved_candidate.parents
+        and resolved_candidate.suffix.lower() == '.xlsx'
+        and resolved_candidate.is_file()
+        and (unlocked or not is_key_only(resolved_candidate.relative_to(root)))
+    ):
+        return resolved_candidate
 
     raise FileNotFoundError(f"Unable to locate import file '{import_file_name}'.")
 
 
-def list_available_import_files() -> list[str]:
+def check_dataset_access(import_file_name: str, unlocked: bool) -> None:
+    '''Raises FileNotFoundError, as for a missing file, when the provided dataset needs the attribution key
+    and `unlocked` is false. A missing file is left to import_data().'''
+    if unlocked:
+        return
+    root = MATERIAL_PROPERTIES_DIR.resolve()
+    resolved_candidate = (root / Path(import_file_name)).resolve()
+    if is_key_only(Path(import_file_name)) or (root in resolved_candidate.parents and is_key_only(resolved_candidate.relative_to(root))):
+        raise FileNotFoundError(f"Unable to locate import file '{import_file_name}'.")
+
+
+def list_available_import_files(unlocked: bool = False) -> list[str]:
+    '''Provided datasets, with the key-only ones only for `unlocked` (a valid attribution key).'''
     if not MATERIAL_PROPERTIES_DIR.is_dir():
         return []
 
+    relative_paths = (path.relative_to(MATERIAL_PROPERTIES_DIR) for path in MATERIAL_PROPERTIES_DIR.rglob('*.xlsx') if path.is_file())
     return sorted(
-        path.relative_to(MATERIAL_PROPERTIES_DIR).as_posix()
-        for path in MATERIAL_PROPERTIES_DIR.rglob('*.xlsx')
-        if path.is_file()
+        path.as_posix()
+        for path in relative_paths
+        # "~$name.xlsx": the lock file Excel keeps next to an open workbook
+        if not path.name.startswith('~$') and (unlocked or not is_key_only(path))
     )
 
 
@@ -110,6 +136,28 @@ def prepare_sheet(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+PREVIEW_ROW_LIMIT = 500
+
+
+def preview_table(data: pd.DataFrame) -> dict:
+    '''The first PREVIEW_ROW_LIMIT rows for the data preview, which only holders of the attribution key get.
+    Empty cells are None, dates ISO text.'''
+    head = data.head(PREVIEW_ROW_LIMIT)
+    table = json.loads(head.to_json(orient='split', index=False, date_format='iso', default_handler=str))
+    return {'columns': [str(column) for column in data.columns], 'rows': table['data'], 'total_rows': int(len(data))}
+
+
+def count_quantity_values(data: pd.DataFrame) -> dict[str, int]:
+    '''Quantity name → number of rows with a number in its "low" or "high" column (shown in the axis column list).'''
+    counts: dict[str, int] = {}
+    for base, columns in _range_columns(data.columns).items():
+        has_value = pd.Series(False, index=data.index)
+        for column in columns.values():
+            has_value |= _to_number(data[column]).notna()
+        counts[base] = int(has_value.sum())
+    return counts
+
+
 def check_excel_format(data: pd.DataFrame) -> list[dict]:
     '''Problems of a sheet (as read, before prepare_sheet) that keep data from being plotted. Codes and
     details for the frontend, which words them.
@@ -152,9 +200,10 @@ def check_excel_format(data: pd.DataFrame) -> list[dict]:
     return warnings
 
 
-def import_excel_metadata(import_file_name: str, import_sheet: int):
-    '''Columns, text values per column, sheet names and format warnings of a provided dataset.'''
-    file_path = _resolve_import_file_path(import_file_name)
+def import_excel_metadata(import_file_name: str, import_sheet: int, unlocked: bool = True):
+    '''Columns, text values per column, sheet names, format warnings, rows with a value per quantity and
+    the preview table of a provided dataset.'''
+    file_path = _resolve_import_file_path(import_file_name, unlocked)
     xls = pd.ExcelFile(file_path, engine=EXCEL_ENGINE)
     sheet_names = xls.sheet_names
 
@@ -179,11 +228,12 @@ def import_excel_metadata(import_file_name: str, import_sheet: int):
         )
         keywords_by_column[normalized_column] = keywords
 
-    return columns, keywords_by_column, sheet_names, check_excel_format(data)
+    return columns, keywords_by_column, sheet_names, check_excel_format(data), count_quantity_values(data), preview_table(data)
 
 def import_teable(teable_url, api_key, layers, filter, axes, verify_tls=True):
     wanted_fields = columns_list(axes, layers)
-    records = teable.fetch_records(teable_url, api_key, verify_tls=verify_tls, filter_clause=filter or None)
+    # filtered here like Excel rows (by column name), not by Teable, whose filter needs field IDs
+    records = filter_data(teable.fetch_records(teable_url, api_key, verify_tls=verify_tls), filter or None)
     dataframe = pd.DataFrame(records, columns=wanted_fields)        # & raise error if _low or layer column not found
     print(f"data received successfully  (Total of {len(records)} points)")
     return dataframe

@@ -277,7 +277,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(payload['import_file_name'], UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_filament_xlsx_source(self) -> None:
-        columns, _, _, _ = _extract_metadata_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+        columns, _, _, _, _, _ = _extract_metadata_from_xlsx(FILAMENT_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
 
         self.assertGreater(len(columns), 200)
         self.assertIn('Material', columns)
@@ -306,7 +306,7 @@ class BackendApiTests(unittest.TestCase):
         self.assertEqual(payload['import_file_name'], FILAMENT_UPLOAD_FIXTURE_PATH.name)
 
     def test_extract_columns_from_spritzguss_xlsx_source(self) -> None:
-        columns, _, _, _ = _extract_metadata_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
+        columns, _, _, _, _, _ = _extract_metadata_from_xlsx(SPRITZGUSS_UPLOAD_FIXTURE_PATH.read_bytes(), 0)
 
         self.assertGreater(len(columns), 100)
         self.assertIn('Material', columns)

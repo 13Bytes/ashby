@@ -130,8 +130,7 @@
               "color": "#99f6e4",
               "alpha": 0.16
             }
-          ],
-          "highlighted_hulls": []
+          ]
         },
         {
           "name": "02-lightweight-stiffness",
@@ -176,8 +175,7 @@
               "font_size": 13
             }
           ],
-          "colored_areas": [],
-          "highlighted_hulls": []
+          "colored_areas": []
         },
         {
           "name": "03-impact-stiffness-tradeoff",
@@ -222,8 +220,7 @@
               "font_size": 13
             }
           ],
-          "colored_areas": [],
-          "highlighted_hulls": []
+          "colored_areas": []
         }
       ],
       "axes": [

@@ -1,10 +1,13 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LINKS, OVERVIEW_CONTENT, type OverviewContent } from '../../content/overviewContent'
 import { cn } from '../../lib/utils'
 import { useI18n } from '../../uiTranslations'
 import { BrandLogo } from '../common/BrandLogo'
 import { RichText, TextLink } from '../common/RichText'
 import { Button } from '../ui/button'
+import { DonateDialog } from './DonateDialog'
+import examplePlotLight from '../../../backend/docs/graphics/Ashbyplot_complete.png'
+import examplePlotDark from '../../../backend/docs/graphics/Ashbyplot_transparent.png'
 
 type ColumnKind = OverviewContent['excelLegend'][number]['kind']
 type FeatureIcon = OverviewContent['features'][number]['icon']
@@ -43,15 +46,6 @@ const KIND_SWATCH: Record<ColumnKind, string> = {
   range: 'bg-brand-200 ring-brand-400 dark:bg-brand-900 dark:ring-brand-600',
   unit: 'bg-zinc-100 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-600',
 }
-
-// Hulls of the hero chart: color, outline and a few points inside.
-const CHART_HULLS = [
-  { name: 'PA', color: '#f59e0b', path: 'M92,252 C70,212 112,164 172,176 C232,188 302,220 292,250 C282,276 112,286 92,252Z', points: [[120, 246], [168, 236], [230, 232], [262, 250]] },
-  { name: 'PC', color: '#219CD3', path: 'M140,178 C132,146 172,122 212,132 C252,142 262,176 238,196 C214,216 148,212 140,178Z', points: [[168, 170], [200, 160], [224, 182]] },
-  { name: 'PLA', color: '#10b981', path: 'M102,214 C96,194 126,184 148,194 C170,204 164,228 142,232 C120,236 106,230 102,214Z', points: [[122, 214], [144, 210]] },
-  { name: 'PPS', color: '#8b5cf6', path: 'M252,110 C262,80 332,70 370,84 C402,96 396,124 360,132 C320,140 246,136 252,110Z', points: [[284, 110], [322, 98], [360, 112]] },
-  { name: 'PEEK', color: '#f43f5e', path: 'M386,150 C380,110 400,56 414,50 C428,46 426,96 419,130 C412,166 392,186 386,150Z', points: [[404, 90], [402, 140]] },
-]
 
 const iconProps = { viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', className: 'h-5 w-5', 'aria-hidden': true } as const
 
@@ -187,35 +181,15 @@ function SectionHeading({ eyebrow, title, children }: { eyebrow?: string; title:
   )
 }
 
-/** A made-up Ashby plot in the style of the rendered ones: hulls per family, a guideline and a legend. */
+/**
+ * Two plots rendered by PolyPlot (backend/docs/graphics): the white one in light mode, the transparent
+ * dark-mode export in dark mode. Lazy, so only the one that is shown is downloaded.
+ */
 function HeroChart({ content }: { content: OverviewContent }) {
   return (
-    <figure className="m-0 rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-xl shadow-brand-900/5 backdrop-blur sm:p-5 dark:border-zinc-800 dark:bg-zinc-900/80 dark:shadow-black/30">
-      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-400">
-        {CHART_HULLS.map((hull) => (
-          <span key={hull.name} className="flex items-center gap-1.5">
-            <span className="h-2.5 w-4 rounded-sm" style={{ backgroundColor: hull.color }} />
-            {hull.name}
-          </span>
-        ))}
-      </div>
-      <svg viewBox="0 0 470 320" className="h-auto w-full" role="img" aria-label={`${content.chartY} / ${content.chartX}`}>
-        <g className="stroke-zinc-200 dark:stroke-zinc-800" strokeDasharray="3 4">
-          {[70, 130, 190, 250].map((y) => <line key={y} x1="50" x2="455" y1={y} y2={y} />)}
-          {[130, 210, 290, 370].map((x) => <line key={x} x1={x} x2={x} y1="20" y2="290" />)}
-        </g>
-        <line x1="60" y1="286" x2="440" y2="42" className="stroke-zinc-400 dark:stroke-zinc-500" strokeWidth="1.5" strokeDasharray="7 5" />
-        <text x="372" y="28" textAnchor="end" className="fill-zinc-500 text-[12px] italic dark:fill-zinc-400">{content.chartGuideline}</text>
-        {CHART_HULLS.map((hull) => (
-          <g key={hull.name}>
-            <path d={hull.path} fill={hull.color} fillOpacity="0.22" stroke={hull.color} strokeWidth="1.8" />
-            {hull.points.map(([cx, cy]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3" fill={hull.color} />)}
-          </g>
-        ))}
-        <path d="M50,20 L50,290 L455,290" fill="none" className="stroke-zinc-700 dark:stroke-zinc-300" strokeWidth="2" strokeLinecap="round" />
-        <text x="252" y="314" textAnchor="middle" className="fill-zinc-600 text-[13px] dark:fill-zinc-300">{content.chartX} →</text>
-        <text x="-155" y="30" transform="rotate(-90)" textAnchor="middle" className="fill-zinc-600 text-[13px] dark:fill-zinc-300">{content.chartY} →</text>
-      </svg>
+    <figure className="m-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl shadow-brand-900/5 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30">
+      <img src={examplePlotLight} width={6400} height={3600} loading="lazy" decoding="async" alt={content.heroPlotAlt} className="block h-auto w-full dark:hidden" />
+      <img src={examplePlotDark} width={2000} height={1000} loading="lazy" decoding="async" alt={content.heroPlotDarkAlt} className="hidden h-auto w-full dark:block" />
     </figure>
   )
 }
@@ -272,6 +246,7 @@ function ExcelDiagram({ content }: { content: OverviewContent }) {
 export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: () => void; onOpenPrivacy: () => void }) {
   const { language } = useI18n()
   const content = OVERVIEW_CONTENT[language]
+  const [showDonate, setShowDonate] = useState(false)
 
   const openButton = (
     <Button onClick={onOpenEditor} className="h-11 gap-2 px-5 text-base shadow-sm">
@@ -301,7 +276,8 @@ export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: ()
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-6xl gap-20 px-6 py-16">
+      {/* minmax(0,1fr): the wide Excel table scrolls in its box instead of widening every section on phones */}
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-20 px-6 py-16">
         {/* Motivation */}
         <section className="grid gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center">
           <div>
@@ -398,7 +374,9 @@ export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: ()
               <TextLink href={LINKS.feedback}>{LINKS.feedbackAddress}</TextLink>
             </SupportCard>
             <SupportCard icon={<HeartIcon />} title={content.donateTitle} text={content.donateText}>
-              <TextLink href={LINKS.donate}>{content.donateLink}</TextLink>
+              <button type="button" onClick={() => setShowDonate(true)} className="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-brand-700 hover:decoration-brand-400 dark:text-zinc-200 dark:decoration-zinc-600 dark:hover:text-brand-300">
+                {content.donateButton}
+              </button>
             </SupportCard>
             <SupportCard icon={<MegaphoneIcon />} title={content.followTitle} text={content.followText}>
               <div className="flex flex-wrap gap-2">
@@ -449,6 +427,7 @@ export function OverviewPage({ onOpenEditor, onOpenPrivacy }: { onOpenEditor: ()
           </nav>
         </div>
       </footer>
+      {showDonate ? <DonateDialog onClose={() => setShowDonate(false)} /> : null}
     </div>
   )
 }

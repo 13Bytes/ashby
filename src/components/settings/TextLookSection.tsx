@@ -39,7 +39,7 @@ export function TextLookSection({
   const setFont = (key: FontKey, value: number) =>
     patchActiveDataframe((current) => ({ ...current, font: { ...current.font, [key]: numberValue(value, current.font[key]) } }))
   const fontNumber = (key: FontKey, label: string, path: string) => (
-    <Field label={label} jsonPath={path} level="default" changed={font[key] !== defaultFont[key]}>
+    <Field label={label} jsonPath={path} level="default" changed={font[key] !== defaultFont[key]} onReset={() => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, [key]: defaultFont[key] } }))}>
       <Input type="number" value={font[key]} onChange={(event) => setFont(key, event.target.valueAsNumber)} />
     </Field>
   )
@@ -97,7 +97,7 @@ export function TextLookSection({
 
       <SettingsGroup title={t('fontGroup')} level="default">
         <div className="grid gap-4 @lg:grid-cols-3">
-          <Field label={t('fontStyle')} jsonPath="font.font_style" level="default" changed={font.fontStyle !== defaultFont.fontStyle}>
+          <Field label={t('fontStyle')} jsonPath="font.font_style" level="default" changed={font.fontStyle !== defaultFont.fontStyle} onReset={() => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, fontStyle: defaultFont.fontStyle } }))}>
             <Select
               value={font.fontStyle}
               onChange={(event) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, fontStyle: event.target.value as DataframeConfig['font']['fontStyle'] } }))}
@@ -105,7 +105,7 @@ export function TextLookSection({
               {FONT_STYLE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
             </Select>
           </Field>
-          <Field label={t('fontFamily')} jsonPath="font.font" level="default" changed={font.font !== defaultFont.font}>
+          <Field label={t('fontFamily')} jsonPath="font.font" level="default" changed={font.font !== defaultFont.font} onReset={() => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, font: defaultFont.font } }))}>
             <Select
               value={isKnownFontFamily ? font.font : CUSTOM_SELECT_VALUE}
               onChange={(event) => patchActiveDataframe((current) => ({ ...current, font: { ...current.font, font: event.target.value === CUSTOM_SELECT_VALUE ? '' : event.target.value } }))}

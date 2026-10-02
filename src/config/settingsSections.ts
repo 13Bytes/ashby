@@ -10,7 +10,6 @@ export const SETTINGS_SECTIONS = [
   { id: 'titleAxes', scope: 'plot', titleKey: 'secTitleAxes', introKey: 'introTitleAxes' },
   { id: 'hulls', scope: 'plot', titleKey: 'secHulls', introKey: 'introHulls' },
   { id: 'extras', scope: 'plot', titleKey: 'secExtras', introKey: 'introExtras' },
-  { id: 'json', scope: 'plot', titleKey: 'secJson', introKey: 'introJson' },
 ] as const satisfies ReadonlyArray<{ id: string; scope: 'dataset' | 'plot'; titleKey: LabelKey; introKey: LabelKey; allSettingsOnly?: boolean }>
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']

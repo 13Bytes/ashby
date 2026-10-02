@@ -154,7 +154,7 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                 )}
               </div>
               <div className="grid gap-4 @lg:grid-cols-3">
-                <FieldGroup label={t('textOffset')} jsonPath={`annotations[${annotationIndex}].text.rel_pos`} level="default" changed={(annotation.text?.relPos ?? [0, 0]).some((value) => value !== 0)} columns={2} inline>
+                <FieldGroup label={t('textOffset')} jsonPath={`annotations[${annotationIndex}].text.rel_pos`} level="default" changed={(annotation.text?.relPos ?? [0, 0]).some((value) => value !== 0)} onReset={() => patchText(annotationIndex, { relPos: [0, 0] })} columns={2} inline>
                   <GroupedField tag="X">
                     <Input type="number" aria-label={t('textOffsetX')} value={annotation.text?.relPos?.[0] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[0] ?? 0), annotation.text?.relPos?.[1] ?? 0] })} />
                   </GroupedField>
@@ -162,10 +162,10 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                     <Input type="number" aria-label={t('textOffsetY')} value={annotation.text?.relPos?.[1] ?? ''} onChange={(e) => patchText(annotationIndex, { relPos: [annotation.text?.relPos?.[0] ?? 0, numberValue(e.target.valueAsNumber, annotation.text?.relPos?.[1] ?? 0)] })} />
                   </GroupedField>
                 </FieldGroup>
-                <Field label={t('textColor')} jsonPath={`annotations[${annotationIndex}].text.color`} level="default" changed={(annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color) !== DEFAULT_ANNOTATION_TEXT.color}>
+                <Field label={t('textColor')} jsonPath={`annotations[${annotationIndex}].text.color`} level="default" changed={(annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color) !== DEFAULT_ANNOTATION_TEXT.color} onReset={() => patchText(annotationIndex, { color: DEFAULT_ANNOTATION_TEXT.color })}>
                   <ColorOrMaterialInput materialColors={materialColors} value={annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color} onChange={(color) => patchText(annotationIndex, { color })} />
                 </Field>
-                <Field label={t('fontSize')} jsonPath={`annotations[${annotationIndex}].text.font_size`} level="default" changed={annotation.text?.fontSize !== undefined}>
+                <Field label={t('fontSize')} jsonPath={`annotations[${annotationIndex}].text.font_size`} level="default" changed={annotation.text?.fontSize !== undefined} onReset={() => patchText(annotationIndex, { fontSize: undefined })}>
                   {/* Empty: the default font size below. */}
                   <Input
                     type="number"
@@ -188,21 +188,21 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
               {annotation.marker ? (
                 <div className="grid gap-4 border-t border-dashed border-zinc-300 pt-3 @lg:grid-cols-3 dark:border-zinc-700" data-level="default">
                   <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 @lg:col-span-3">{t('markerSettings')}</div>
-                  <Field label={t('markerSymbol')} jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`} level="default" changed={annotation.marker.markerSymbol !== DEFAULT_ANNOTATION_MARKER.markerSymbol}>
+                  <Field label={t('markerSymbol')} jsonPath={`annotations[${annotationIndex}].marker.marker_symbol`} level="default" changed={annotation.marker.markerSymbol !== DEFAULT_ANNOTATION_MARKER.markerSymbol} onReset={() => patchMarker(annotationIndex, { markerSymbol: DEFAULT_ANNOTATION_MARKER.markerSymbol })}>
                     <Select value={annotation.marker.markerSymbol} onChange={(e) => patchMarker(annotationIndex, { markerSymbol: e.target.value })}>
                       {MARKER_SYMBOL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}    ( {option.value} )</option>)}
                     </Select>
                   </Field>
-                  <Field label={t('markerSizeFactor')} jsonPath={`annotations[${annotationIndex}].marker.size_factor`} level="default" changed={annotation.marker.sizeFactor !== DEFAULT_ANNOTATION_MARKER.sizeFactor}>
+                  <Field label={t('markerSizeFactor')} jsonPath={`annotations[${annotationIndex}].marker.size_factor`} level="default" changed={annotation.marker.sizeFactor !== DEFAULT_ANNOTATION_MARKER.sizeFactor} onReset={() => patchMarker(annotationIndex, { sizeFactor: DEFAULT_ANNOTATION_MARKER.sizeFactor })}>
                     <Input type="number" value={annotation.marker.sizeFactor} onChange={(e) => patchMarker(annotationIndex, { sizeFactor: numberValue(e.target.valueAsNumber, annotation.marker?.sizeFactor ?? 1) })} />
                   </Field>
-                  <Field label={t('markerLineWidth')} jsonPath={`annotations[${annotationIndex}].marker.linewidths`} level="default" changed={annotation.marker.linewidths !== DEFAULT_ANNOTATION_MARKER.linewidths}>
+                  <Field label={t('markerLineWidth')} jsonPath={`annotations[${annotationIndex}].marker.linewidths`} level="default" changed={annotation.marker.linewidths !== DEFAULT_ANNOTATION_MARKER.linewidths} onReset={() => patchMarker(annotationIndex, { linewidths: DEFAULT_ANNOTATION_MARKER.linewidths })}>
                     <Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchMarker(annotationIndex, { linewidths: numberValue(e.target.valueAsNumber, annotation.marker?.linewidths ?? 0) })} />
                   </Field>
-                  <Field label={t('markerColor')} jsonPath={`annotations[${annotationIndex}].marker.color`} level="default" changed={annotation.marker.color !== DEFAULT_ANNOTATION_MARKER.color}>
+                  <Field label={t('markerColor')} jsonPath={`annotations[${annotationIndex}].marker.color`} level="default" changed={annotation.marker.color !== DEFAULT_ANNOTATION_MARKER.color} onReset={() => patchMarker(annotationIndex, { color: DEFAULT_ANNOTATION_MARKER.color })}>
                     <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.color} onChange={(next) => patchMarker(annotationIndex, { color: next })} />
                   </Field>
-                  <Field label={t('markerEdgeColor')} jsonPath={`annotations[${annotationIndex}].marker.edgecolors`} level="default" changed={annotation.marker.edgecolors !== DEFAULT_ANNOTATION_MARKER.edgecolors}>
+                  <Field label={t('markerEdgeColor')} jsonPath={`annotations[${annotationIndex}].marker.edgecolors`} level="default" changed={annotation.marker.edgecolors !== DEFAULT_ANNOTATION_MARKER.edgecolors} onReset={() => patchMarker(annotationIndex, { edgecolors: DEFAULT_ANNOTATION_MARKER.edgecolors })}>
                     <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.edgecolors} onChange={(next) => patchMarker(annotationIndex, { edgecolors: next })} />
                   </Field>
                 </div>
@@ -211,19 +211,19 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
               {annotation.arrow ? (
                 <div className="grid gap-4 border-t border-dashed border-zinc-300 pt-3 @lg:grid-cols-3 dark:border-zinc-700" data-level="default">
                   <div className="font-mono text-[11px] uppercase tracking-wider text-zinc-500 @lg:col-span-3">{t('arrowSettings')}</div>
-                  <Field label={t('arrowWidth')} jsonPath={`annotations[${annotationIndex}].arrow.width`} level="default" changed={annotation.arrow.width !== DEFAULT_ANNOTATION_ARROW.width}>
+                  <Field label={t('arrowWidth')} jsonPath={`annotations[${annotationIndex}].arrow.width`} level="default" changed={annotation.arrow.width !== DEFAULT_ANNOTATION_ARROW.width} onReset={() => patchArrow(annotationIndex, { width: DEFAULT_ANNOTATION_ARROW.width })}>
                     <Input type="number" value={annotation.arrow.width} onChange={(e) => patchArrow(annotationIndex, { width: numberValue(e.target.valueAsNumber, annotation.arrow?.width ?? 1) })} />
                   </Field>
-                  <Field label={t('arrowHeadLength')} jsonPath={`annotations[${annotationIndex}].arrow.headlength`} level="default" changed={annotation.arrow.headlength !== DEFAULT_ANNOTATION_ARROW.headlength}>
+                  <Field label={t('arrowHeadLength')} jsonPath={`annotations[${annotationIndex}].arrow.headlength`} level="default" changed={annotation.arrow.headlength !== DEFAULT_ANNOTATION_ARROW.headlength} onReset={() => patchArrow(annotationIndex, { headlength: DEFAULT_ANNOTATION_ARROW.headlength })}>
                     <Input type="number" value={annotation.arrow.headlength} onChange={(e) => patchArrow(annotationIndex, { headlength: numberValue(e.target.valueAsNumber, annotation.arrow?.headlength ?? 10) })} />
                   </Field>
-                  <Field label={t('arrowHeadWidth')} jsonPath={`annotations[${annotationIndex}].arrow.headwidth`} level="default" changed={annotation.arrow.headwidth !== DEFAULT_ANNOTATION_ARROW.headwidth}>
+                  <Field label={t('arrowHeadWidth')} jsonPath={`annotations[${annotationIndex}].arrow.headwidth`} level="default" changed={annotation.arrow.headwidth !== DEFAULT_ANNOTATION_ARROW.headwidth} onReset={() => patchArrow(annotationIndex, { headwidth: DEFAULT_ANNOTATION_ARROW.headwidth })}>
                     <Input type="number" value={annotation.arrow.headwidth} onChange={(e) => patchArrow(annotationIndex, { headwidth: numberValue(e.target.valueAsNumber, annotation.arrow?.headwidth ?? 6) })} />
                   </Field>
-                  <Field label={t('arrowLineWidth')} jsonPath={`annotations[${annotationIndex}].arrow.linewidth`} level="default" changed={annotation.arrow.linewidth !== DEFAULT_ANNOTATION_ARROW.linewidth}>
+                  <Field label={t('arrowLineWidth')} jsonPath={`annotations[${annotationIndex}].arrow.linewidth`} level="default" changed={annotation.arrow.linewidth !== DEFAULT_ANNOTATION_ARROW.linewidth} onReset={() => patchArrow(annotationIndex, { linewidth: DEFAULT_ANNOTATION_ARROW.linewidth })}>
                     <Input type="number" value={annotation.arrow.linewidth} onChange={(e) => patchArrow(annotationIndex, { linewidth: numberValue(e.target.valueAsNumber, annotation.arrow?.linewidth ?? 1) })} />
                   </Field>
-                  <Field label={t('arrowFaceColor')} jsonPath={`annotations[${annotationIndex}].arrow.facecolor`} level="default" changed={annotation.arrow.facecolor !== DEFAULT_ANNOTATION_ARROW.facecolor}>
+                  <Field label={t('arrowFaceColor')} jsonPath={`annotations[${annotationIndex}].arrow.facecolor`} level="default" changed={annotation.arrow.facecolor !== DEFAULT_ANNOTATION_ARROW.facecolor} onReset={() => patchArrow(annotationIndex, { facecolor: DEFAULT_ANNOTATION_ARROW.facecolor })}>
                     <ColorOrMaterialInput materialColors={materialColors} value={annotation.arrow.facecolor} onChange={(next) => patchArrow(annotationIndex, { facecolor: next })} />
                   </Field>
                 </div>
@@ -234,10 +234,10 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
       </div>
 
       <div className="grid gap-4 @lg:grid-cols-2">
-        <Field label={t('defaultMarkerSize')} jsonPath="annotations[0].marker_size" level="default" changed={defaults?.markerSize !== DEFAULT_ANNOTATION_SETTINGS.markerSize}>
+        <Field label={t('defaultMarkerSize')} jsonPath="annotations[0].marker_size" level="default" changed={defaults?.markerSize !== DEFAULT_ANNOTATION_SETTINGS.markerSize} onReset={() => patchAnnotation(0, (entry) => ({ ...entry, markerSize: DEFAULT_ANNOTATION_SETTINGS.markerSize }))}>
           <Input type="number" min={1} value={defaults?.markerSize ?? DEFAULT_ANNOTATION_SETTINGS.markerSize} onChange={(e) => patchAnnotation(0, (entry) => ({ ...entry, markerSize: positiveValue(e.target.valueAsNumber, entry.markerSize ?? DEFAULT_ANNOTATION_SETTINGS.markerSize!) }))} />
         </Field>
-        <Field label={t('defaultFontSize')} jsonPath="annotations[0].font_size" level="default" changed={defaults?.fontSize !== DEFAULT_ANNOTATION_SETTINGS.fontSize}>
+        <Field label={t('defaultFontSize')} jsonPath="annotations[0].font_size" level="default" changed={defaults?.fontSize !== DEFAULT_ANNOTATION_SETTINGS.fontSize} onReset={() => patchAnnotation(0, (entry) => ({ ...entry, fontSize: DEFAULT_ANNOTATION_SETTINGS.fontSize }))}>
           <Input type="number" min={1} value={defaults?.fontSize ?? DEFAULT_ANNOTATION_SETTINGS.fontSize} onChange={(e) => patchAnnotation(0, (entry) => ({ ...entry, fontSize: positiveValue(e.target.valueAsNumber, entry.fontSize ?? DEFAULT_ANNOTATION_SETTINGS.fontSize!) }))} />
         </Field>
       </div>

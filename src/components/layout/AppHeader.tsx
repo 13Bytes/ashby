@@ -89,8 +89,9 @@ export function AppHeader({ mode, setMode, openJsonEditor, setShowAbout, setShow
       )}
       <div role="group" aria-label={t('menu')} className="flex h-9 divide-x divide-zinc-300 overflow-hidden rounded-md border border-zinc-300 dark:divide-zinc-700 dark:border-zinc-700">
         <IconButton label={t('settings')} onClick={() => setShowSettings(true)}><CogIcon /></IconButton>
-        <IconButton label={t('editJson')} onClick={openJsonEditor}><JsonIcon /></IconButton>
-        <IconButton label={t('openLog')} onClick={() => setShowLog(true)}><LogIcon /></IconButton>
+        {/* JSON editor and log belong to the editor, not the overview */}
+        {showOverview ? null : <IconButton label={t('editJson')} onClick={openJsonEditor}><JsonIcon /></IconButton>}
+        {showOverview ? null : <IconButton label={t('openLog')} onClick={() => setShowLog(true)}><LogIcon /></IconButton>}
         <IconButton label={t('about')} onClick={() => setShowAbout(true)}><InfoIcon /></IconButton>
       </div>
       {showLog ? <DebugLogDialog onClose={closeLog} /> : null}

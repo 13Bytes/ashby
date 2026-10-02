@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
 import { addAxisToDataframe, addGuidelineToFrame, addLayerToFrame, generateMaterialColorsForDataframe, updateAxisInDataframe, updateGuidelineInFrame } from '../utils/configEditing'
-import { duplicateFrameInDataframe, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
+import { duplicateFrameInDataframe, frameLabel, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
   activeDataframeIndex: number
@@ -30,14 +30,16 @@ const patchDataframe = (index: number, patch: (current: DataframeConfig) => Data
   })
 }
 const patchActiveDataframe = (patch: (current: DataframeConfig) => DataframeConfig) => patchDataframe(activeDataframeIndex, patch)
-const patchActiveFrame = (patch: (current: FrameConfig) => FrameConfig) => {
+/** Patches a frame of the active dataframe. */
+const patchFrame = (frameIndex: number, patch: (current: FrameConfig) => FrameConfig) => {
   patchActiveDataframe((df) => {
-    const frame = df.frames[activeFrameIndex]
+    const frame = df.frames[frameIndex]
     if (!frame) return df
     const next = patch(frame)
-    return next === frame ? df : { ...df, frames: df.frames.map((entry, i) => (i === activeFrameIndex ? next : entry)) }
+    return next === frame ? df : { ...df, frames: df.frames.map((entry, i) => (i === frameIndex ? next : entry)) }
   })
 }
+const patchActiveFrame = (patch: (current: FrameConfig) => FrameConfig) => patchFrame(activeFrameIndex, patch)
 const toggleDataframeGeneration = (index: number, enabled: boolean) => {
   setPlotConfig((current) => ({ ...current, createAllDataframes: toggleIndexSelection(current.dataframes.length, current.createAllDataframes, index, enabled) }))
 }
@@ -73,7 +75,7 @@ const addFrame = (dataframeIndex: number = activeDataframeIndex) => {
     const df = current.dataframes[dataframeIndex]
     if (!df) return current
     const next = structuredClone(df.frames[0])
-    next.name = getNextTabName(df.frames.map((frame) => frame.name), 'Frame')
+    next.name = getNextTabName(df.frames.map(frameLabel), 'Frame')
     refreshUiKey(next, 'frame')
     const nextFrames = [...df.frames, next]
     setActiveDataframeIndex(dataframeIndex)
@@ -238,6 +240,7 @@ const removeAxis = (axisIndex: number) => {
     moveFrame,
     patchActiveDataframe,
     patchActiveFrame,
+    patchFrame,
     patchDataframe,
     removeAxis,
     removeDataframe,

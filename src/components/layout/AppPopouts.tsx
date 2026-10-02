@@ -322,7 +322,7 @@ function JsonEditorPopout({
     <PopoutShell
       panelClassName={cn(
         'overflow-hidden border-zinc-700 p-0 dark:bg-zinc-950',
-        jsonFullscreen ? 'h-[96vh] w-[96vw] max-w-none' : 'max-h-[85vh] max-w-4xl',
+        jsonFullscreen ? 'h-[96vh] w-[96vw] max-w-none' : 'h-[92vh] max-w-4xl',
       )}
     >
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
@@ -336,7 +336,7 @@ function JsonEditorPopout({
           </Button>
         </div>
       </div>
-      <div className={cn('relative', jsonFullscreen ? 'h-[calc(96vh-7.5rem)]' : 'h-[70vh]')}>
+      <div className={cn('relative', jsonFullscreen ? 'h-[calc(96vh-7.5rem)]' : 'h-[82vh]')}>
         <pre
           ref={jsonOverlayRef}
           aria-hidden

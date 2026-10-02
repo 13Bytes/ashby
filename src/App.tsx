@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type KeyboardEvent } from 'react'
 import { PlotPage } from './components/layout/PlotPage'
 import { Alert, TimedAlert } from './components/ui/alert'
 import { Button } from './components/ui/button'
@@ -9,15 +9,17 @@ import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
 import { AppPopouts, SettingsRow } from './components/layout/AppPopouts'
 import { AttributionKeySetting } from './components/layout/AttributionKeySetting'
-import { checkAttributionKey, readAttributionKey, setAttributionKey } from './utils/attributionKey'
+import { layerIncludedKeywords } from './utils/configEditing'
+import { attributionHeaders, checkAttributionKey, readAttributionKey, setAttributionKey, useAttributionUnlocked } from './utils/attributionKey'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
 import { AppHeader } from './components/layout/AppHeader'
 import { OverviewPage } from './components/overview/OverviewPage'
 import { PrivacyDialog } from './components/overview/PrivacyDialog'
+import type { DataPreview } from './components/settings/DataPreviewDialog'
 import { ConfigSections } from './components/settings/ConfigSections'
 import { ConfigTabs } from './components/layout/ConfigTabs'
 import { Toggle, Switch } from './components/common/AppControls'
-import { byDataframeIndex, dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
+import { byDataframeIndex, dataframeLabel, frameLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
@@ -28,6 +30,7 @@ import { addLogEntry } from './utils/debugLog'
 import { SETTINGS_SECTIONS, isHiddenInMode, isSettingsSectionId, type SettingsMode, type SettingsSectionId } from './config/settingsSections'
 import { getDataframeMissing, getFrameMissing } from './utils/settingsStatus'
 import { SettingsContext } from './utils/settingsContext'
+import { ResizeDivider } from './components/layout/ResizeDivider'
 import { SettingsNav, type SectionStatus } from './components/layout/SettingsNav'
 import { cn } from './lib/utils'
 import { describeFormatWarning, parseFormatWarnings, type ExcelFormatWarning } from './utils/excelFormat'
@@ -37,23 +40,28 @@ type AlertTone = 'success' | 'warning' | 'error'; interface AlertState { tone: A
 const NOTICE_SECONDS: Record<AlertTone, number> = { success: 6, warning: 15, error: 15 }
 type PlotAction = 'preview-current' | 'create-all'
 
-type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown }
+type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown; value_counts?: Record<string, number>; preview?: DataPreview }
 /** What the last datasource import of a dataframe returned; kept per dataframe (by UI key). */
-type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[] }
+/** `valueCounts`: rows with a value per axis column (quantity); `preview`: the first rows, sent with the attribution key only. */
+type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[]; valueCounts: Record<string, number>; preview?: DataPreview }
 const EMPTY_KEYWORDS: Record<string, string[]> = {}
 const EMPTY_FORMAT_WARNINGS: ExcelFormatWarning[] = []
 
 const CONFIG_STORAGE_KEY = 'ashby-plot-config'
 const SETTINGS_MODE_STORAGE_KEY = 'ashby-settings-mode'
 const PREVIEW_WIDTH_STORAGE_KEY = 'ashby-preview-width'
+const NAV_WIDTH_STORAGE_KEY = 'ashby-nav-width'
 const AUTO_REFRESH_STORAGE_KEY = 'ashby-auto-refresh'
 const SCROLL_SECTIONS_STORAGE_KEY = 'ashby-scroll-sections'
 /** URL flag of tabs opened from a plot (middle-click): they start in the editor instead of the overview. */
 const VIEW_URL_PARAM = 'view'
 const DEFAULT_PREVIEW_WIDTH = 460
 const MIN_PREVIEW_WIDTH = 280
-/** Width kept for the settings list and the editor when the preview is dragged wider. */
-const MIN_EDITOR_AREA_WIDTH = 240 + 440
+const DEFAULT_NAV_WIDTH = 240
+const MIN_NAV_WIDTH = 180
+const MAX_NAV_WIDTH = 480
+/** Width kept for the editor when the settings list or the preview is dragged wider (+ the 1px and 9px dividers). */
+const MIN_EDITOR_WIDTH = 440 + 10
 
 /** Identifies what an import of a dataframe read, to skip importing the same source again. */
 const sourceSignature = (sourceMode: SourceMode, fileName: string | undefined, sheet: number) => `${sourceMode}:${fileName ?? ''}:${sheet}`
@@ -134,7 +142,7 @@ function App() {
   const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
-  const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
+  const [expandedLayerKeywordsByFrame, setExpandedLayerKeywordsByFrame] = useState<Record<string, Record<number, boolean>>>({})
   // Datasource state is kept per dataframe UI key, so it stays with its dataframe when dataframes
   // are reordered, moved or removed; the index-keyed views below are derived from it.
   const [importedStatusByKey, setImportedStatusByKey] = useState<Record<string, { imported: boolean; source: SourceMode }>>({})
@@ -152,11 +160,15 @@ function App() {
   const [activeSection, setActiveSection] = useState<SettingsSectionId>('data')
   const [shownDefaults, setShownDefaults] = useState<ReadonlySet<SettingsSectionId>>(() => new Set())
   const [previewWidth, setPreviewWidth] = useState(() => readStored(PREVIEW_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_PREVIEW_WIDTH))
+  const [navWidth, setNavWidth] = useState(() => readStored(NAV_WIDTH_STORAGE_KEY, (value) => Number(value) || DEFAULT_NAV_WIDTH))
   const [autoRefresh, setAutoRefresh] = useState(() => readStored(AUTO_REFRESH_STORAGE_KEY, (value) => value !== 'false'))
   /** All settings sections in one scrollable column instead of one section at a time. */
   const [scrollSections, setScrollSections] = useState(() => readStored(SCROLL_SECTIONS_STORAGE_KEY, (value) => value === 'true'))
   const editorRef = useRef<HTMLElement | null>(null)
   const datasetsLoadRef = useRef<'idle' | 'loading' | 'loaded' | 'failed'>('idle')
+  /** Whether the dataset catalog was loaded with the attribution key, which also lists the key-only datasets. */
+  const datasetsUnlockedRef = useRef(false)
+  const attributionUnlocked = useAttributionUnlocked()
   const pinnedSectionRef = useRef<SettingsSectionId | null>(null)
   const workRef = useRef<HTMLDivElement | null>(null)
   const activeDataframe = plotConfig.dataframes[activeDataframeIndex] ?? plotConfig.dataframes[0]
@@ -184,7 +196,7 @@ function App() {
     () => (activeImportedSource
       ? getAxisBasesFromColumns(availableColumns)
       : [...new Set(activeDataframe.axes.flatMap((axis) => axis.columns))].sort((a, b) => a.localeCompare(b))
-    ).map((column) => ({ value: column, label: column })),
+    ).map((column) => ({ value: column, label: column, count: activeImportedSource?.valueCounts[column] })),
     [activeDataframe.axes, activeImportedSource, availableColumns],
   )
   const layerNameOptions = useMemo(() => {
@@ -225,21 +237,8 @@ function App() {
   // Keywords a layer's whitelist/blacklist selection actually includes, across every frame of this
   // dataframe — used to populate a material-color entry for each of them.
   const includedLayerKeywords = useMemo(() => {
-    const included = new Set<string>()
-    for (const frame of activeDataframe.frames) {
-      for (const layer of frame.layers) {
-        const column = layer.name?.trim()
-        if (!column) continue
-        const sourceKeywords = (availableKeywordsByColumn[column] ?? []).length > 0
-          ? availableKeywordsByColumn[column]
-          : availableWhitelistKeywords.map((option) => option.value)
-        const selected = new Set(layer.whitelist ?? [])
-        for (const keyword of sourceKeywords) {
-          const isIncluded = layer.whitelistFlag ? selected.has(keyword) : !selected.has(keyword)
-          if (isIncluded) included.add(keyword)
-        }
-      }
-    }
+    const fallbackKeywords = availableWhitelistKeywords.map((option) => option.value)
+    const included = new Set(activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layerIncludedKeywords(layer, availableKeywordsByColumn, fallbackKeywords))))
     return [...included].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn, availableWhitelistKeywords])
   const missingDatasourceDataframes = useMemo(
@@ -416,14 +415,17 @@ function App() {
       window.clearInterval(interval)
     }
   }, [])
-  // The dataset catalog; loaded again once the backend becomes available if the first try failed.
+  // The dataset catalog; loaded again once the backend becomes available if the first try failed, and
+  // after unlocking or locking with the attribution key (key-only datasets).
   // One request at a time: a request in flight is not cancelled when the backend status changes.
   useEffect(() => {
-    if (backendAvailable === false || datasetsLoadRef.current === 'loading' || datasetsLoadRef.current === 'loaded') return
+    const current = datasetsLoadRef.current === 'loaded' && datasetsUnlockedRef.current === attributionUnlocked
+    if (backendAvailable === false || datasetsLoadRef.current === 'loading' || current) return
     datasetsLoadRef.current = 'loading'
+    datasetsUnlockedRef.current = attributionUnlocked
     const loadDatasets = async () => {
       try {
-        const response = await fetch('/api/import-database/datasets', { cache: 'no-store' })
+        const response = await fetch('/api/import-database/datasets', { cache: 'no-store', headers: attributionHeaders() })
         const payload = await response.json().catch(() => ({})) as { datasets?: unknown }
         datasetsLoadRef.current = response.ok ? 'loaded' : 'failed'
         setAvailableDatasets(Array.isArray(payload.datasets) ? payload.datasets.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [])
@@ -433,7 +435,7 @@ function App() {
       }
     }
     void loadDatasets()
-  }, [backendAvailable])
+  }, [attributionUnlocked, backendAvailable])
   useEffect(() => {
     let cancelled = false
 
@@ -496,7 +498,7 @@ function App() {
     }
   }, [showJson])
   const plotConfigActions = usePlotConfigActions({ activeDataframeIndex, activeFrameIndex, setActiveDataframeIndex, setActiveFrameIndex, setPlotConfig, setShowGenerateColorsConfirm })
-  const { addAxis, addDataframe, addFrame, addGuideline, addLayer, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrame, patchActiveDataframe, patchActiveFrame, patchDataframe, removeAxis, removeDataframe, removeFrame, reorderDataframes, toggleDataframeGeneration, toggleFrameGeneration, updateAxis, updateGuideline } = plotConfigActions
+  const { addAxis, addDataframe, addFrame, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrame, patchActiveDataframe, patchDataframe, patchFrame, removeAxis, removeDataframe, removeFrame, reorderDataframes, toggleDataframeGeneration, toggleFrameGeneration, updateAxis } = plotConfigActions
   const importDatabase = async (file?: File) => {
     setImportInProgress(true)
     const selectedDataframe = activeDataframe
@@ -511,7 +513,8 @@ function App() {
       }
       const response = await fetchBackend('/api/import-database', {
         method: 'POST',
-        headers: selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : undefined,
+        // the key opens key-only provided datasets
+        headers: { ...(selectedSourceMode === 'teable' ? { 'Content-Type': 'application/json' } : {}), ...attributionHeaders() },
         body:
           selectedSourceMode === 'teable'
             ? JSON.stringify({
@@ -602,7 +605,7 @@ function App() {
       }))
       setImportedSources((current) => ({
         ...current,
-        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames, formatWarnings },
+        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload.value_counts ?? {}, preview: payload.preview },
       }))
       importedSignaturesRef.current.set(selectedDataframeKey, sourceSignature(selectedSourceMode, payload.import_file_name ?? file?.name ?? selectedDataframe.importFileName, selectedDataframe.importSheet))
       const messageParts = [
@@ -865,6 +868,8 @@ function App() {
     // Jumping to a setting of a section that Simple mode hides (search, links) switches to All settings.
     if (isHiddenInMode(section, settingsMode)) changeSettingsMode('all')
     setActiveSection(section)
+    const frameIndex = element.closest<HTMLElement>('[data-frame-index]')?.dataset.frameIndex
+    if (frameIndex !== undefined) setActiveFrameIndex(Number(frameIndex))
     pinnedSectionRef.current = section
     if (element.closest('[data-level="default"]')) {
       setShownDefaults((current) => (current.has(section) ? current : new Set([...current, section])))
@@ -879,22 +884,27 @@ function App() {
       element.addEventListener('animationend', () => element.classList.remove('setting-flash'), { once: true })
     }, 50)
   }, [settingsMode, changeSettingsMode])
-  const goTo = useCallback((section: SettingsSectionId, anchor?: string) => {
+  /** `frameIndex`: for a plot section, the plot to show it of (default: the active plot). */
+  const goTo = useCallback((section: SettingsSectionId, anchor?: string, frameIndex?: number) => {
     if (isHiddenInMode(section, settingsMode)) changeSettingsMode('all')
     setActiveSection(section)
+    if (frameIndex !== undefined) setActiveFrameIndex(frameIndex)
     // Keep the clicked section highlighted even if the column cannot scroll it to the top (the last ones).
     pinnedSectionRef.current = section
+    // every plot has its own plot sections
+    const isPlotSection = SETTINGS_SECTIONS.some((entry) => entry.id === section && entry.scope === 'plot')
+    const sectionSelector = `[data-section-id="${section}"]${isPlotSection ? `[data-frame-index="${frameIndex ?? activeFrameIndex}"]` : ''}`
     if (!anchor) {
-      if (scrollSections) editorRef.current?.querySelector(`[data-section-id="${section}"]`)?.scrollIntoView({ block: 'start' })
+      if (scrollSections) editorRef.current?.querySelector(sectionSelector)?.scrollIntoView({ block: 'start' })
       else editorRef.current?.scrollTo({ top: 0 })
       return
     }
-    const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`[data-section-id="${section}"] [data-anchor="${anchor}"]`) ?? [])]
+    const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`${sectionSelector} [data-anchor="${anchor}"]`) ?? [])]
     // Prefer the field that is visible in the current mode (e.g. the Simple-mode shortcut).
     // (A field of a section that is still hidden has no layout yet.)
     const target = candidates.find((element) => element.getClientRects().length > 0 || element.closest('[data-section-id]')?.hasAttribute('hidden')) ?? candidates[0]
     if (target) revealSetting(section, target)
-  }, [revealSetting, scrollSections, settingsMode, changeSettingsMode])
+  }, [revealSetting, scrollSections, settingsMode, changeSettingsMode, activeFrameIndex])
   // In the scrolling column the sidebar follows the scroll position: the active section is the last one whose top has
   // passed the upper quarter of the editor column.
   useEffect(() => {
@@ -905,19 +915,16 @@ function App() {
       frame = 0
       if (pinnedSectionRef.current) return
       const line = editor.getBoundingClientRect().top + editor.clientHeight / 4
-      let current: SettingsSectionId | null = null
+      let current: HTMLElement | null = null
       // Sections hidden in Simple mode have no position.
-      for (const element of editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')) {
-        const id = element.dataset.sectionId ?? ''
-        if (!isSettingsSectionId(id)) continue
-        if (current === null || element.getBoundingClientRect().top <= line) current = id
+      const sections = [...editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')].filter((element) => isSettingsSectionId(element.dataset.sectionId ?? ''))
+      for (const element of sections) {
+        if (current === null || element.getBoundingClientRect().top <= line) current = element
       }
-      if (editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 2) {
-        const sections = editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')
-        const last = sections[sections.length - 1]?.dataset.sectionId ?? ''
-        if (isSettingsSectionId(last)) current = last
-      }
-      if (current) setActiveSection(current)
+      if (editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 2) current = sections[sections.length - 1] ?? current
+      if (!current) return
+      setActiveSection(current.dataset.sectionId as SettingsSectionId)
+      if (current.dataset.frameIndex !== undefined) setActiveFrameIndex(Number(current.dataset.frameIndex))
     }
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
     // A scroll by the user (not by a jump from the sidebar) releases the pinned section.
@@ -935,6 +942,12 @@ function App() {
     if (dataframeIndex !== activeDataframeIndex) setExpandedAxisColumns({})
     setActiveDataframeIndex(dataframeIndex)
     setActiveFrameIndex(frameIndex)
+    // In the scrolling column a plot section of the plot shown before stays in view, and the scroll
+    // position would select that plot again: show the same section of the picked plot.
+    if (scrollSections && dataframeIndex === activeDataframeIndex && frameIndex !== activeFrameIndex && activeSectionScope === 'plot') {
+      pinnedSectionRef.current = activeSection
+      editorRef.current?.querySelector(`[data-section-id="${activeSection}"][data-frame-index="${frameIndex}"]`)?.scrollIntoView({ block: 'start' })
+    }
   }
   const isSourceFileAvailable = (dataframeIndex: number) => {
     const dataframe = plotConfig.dataframes[dataframeIndex]
@@ -945,42 +958,36 @@ function App() {
     return dataframe ? getDataframeMissing(dataframe, availableDatasets ?? [], isSourceFileAvailable(dataframeIndex)) : []
   }
   const activeDataframeMissing = dataframeMissing(activeDataframeIndex)
-  const activeFrameMissing = getFrameMissing(activeFrame)
-  const activeMissing = [...activeDataframeMissing, ...activeFrameMissing]
-  const sectionStatus = (section: SettingsSectionId): SectionStatus => {
-    const base: SectionStatus = { missing: activeMissing.filter((entry) => entry.section === section).length }
+  const activeMissing = [...activeDataframeMissing, ...getFrameMissing(activeFrame)]
+  /** `frameIndex`: the plot of a plot section (default: the active plot). */
+  const sectionStatus = (section: SettingsSectionId, frameIndex = activeFrameIndex): SectionStatus => {
+    const frame = activeDataframe.frames[frameIndex] ?? activeFrame
+    const base: SectionStatus = { missing: [...activeDataframeMissing, ...getFrameMissing(frame)].filter((entry) => entry.section === section).length }
     if (section === 'axisDefs') {
       const incomplete = activeDataframe.axes.filter((axis) => !axis.name.trim() || axis.columns.length === 0).length
       return { ...base, missing: activeDataframe.axes.length === 0 ? 1 : incomplete }
     }
-    if (section === 'extras') return { ...base, items: activeFrame.coloredAreas.length + activeFrame.guidelines.length + Math.max(0, activeFrame.annotations.length - 1) }
+    if (section === 'extras') return { ...base, items: frame.coloredAreas.length + frame.guidelines.length + Math.max(0, frame.annotations.length - 1) }
     return base
   }
   const activeSectionScope = SETTINGS_SECTIONS.find((section) => section.id === activeSection)?.scope
 
-  // Preview width: dragged with the divider, reset by double-click, kept in localStorage.
-  const clampPreviewWidth = (width: number) => {
-    const available = workRef.current?.clientWidth ?? window.innerWidth
-    return Math.round(Math.min(Math.max(MIN_PREVIEW_WIDTH, available - MIN_EDITOR_AREA_WIDTH), Math.max(MIN_PREVIEW_WIDTH, width)))
-  }
+  // Widths of the settings list and the preview: dragged with the dividers, reset by double-click, kept in localStorage.
+  // Each keeps the editor between them at least MIN_EDITOR_WIDTH wide.
+  const workBox = () => workRef.current?.getBoundingClientRect() ?? { left: 0, right: window.innerWidth, width: window.innerWidth }
+  const clampPreviewWidth = (width: number) =>
+    Math.round(Math.min(Math.max(MIN_PREVIEW_WIDTH, workBox().width - navWidth - MIN_EDITOR_WIDTH), Math.max(MIN_PREVIEW_WIDTH, width)))
+  const clampNavWidth = (width: number) =>
+    Math.round(Math.min(MAX_NAV_WIDTH, Math.max(MIN_NAV_WIDTH, workBox().width - previewWidth - MIN_EDITOR_WIDTH), Math.max(MIN_NAV_WIDTH, width)))
   const commitPreviewWidth = (width: number) => {
     const next = clampPreviewWidth(width)
     setPreviewWidth(next)
     writeStored(PREVIEW_WIDTH_STORAGE_KEY, String(next))
   }
-  const startPreviewResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    const handle = event.currentTarget
-    handle.setPointerCapture(event.pointerId)
-    const right = workRef.current?.getBoundingClientRect().right ?? window.innerWidth
-    const move = (moveEvent: PointerEvent) => setPreviewWidth(clampPreviewWidth(right - moveEvent.clientX - 4))
-    const stop = (upEvent: PointerEvent) => {
-      handle.removeEventListener('pointermove', move)
-      handle.removeEventListener('pointerup', stop)
-      commitPreviewWidth(right - upEvent.clientX - 4)
-    }
-    handle.addEventListener('pointermove', move)
-    handle.addEventListener('pointerup', stop)
+  const commitNavWidth = (width: number) => {
+    const next = clampNavWidth(width)
+    setNavWidth(next)
+    writeStored(NAV_WIDTH_STORAGE_KEY, String(next))
   }
 
   const tabProps = {
@@ -1013,7 +1020,8 @@ function App() {
       setPlotActionNonce((current) => current + 1)
     },
   }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addAxis, addPlotLanguage, availableAxisColumns, availableColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, dataPreview: attributionUnlocked ? activeImportedSource?.preview : undefined, attributionUnlocked, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywordsByFrame, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywordsByFrame, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateLanguages, uploadInputRef,
+    onActivateFrame: setActiveFrameIndex,
     sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
@@ -1100,43 +1108,46 @@ function App() {
         ) : null}
         <div
           ref={workRef}
-          style={{ '--preview-width': `${previewWidth}px` } as CSSProperties}
-          className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)_9px_var(--preview-width)]"
+          style={{ '--nav-width': `${navWidth}px`, '--preview-width': `${previewWidth}px` } as CSSProperties}
+          className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[var(--nav-width)_1px_minmax(0,1fr)_9px_var(--preview-width)]"
         >
           <SettingsNav
             mode={settingsMode}
             activeSection={activeSection}
-            onSelect={(section) => goTo(section)}
+            activeFrameIndex={activeFrameIndex}
+            onSelect={(section, frameIndex) => goTo(section, undefined, frameIndex)}
             onReveal={revealSetting}
             statusFor={sectionStatus}
             dataframeName={dataframeLabel(activeDataframe, activeDataframeIndex)}
-            frameName={activeFrame.name || `Frame ${activeFrameIndex + 1}`}
+            frameNames={activeDataframe.frames.map(frameLabel)}
             editorRef={editorRef}
+          />
+          <ResizeDivider
+            label={t('resizeNav')}
+            hint={t('resizeNavHint')}
+            width={navWidth}
+            widthAt={(clientX) => clientX - workBox().left}
+            growKey="ArrowRight"
+            onResize={(width) => setNavWidth(clampNavWidth(width))}
+            onCommit={commitNavWidth}
+            defaultWidth={DEFAULT_NAV_WIDTH}
+            thin
           />
           <main ref={editorRef} className="min-h-0 min-w-0 overflow-auto px-6 pb-10 pt-5">
             <div className="@container mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
               <ConfigSections {...sectionProps} />
             </div>
           </main>
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label={t('resizePreview')}
-            aria-valuenow={previewWidth}
-            tabIndex={0}
-            title={t('resizePreviewHint')}
-            onPointerDown={startPreviewResize}
-            onDoubleClick={() => commitPreviewWidth(DEFAULT_PREVIEW_WIDTH)}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-                event.preventDefault()
-                commitPreviewWidth(previewWidth + (event.key === 'ArrowLeft' ? 24 : -24))
-              }
-            }}
-            className="group hidden cursor-col-resize touch-none place-items-center border-x border-zinc-200 bg-zinc-100 focus-visible:outline-none lg:grid dark:border-zinc-800 dark:bg-zinc-900"
-          >
-            <span className="h-10 w-1 rounded-full bg-zinc-300 group-hover:bg-brand-500 group-focus-visible:bg-brand-500 dark:bg-zinc-700" />
-          </div>
+          <ResizeDivider
+            label={t('resizePreview')}
+            hint={t('resizePreviewHint')}
+            width={previewWidth}
+            widthAt={(clientX) => workBox().right - clientX - 4}
+            growKey="ArrowLeft"
+            onResize={(width) => setPreviewWidth(clampPreviewWidth(width))}
+            onCommit={commitPreviewWidth}
+            defaultWidth={DEFAULT_PREVIEW_WIDTH}
+          />
           <PlotPage plotConfig={plotConfig} configBaseName={configBaseName} activeDataframeIndex={activeDataframeIndex} activeFrameIndex={activeFrameIndex} plotAction={plotAction} plotActionNonce={plotActionNonce} datasourceFilesByDataframe={datasourceFilesByDataframe} availableDatasets={availableDatasets}
             missing={activeMissing}
             onJump={goTo}
@@ -1145,6 +1156,7 @@ function App() {
               setAutoRefresh(next)
               writeStored(AUTO_REFRESH_STORAGE_KEY, String(next))
             }}
+            onSelectPlot={selectPlot}
           />
         </div>
       </>)}

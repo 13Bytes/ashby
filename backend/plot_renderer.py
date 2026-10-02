@@ -22,6 +22,7 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 import matplotlib.pyplot as plt
 
 from . import plot
+from .import_data import check_dataset_access
 from .security import MAX_QUEUED_RENDERS, apply_attribution, redact_paths, sanitize_render_config
 
 
@@ -254,6 +255,9 @@ def _render_plot_image(
         try:
             with redirect_stdout(plot_output), redirect_stderr(plot_output):
                 source = (data_sources or {}).get(dataframe_index)
+                # a provided dataset (no Teable URL, no uploaded file, as in import_data()) may need the key
+                if dataframe.get('teable_url') is None and source is None and dataframe.get('import_file_name') is not None:
+                    check_dataset_access(dataframe['import_file_name'], attribution_unlocked)
                 plot.main(
                     dataframe,
                     interactive=False,

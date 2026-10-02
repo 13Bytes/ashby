@@ -1,4 +1,4 @@
-import type { ChangeEvent, RefObject } from 'react'
+import { useState, type ChangeEvent, type RefObject } from 'react'
 import type { DataframeConfig } from '../../config/defaultPlotConfig'
 import { useI18n } from '../../uiTranslations'
 import { getSourceMode, numberValue, type SourceMode } from '../../utils/appState'
@@ -7,6 +7,7 @@ import { Field, ScopeTag, Toggle } from '../common/AppControls'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select } from '../ui/select'
+import { DataPreviewDialog, type DataPreview } from './DataPreviewDialog'
 
 type Props = {
   activeDataframe: DataframeConfig
@@ -21,6 +22,9 @@ type Props = {
   availableSheets: string[]
   /** Formatting problems the backend found in the imported sheet. */
   formatWarnings: ExcelFormatWarning[]
+  /** The first rows of the imported data; only with the attribution key. */
+  dataPreview: DataPreview | undefined
+  attributionUnlocked: boolean
   sourceMissing: boolean
   onImportConfig: () => void
   onExportConfig: () => void
@@ -40,12 +44,15 @@ export function DataSection({
   availableDatasets,
   availableSheets,
   formatWarnings,
+  dataPreview,
+  attributionUnlocked,
   sourceMissing,
   onImportConfig,
   onExportConfig,
   onResetConfig,
 }: Props) {
   const { t } = useI18n()
+  const [showPreview, setShowPreview] = useState(false)
   const importStatus = importedDatabaseStatus[activeDataframeIndex]
   const sourceMode = getSourceMode(activeDataframe, availableDatasets)
   const plotCount = activeDataframe.frames.length
@@ -70,7 +77,7 @@ export function DataSection({
   }
 
   const sheetField = (
-    <Field label={t('importSheet')} jsonPath="import_sheet" level="default" changed={activeDataframe.importSheet !== 0} selfClassName="w-44">
+    <Field label={t('importSheet')} jsonPath="import_sheet" level="default" changed={activeDataframe.importSheet !== 0} onReset={() => patchActiveDataframe((current) => ({ ...current, importSheet: 0 }))} selfClassName="w-44">
       {availableSheets.length > 0 ? (
         <Select
           value={activeDataframe.importSheet}
@@ -170,12 +177,28 @@ export function DataSection({
               {importInProgress ? t('importing') : sourceMode === 'file' ? t('uploadAndImport') : t('importDatabase')}
             </Button>
           </div>
-          <p className="m-0 text-xs text-zinc-600 @lg:pl-[4.75rem] dark:text-zinc-300">
-            {t('importStatus')}{' '}
-            <strong className={importInProgress ? 'text-blue-600 dark:text-blue-400' : importStatus?.imported ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
-              {importInProgress ? t('importing') : importStatus?.imported ? t('importedFrom', { source: importStatus.source }) : t('notImported')}
-            </strong>
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 @lg:pl-[4.75rem]">
+            <p className="m-0 text-xs text-zinc-600 dark:text-zinc-300">
+              {t('importStatus')}{' '}
+              <strong className={importInProgress ? 'text-blue-600 dark:text-blue-400' : importStatus?.imported ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                {importInProgress ? t('importing') : importStatus?.imported ? t('importedFrom', { source: importStatus.source }) : t('notImported')}
+              </strong>
+            </p>
+            {/* the backend sends the preview with the attribution key only; imported before the key was entered: none yet */}
+            {attributionUnlocked && importStatus?.imported && !importInProgress ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                disabled={!dataPreview}
+                title={dataPreview ? undefined : t('dataPreviewImportAgain')}
+                onClick={() => setShowPreview(true)}
+              >
+                {t('dataPreview')}
+              </Button>
+            ) : null}
+          </div>
           {formatWarnings.length > 0 && sourceMode !== 'teable' ? (
             <div role="status" className="grid gap-1 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 @lg:ml-[4.75rem] dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
               <strong>{t('formatWarningsTitle')}</strong>
@@ -186,6 +209,9 @@ export function DataSection({
           ) : null}
         </div>
       </div>
+      {showPreview && dataPreview ? (
+        <DataPreviewDialog preview={dataPreview} source={sourceMode === 'teable' ? 'Teable' : activeDataframe.importFileName ?? ''} onClose={() => setShowPreview(false)} />
+      ) : null}
     </>
   )
 }
