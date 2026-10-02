@@ -156,7 +156,8 @@ export function MaterialColorsSection({
                       }}
                     >
                       <option value={material}>{material.trim() || '…'}</option>
-                      {materialKeywordOptions.filter((keyword) => keyword !== material).map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
+                      {/* a keyword has one color: the ones with an entry are left out */}
+                      {materialKeywordOptions.filter((keyword) => activeDataframe.materialColors[keyword] === undefined).map((keyword) => <option key={keyword} value={keyword}>{keyword}</option>)}
                       <option value={CUSTOM_SELECT_VALUE}>{t('custom')}</option>
                     </select>
                   )}
