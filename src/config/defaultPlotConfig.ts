@@ -115,6 +115,7 @@ export interface GuidelineConfig {
     linewidth: number
   }
   fontsize: number
+  /** '' (left out of the config): the line color. */
   fontColor: string
   /** Plain string or per-language labels (see PLACEHOLDER_LABEL in the backend docs). */
   label: string | Record<string, string>
@@ -138,6 +139,7 @@ export interface AnnotationConfig {
   axes?: Record<string, number>
   marker_flag?: boolean
   marker?: {
+    /** '' (left out of the config): the text color. */
     color: string
     markerSymbol: string
     sizeFactor: number
@@ -147,6 +149,7 @@ export interface AnnotationConfig {
   arrow_flag?: boolean
   arrow?: {
     width: number
+    /** '' (left out of the config): the text color. */
     facecolor: string
     headlength: number
     headwidth: number

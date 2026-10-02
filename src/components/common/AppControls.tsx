@@ -878,36 +878,55 @@ export function ColorOrMaterialInput({
   value,
   onChange,
   materialColors,
+  same,
 }: {
   value: string
   onChange: (next: string) => void
   materialColors: Record<string, string>
+  /** A third choice: the color of another setting (`value`, e.g. the line color), stored as ''. */
+  same?: { label: string; value: string }
 }) {
   const { t } = useI18n()
   const trimmed = value.trim()
+  const isSame = same !== undefined && trimmed === ''
   const isCustom = HEX_COLOR.test(trimmed)
+  const mode = isSame ? 'same' : isCustom ? 'custom' : 'material'
+  // the color shown: for "same", the other setting's
+  const shown = isSame ? same.value.trim() : trimmed
   const materialNames = Object.keys(materialColors)
   const options = trimmed && !materialNames.includes(trimmed) ? [trimmed, ...materialNames] : materialNames
-  const switchMode = (next: 'custom' | 'material') => {
-    if (next === 'material' && isCustom) {
-      onChange(materialNames[0] ?? 'default')
+  const switchMode = (next: 'custom' | 'material' | 'same') => {
+    if (next === mode) return
+    if (next === 'same') {
+      onChange('')
       return
     }
-    if (next === 'custom' && !isCustom) {
-      // Start the custom color from the currently shown color when it is a hex value.
-      const current = resolvePreviewColor(trimmed, materialColors)
-      onChange(current && /^#[0-9a-f]{6}$/i.test(current) ? current : '#000000')
+    if (next === 'material') {
+      onChange(isSame && materialNames.includes(shown) ? shown : (materialNames[0] ?? 'default'))
+      return
     }
+    // Start the custom color from the currently shown color when it is a hex value.
+    const current = resolvePreviewColor(shown, materialColors)
+    onChange(current && /^#[0-9a-f]{6}$/i.test(current) ? current : '#000000')
   }
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Toggle
-        options={[{ value: 'custom', label: t('colorModeCustom') }, { value: 'material', label: t('colorModeMaterial') }]}
-        value={isCustom ? 'custom' : 'material'}
+      <Toggle<'custom' | 'material' | 'same'>
+        options={[
+          { value: 'custom', label: t('colorModeCustom') },
+          { value: 'material', label: t('colorModeMaterial') },
+          ...(same ? [{ value: 'same' as const, label: same.label }] : []),
+        ]}
+        value={mode}
         onChange={switchMode}
       />
-      {isCustom ? (
+      {isSame ? (
+        <span className="flex min-w-32 flex-1 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+          <ColorSwatch color={resolvePreviewColor(shown, materialColors)} title={materialColors[shown] ?? shown} round />
+          <span className="truncate font-mono text-xs">{shown || '–'}</span>
+        </span>
+      ) : isCustom ? (
         <span className="flex min-w-32 flex-1 items-center gap-2">
           <ColorDot value={trimmed} onChange={onChange} label={t('color')} presets={Object.values(materialColors)} />
           <Input className="font-mono text-xs" value={value} onChange={(e) => onChange(e.target.value)} />

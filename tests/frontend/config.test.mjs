@@ -145,3 +145,17 @@ test('guidelines and polygon areas keep the axes their coordinates were entered 
   assert.deepEqual(frame.colored_areas.map((area) => area.plot_axes), [['tens', 'hdt'], undefined])
   assert.equal('plotAxes' in frame.colored_areas[0], false)
 })
+
+test('guideline labels, annotation markers and arrows take the line or text color unless they have their own', () => {
+  const frame = (guideline, annotation) => firstFrame({ dataframes: [{ frames: [{ guidelines: [guideline], annotations: [{}, annotation] }] }] })
+  // left out (the default): the backend takes the line or text color
+  const linked = frame({ y: 1, line_props: { color: 'aqua' } }, { text: { name: 'a', color: 'red' }, marker: {}, arrow: { width: 1 } })
+  assert.equal('font_color' in linked.guidelines[0], false)
+  assert.equal('color' in linked.annotations[1].marker, false)
+  assert.equal('facecolor' in linked.annotations[1].arrow, false)
+  // own colors stay
+  const own = frame({ y: 1, font_color: 'blue' }, { text: { name: 'a' }, marker: { color: 'default' }, arrow: { facecolor: 'blue' } })
+  assert.equal(own.guidelines[0].font_color, 'blue')
+  assert.equal(own.annotations[1].marker.color, 'default')
+  assert.equal(own.annotations[1].arrow.facecolor, 'blue')
+})

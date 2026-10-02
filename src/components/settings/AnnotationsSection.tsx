@@ -200,7 +200,7 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                     <Input type="number" value={annotation.marker.linewidths} onChange={(e) => patchMarker(annotationIndex, { linewidths: numberValue(e.target.valueAsNumber, annotation.marker?.linewidths ?? 0) })} />
                   </Field>
                   <Field label={t('markerColor')} jsonPath={`annotations[${annotationIndex}].marker.color`} level="default" changed={annotation.marker.color !== DEFAULT_ANNOTATION_MARKER.color} onReset={() => patchMarker(annotationIndex, { color: DEFAULT_ANNOTATION_MARKER.color })}>
-                    <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.color} onChange={(next) => patchMarker(annotationIndex, { color: next })} />
+                    <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.color} same={{ label: t('colorModeSameAsText'), value: annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color }} onChange={(next) => patchMarker(annotationIndex, { color: next })} />
                   </Field>
                   <Field label={t('markerEdgeColor')} jsonPath={`annotations[${annotationIndex}].marker.edgecolors`} level="default" changed={annotation.marker.edgecolors !== DEFAULT_ANNOTATION_MARKER.edgecolors} onReset={() => patchMarker(annotationIndex, { edgecolors: DEFAULT_ANNOTATION_MARKER.edgecolors })}>
                     <ColorOrMaterialInput materialColors={materialColors} value={annotation.marker.edgecolors} onChange={(next) => patchMarker(annotationIndex, { edgecolors: next })} />
@@ -224,7 +224,7 @@ export function AnnotationsSection({ activeDataframe, activeFrame, patchActiveFr
                     <Input type="number" value={annotation.arrow.linewidth} onChange={(e) => patchArrow(annotationIndex, { linewidth: numberValue(e.target.valueAsNumber, annotation.arrow?.linewidth ?? 1) })} />
                   </Field>
                   <Field label={t('arrowFaceColor')} jsonPath={`annotations[${annotationIndex}].arrow.facecolor`} level="default" changed={annotation.arrow.facecolor !== DEFAULT_ANNOTATION_ARROW.facecolor} onReset={() => patchArrow(annotationIndex, { facecolor: DEFAULT_ANNOTATION_ARROW.facecolor })}>
-                    <ColorOrMaterialInput materialColors={materialColors} value={annotation.arrow.facecolor} onChange={(next) => patchArrow(annotationIndex, { facecolor: next })} />
+                    <ColorOrMaterialInput materialColors={materialColors} value={annotation.arrow.facecolor} same={{ label: t('colorModeSameAsText'), value: annotation.text?.color ?? DEFAULT_ANNOTATION_TEXT.color }} onChange={(next) => patchArrow(annotationIndex, { facecolor: next })} />
                   </Field>
                 </div>
               ) : null}

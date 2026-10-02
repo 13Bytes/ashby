@@ -59,7 +59,8 @@ def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:fl
                 x_text,
                 y_text, 
                 Format_Storage.language_text(guideline.get('label',"")), 
-                color    = Format_Storage.get_color(guideline.get("font_color", font_color)),
+                # without font_color: the line's color
+                color    = Format_Storage.get_color(guideline.get("font_color") or (guideline.get("line_props") or {}).get("color") or font_color),
                 fontsize = guideline.get('fontsize', 18),
                 rotation = np.rad2deg(text_angle),
                 rotation_mode = 'anchor',
@@ -166,6 +167,9 @@ class marker:
             return
         for annotation in self.annotations: 
             values = annotation['values']
+            text = annotation['text']
+            # also the marker's and arrow's color unless they have their own
+            color = Format_Storage.get_color(text.get('color','default'))
 
             if annotation.get('marker', None) != None:
                 if values[0] != None and values[1] != None:
@@ -174,17 +178,18 @@ class marker:
                         self.ax.scatter(
                             values[0],
                             values[1],
-                            c = Format_Storage.get_color(marker['color']),
+                            c = Format_Storage.get_color(marker['color']) if marker.get('color') else color,
                             marker = marker.get('marker_symbol','o'),
                             s = self.marker_size * marker.get('size_factor', 1),
                             edgecolors = Format_Storage.get_color(marker.get('edgecolors',"black")),
                             linewidths = marker.get('linewidths', 0)
                         )
 
-            text = annotation['text']
             font_size = text.get('font_size', self.font_size)
-            color = Format_Storage.get_color(text.get('color','default'))
             arrow = annotation.get('arrow', None)
+            if arrow is not None and not arrow.get('facecolor'):
+                # without facecolor: the arrow (and its outline) in the text color
+                arrow = {**{key: value for key, value in arrow.items() if key != 'facecolor'}, 'facecolor': color, 'edgecolor': arrow.get('edgecolor', color)}
             label = Format_Storage.language_text(text.get('name',""))
             # print("label pos:", plot_size.x.offset(text['rel_pos'][0], values[0]) , plot_size.y.offset(text['rel_pos'][1], values[1]))
             x = Plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
@@ -205,7 +210,7 @@ class marker:
                     xytext     = [x, y],
                     color      = color,
                     fontsize   = font_size,
-                    arrowprops = annotation['arrow'],
+                    arrowprops = arrow,
                     # kwargs   = {'ha': 'center'}
                 )
             print(f"marker: {label} @ [{x}|{y}]")

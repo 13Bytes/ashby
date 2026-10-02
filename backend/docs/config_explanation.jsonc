@@ -102,7 +102,7 @@
                     "linewidth": 4              // [num]
                 },
                 "fontsize": 20,                 // [num] {18}
-                "font_color":"",                // [str] {default font color: black / white} 
+                "font_color":"",                // [str] {the line color} 
                 "label":"",                     // see Appendix PLACEHOLDER_LABEL
                 "label_above": true,            // should the label be placed above or below the line [true]/[false] {true}
                 "label_rotated": true,          // weather the label should be parallel to the tangency a t the selected point (x,y) or horizontal [true]/[false] {true}
@@ -126,7 +126,7 @@
                     "": 0, //...
                 },
                 "marker":{                      // [none] for no marker  {none}
-                    "color":"",                 // color (#12), material_colors (#146)  [str]  {'default'}
+                    "color":"",                 // color (#12), material_colors (#146)  [str]  {the text color}
                     "marker_symbol": "",        // see https://matplotlib.org/stable/api/markers_api.html for all options  {"o"}
                     "size_factor":1,            // multiplier to marker_size (#78)  {1}
                     "linewidths":0,             // outline width [num] {0}
@@ -134,7 +134,7 @@
                 },
                 "arrow":{                       // [none] for no arrow  {none},  see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.annotate.html arrowprops
                     "width": 0,                 // linewidth {}
-                    "facecolor": "blue",        // arrow color: (#12), material_colors (#146)  [str] {}
+                    "facecolor": "blue",        // arrow color: (#12), material_colors (#146)  [str] {the text color, also for the outline}
                     "headlength": 0,            // headdimensions in points [num] {}
                     "headwidth": 0,             //   "       
                     "linewidth":0               // outline linewidth

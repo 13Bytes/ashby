@@ -215,7 +215,7 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
           : undefined,
         marker: marker
           ? {
-            color: typeof marker.color === 'string' ? marker.color : 'default',
+            color: typeof marker.color === 'string' ? marker.color : '',
             markerSymbol: typeof (marker.markerSymbol ?? marker.marker_symbol) === 'string'
               ? String(marker.markerSymbol ?? marker.marker_symbol)
               : 'o',
@@ -228,7 +228,7 @@ const normalizeAnnotations = (value: unknown, fallback: FrameConfig['annotations
         arrow: arrow
           ? {
             width: coerceNumber(arrow.width, 1),
-            facecolor: typeof arrow.facecolor === 'string' ? arrow.facecolor : 'blue',
+            facecolor: typeof arrow.facecolor === 'string' ? arrow.facecolor : '',
             headlength: coerceNumber(arrow.headlength, 10),
             headwidth: coerceNumber(arrow.headwidth, 6),
             linewidth: coerceNumber(arrow.linewidth, 1),
