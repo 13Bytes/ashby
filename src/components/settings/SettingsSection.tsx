@@ -6,6 +6,8 @@ import { useSettings } from '../../utils/settingsContext'
 
 type Props = {
   id: SettingsSectionId
+  /** The plot (frame of the active dataframe) of a plot section; the dataset sections have none. */
+  frameIndex?: number
   /** Hidden while another section is shown on its own. */
   hidden: boolean
   showDefaults: boolean
@@ -17,7 +19,7 @@ type Props = {
  * One settings section of the editor, shown on its own or in the scrolling column of all sections.
  * In Simple mode it offers to show the settings that can stay at their defaults.
  */
-export function SettingsSection({ id, hidden, showDefaults, onToggleDefaults, children }: Props) {
+export function SettingsSection({ id, frameIndex, hidden, showDefaults, onToggleDefaults, children }: Props) {
   const { t } = useI18n()
   const { mode } = useSettings()
   const section = SETTINGS_SECTIONS.find((entry) => entry.id === id)!
@@ -30,7 +32,7 @@ export function SettingsSection({ id, hidden, showDefaults, onToggleDefaults, ch
   const simple = mode === 'simple'
 
   return (
-    <section ref={ref} data-section-id={id} hidden={hidden} className={`grid min-w-0 scroll-mt-5 grid-cols-[minmax(0,1fr)] content-start gap-5 ${showDefaults ? 'show-defaults' : ''}`}>
+    <section ref={ref} data-section-id={id} data-frame-index={frameIndex} hidden={hidden} className={`grid min-w-0 scroll-mt-5 grid-cols-[minmax(0,1fr)] content-start gap-5 ${showDefaults ? 'show-defaults' : ''}`}>
       <header className="grid gap-1">
         <h2 className="m-0 text-lg font-semibold tracking-tight">{t(section.titleKey)}</h2>
         <p className="m-0 max-w-prose text-sm text-zinc-500 dark:text-zinc-400">{t(section.introKey)}</p>

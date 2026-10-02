@@ -7,6 +7,7 @@ export type MultiOption = { value: string; label: string; count?: number }
 /** Name of a dataframe for the UI; unnamed dataframes are numbered ("DF 1"). */
 export const DATAFRAME_NAME_PREFIX = 'DF'
 export const dataframeLabel = (dataframe: { name?: string }, index: number): string => dataframe.name?.trim() || `${DATAFRAME_NAME_PREFIX} ${index + 1}`
+export const frameLabel = (frame: { name?: string }, index: number): string => frame.name || `Frame ${index + 1}`
 
 /** Default name for a new dataframe: "DF n" with n at least its position, skipping names in use. */
 export const nextDataframeName = (dataframes: Array<{ name?: string }>): string => {

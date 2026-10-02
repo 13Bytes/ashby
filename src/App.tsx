@@ -19,7 +19,7 @@ import type { DataPreview } from './components/settings/DataPreviewDialog'
 import { ConfigSections } from './components/settings/ConfigSections'
 import { ConfigTabs } from './components/layout/ConfigTabs'
 import { Toggle, Switch } from './components/common/AppControls'
-import { byDataframeIndex, dataframeLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
+import { byDataframeIndex, dataframeLabel, frameLabel, getAxisBasesFromColumns, getConfigLanguages, getConfigWhitelistKeywords, getSourceMode, getUiKey, parseColumnsFromImportResult, type SourceMode } from './utils/appState'
 import { getJsonSyntaxMarkers } from './utils/jsonHighlight'
 import { usePlotConfigActions } from './hooks/usePlotConfigActions'
 import { applyUITheme, readStoredUITheme, subscribeToSystemTheme, UI_THEME_STORAGE_KEY, type UIThemePreference } from './utils/uiTheme'
@@ -142,7 +142,7 @@ function App() {
   const [showGenerateColorsConfirm, setShowGenerateColorsConfirm] = useState(false)
   const [jsonFullscreen, setJsonFullscreen] = useState(false)
   const [expandedAxisColumns, setExpandedAxisColumns] = useState<Record<number, boolean>>({})
-  const [expandedLayerKeywords, setExpandedLayerKeywords] = useState<Record<number, boolean>>({})
+  const [expandedLayerKeywordsByFrame, setExpandedLayerKeywordsByFrame] = useState<Record<string, Record<number, boolean>>>({})
   // Datasource state is kept per dataframe UI key, so it stays with its dataframe when dataframes
   // are reordered, moved or removed; the index-keyed views below are derived from it.
   const [importedStatusByKey, setImportedStatusByKey] = useState<Record<string, { imported: boolean; source: SourceMode }>>({})
@@ -498,7 +498,7 @@ function App() {
     }
   }, [showJson])
   const plotConfigActions = usePlotConfigActions({ activeDataframeIndex, activeFrameIndex, setActiveDataframeIndex, setActiveFrameIndex, setPlotConfig, setShowGenerateColorsConfirm })
-  const { addAxis, addDataframe, addFrame, addGuideline, addLayer, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrame, patchActiveDataframe, patchActiveFrame, patchDataframe, removeAxis, removeDataframe, removeFrame, reorderDataframes, toggleDataframeGeneration, toggleFrameGeneration, updateAxis, updateGuideline } = plotConfigActions
+  const { addAxis, addDataframe, addFrame, duplicateDataframe, duplicateFrame, generateMaterialColors, moveFrame, patchActiveDataframe, patchDataframe, patchFrame, removeAxis, removeDataframe, removeFrame, reorderDataframes, toggleDataframeGeneration, toggleFrameGeneration, updateAxis } = plotConfigActions
   const importDatabase = async (file?: File) => {
     setImportInProgress(true)
     const selectedDataframe = activeDataframe
@@ -868,6 +868,8 @@ function App() {
     // Jumping to a setting of a section that Simple mode hides (search, links) switches to All settings.
     if (isHiddenInMode(section, settingsMode)) changeSettingsMode('all')
     setActiveSection(section)
+    const frameIndex = element.closest<HTMLElement>('[data-frame-index]')?.dataset.frameIndex
+    if (frameIndex !== undefined) setActiveFrameIndex(Number(frameIndex))
     pinnedSectionRef.current = section
     if (element.closest('[data-level="default"]')) {
       setShownDefaults((current) => (current.has(section) ? current : new Set([...current, section])))
@@ -882,22 +884,27 @@ function App() {
       element.addEventListener('animationend', () => element.classList.remove('setting-flash'), { once: true })
     }, 50)
   }, [settingsMode, changeSettingsMode])
-  const goTo = useCallback((section: SettingsSectionId, anchor?: string) => {
+  /** `frameIndex`: for a plot section, the plot to show it of (default: the active plot). */
+  const goTo = useCallback((section: SettingsSectionId, anchor?: string, frameIndex?: number) => {
     if (isHiddenInMode(section, settingsMode)) changeSettingsMode('all')
     setActiveSection(section)
+    if (frameIndex !== undefined) setActiveFrameIndex(frameIndex)
     // Keep the clicked section highlighted even if the column cannot scroll it to the top (the last ones).
     pinnedSectionRef.current = section
+    // every plot has its own plot sections
+    const isPlotSection = SETTINGS_SECTIONS.some((entry) => entry.id === section && entry.scope === 'plot')
+    const sectionSelector = `[data-section-id="${section}"]${isPlotSection ? `[data-frame-index="${frameIndex ?? activeFrameIndex}"]` : ''}`
     if (!anchor) {
-      if (scrollSections) editorRef.current?.querySelector(`[data-section-id="${section}"]`)?.scrollIntoView({ block: 'start' })
+      if (scrollSections) editorRef.current?.querySelector(sectionSelector)?.scrollIntoView({ block: 'start' })
       else editorRef.current?.scrollTo({ top: 0 })
       return
     }
-    const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`[data-section-id="${section}"] [data-anchor="${anchor}"]`) ?? [])]
+    const candidates = [...(editorRef.current?.querySelectorAll<HTMLElement>(`${sectionSelector} [data-anchor="${anchor}"]`) ?? [])]
     // Prefer the field that is visible in the current mode (e.g. the Simple-mode shortcut).
     // (A field of a section that is still hidden has no layout yet.)
     const target = candidates.find((element) => element.getClientRects().length > 0 || element.closest('[data-section-id]')?.hasAttribute('hidden')) ?? candidates[0]
     if (target) revealSetting(section, target)
-  }, [revealSetting, scrollSections, settingsMode, changeSettingsMode])
+  }, [revealSetting, scrollSections, settingsMode, changeSettingsMode, activeFrameIndex])
   // In the scrolling column the sidebar follows the scroll position: the active section is the last one whose top has
   // passed the upper quarter of the editor column.
   useEffect(() => {
@@ -908,19 +915,16 @@ function App() {
       frame = 0
       if (pinnedSectionRef.current) return
       const line = editor.getBoundingClientRect().top + editor.clientHeight / 4
-      let current: SettingsSectionId | null = null
+      let current: HTMLElement | null = null
       // Sections hidden in Simple mode have no position.
-      for (const element of editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')) {
-        const id = element.dataset.sectionId ?? ''
-        if (!isSettingsSectionId(id)) continue
-        if (current === null || element.getBoundingClientRect().top <= line) current = id
+      const sections = [...editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')].filter((element) => isSettingsSectionId(element.dataset.sectionId ?? ''))
+      for (const element of sections) {
+        if (current === null || element.getBoundingClientRect().top <= line) current = element
       }
-      if (editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 2) {
-        const sections = editor.querySelectorAll<HTMLElement>('[data-section-id]:not([hidden])')
-        const last = sections[sections.length - 1]?.dataset.sectionId ?? ''
-        if (isSettingsSectionId(last)) current = last
-      }
-      if (current) setActiveSection(current)
+      if (editor.scrollTop + editor.clientHeight >= editor.scrollHeight - 2) current = sections[sections.length - 1] ?? current
+      if (!current) return
+      setActiveSection(current.dataset.sectionId as SettingsSectionId)
+      if (current.dataset.frameIndex !== undefined) setActiveFrameIndex(Number(current.dataset.frameIndex))
     }
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
     // A scroll by the user (not by a jump from the sidebar) releases the pinned section.
@@ -938,6 +942,12 @@ function App() {
     if (dataframeIndex !== activeDataframeIndex) setExpandedAxisColumns({})
     setActiveDataframeIndex(dataframeIndex)
     setActiveFrameIndex(frameIndex)
+    // In the scrolling column a plot section of the plot shown before stays in view, and the scroll
+    // position would select that plot again: show the same section of the picked plot.
+    if (scrollSections && dataframeIndex === activeDataframeIndex && frameIndex !== activeFrameIndex && activeSectionScope === 'plot') {
+      pinnedSectionRef.current = activeSection
+      editorRef.current?.querySelector(`[data-section-id="${activeSection}"][data-frame-index="${frameIndex}"]`)?.scrollIntoView({ block: 'start' })
+    }
   }
   const isSourceFileAvailable = (dataframeIndex: number) => {
     const dataframe = plotConfig.dataframes[dataframeIndex]
@@ -948,15 +958,16 @@ function App() {
     return dataframe ? getDataframeMissing(dataframe, availableDatasets ?? [], isSourceFileAvailable(dataframeIndex)) : []
   }
   const activeDataframeMissing = dataframeMissing(activeDataframeIndex)
-  const activeFrameMissing = getFrameMissing(activeFrame)
-  const activeMissing = [...activeDataframeMissing, ...activeFrameMissing]
-  const sectionStatus = (section: SettingsSectionId): SectionStatus => {
-    const base: SectionStatus = { missing: activeMissing.filter((entry) => entry.section === section).length }
+  const activeMissing = [...activeDataframeMissing, ...getFrameMissing(activeFrame)]
+  /** `frameIndex`: the plot of a plot section (default: the active plot). */
+  const sectionStatus = (section: SettingsSectionId, frameIndex = activeFrameIndex): SectionStatus => {
+    const frame = activeDataframe.frames[frameIndex] ?? activeFrame
+    const base: SectionStatus = { missing: [...activeDataframeMissing, ...getFrameMissing(frame)].filter((entry) => entry.section === section).length }
     if (section === 'axisDefs') {
       const incomplete = activeDataframe.axes.filter((axis) => !axis.name.trim() || axis.columns.length === 0).length
       return { ...base, missing: activeDataframe.axes.length === 0 ? 1 : incomplete }
     }
-    if (section === 'extras') return { ...base, items: activeFrame.coloredAreas.length + activeFrame.guidelines.length + Math.max(0, activeFrame.annotations.length - 1) }
+    if (section === 'extras') return { ...base, items: frame.coloredAreas.length + frame.guidelines.length + Math.max(0, frame.annotations.length - 1) }
     return base
   }
   const activeSectionScope = SETTINGS_SECTIONS.find((section) => section.id === activeSection)?.scope
@@ -1009,7 +1020,8 @@ function App() {
       setPlotActionNonce((current) => current + 1)
     },
   }
-  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrame, addAxis, addGuideline, addLayer, addPlotLanguage, availableAxisColumns, availableColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, dataPreview: attributionUnlocked ? activeImportedSource?.preview : undefined, attributionUnlocked, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywords, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchActiveFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywords, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateGuideline, updateLanguages, uploadInputRef,
+  const sectionProps = { activeDataframe, activeDataframeIndex, activeFrameIndex, addAxis, addPlotLanguage, availableAxisColumns, availableColumns, availableDatasets: availableDatasets ?? [], availableSheets: activeImportedSource?.sheets ?? [], formatWarnings: activeImportedSource?.formatWarnings ?? EMPTY_FORMAT_WARNINGS, dataPreview: attributionUnlocked ? activeImportedSource?.preview : undefined, attributionUnlocked, availableKeywordsByColumn, availableWhitelistKeywords, customMaterialNames, expandedAxisColumns, expandedLayerKeywordsByFrame, handlePlotLanguageKeyDown, handleSpreadsheetSelection, importDatabase, importInProgress, importedDatabaseStatus: displayedImportedDatabaseStatus, includedLayerKeywords, layerNameOptions, materialColors: activeDataframe.materialColors, materialKeywordOptions, patchActiveDataframe, patchFrame, plotLanguageDraft, removeAxis, setCustomMaterialNames, setExpandedAxisColumns, setExpandedLayerKeywordsByFrame, setPlotLanguageDraft, setShowGenerateColorsConfirm, updateAxis, updateLanguages, uploadInputRef,
+    onActivateFrame: setActiveFrameIndex,
     sourceMissing: activeDataframeMissing.some((entry) => entry.section === 'data'),
     onImportConfig: () => fileInputRef.current?.click(),
     onExportConfig: () => exportConfig(plotConfig, configBaseName),
@@ -1102,11 +1114,12 @@ function App() {
           <SettingsNav
             mode={settingsMode}
             activeSection={activeSection}
-            onSelect={(section) => goTo(section)}
+            activeFrameIndex={activeFrameIndex}
+            onSelect={(section, frameIndex) => goTo(section, undefined, frameIndex)}
             onReveal={revealSetting}
             statusFor={sectionStatus}
             dataframeName={dataframeLabel(activeDataframe, activeDataframeIndex)}
-            frameName={activeFrame.name || `Frame ${activeFrameIndex + 1}`}
+            frameNames={activeDataframe.frames.map(frameLabel)}
             editorRef={editorRef}
           />
           <ResizeDivider

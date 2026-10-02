@@ -109,7 +109,21 @@ test('scrolling through all settings sections is a setting that is off by defaul
   assert.match(app, /readStored\(SCROLL_SECTIONS_STORAGE_KEY, \(value\) => value === 'true'\)/)
   assert.match(app, /label=\{t\('scrollSections'\)\}/)
   assert.match(app, /if \(!editor \|\| !scrollSections\) return/)
-  assert.match(sections, /hidden: isHiddenInMode\(id, mode\) \|\| \(!scrollSections && activeSection !== id\)/)
+  assert.match(sections, /hidden: isHiddenInMode\(id, mode\) \|\| \(!scrollSections && \(activeSection !== id \|\| \(frameIndex !== undefined && frameIndex !== activeFrameIndex\)\)\)/)
+})
+
+test('the sidebar and the editor have the plot sections of every plot of the dataset', async () => {
+  const sections = await readSource('components/settings/ConfigSections.tsx')
+  const nav = await readSource('components/layout/SettingsNav.tsx')
+  const app = await readSource('App.tsx')
+
+  assert.match(sections, /activeDataframe\.frames\.map\(frameSections\)/)
+  assert.match(sections, /section\('hulls', frameIndex\)/)
+  assert.match(nav, /frameNames\.map\(\(frameName, frameIndex\) =>/)
+  assert.match(nav, /onSelect\(section\.id, frameIndex\)/)
+  // the scroll position and search hits select the plot of the section
+  assert.match(app, /if \(current\.dataset\.frameIndex !== undefined\) setActiveFrameIndex\(Number\(current\.dataset\.frameIndex\)\)/)
+  assert.match(app, /closest<HTMLElement>\('\[data-frame-index\]'\)/)
 })
 
 test('image output (with aspect ratio and dark mode) is a group of Text & look that the export dialog links to', async () => {
