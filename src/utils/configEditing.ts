@@ -25,6 +25,45 @@ export const updateAxisInDataframe = (df: DataframeConfig, axisIndex: number, pa
 })
 
 /**
+ * Whether renaming axis `axisIndex` from `previousName` to `name` can carry the frames' references
+ * along: both names are set and no other axis has either, so the references are unambiguous.
+ */
+export const axisRenameMovesReferences = (df: DataframeConfig, axisIndex: number, name: string, previousName: string): boolean =>
+  name.trim() !== '' && previousName.trim() !== '' && name !== previousName
+  && !df.axes.some((axis, index) => index !== axisIndex && (axis.name === name || axis.name === previousName))
+
+const renameKeys = <T,>(record: Record<string, T> | undefined, rename: (name: string) => string): Record<string, T> | undefined =>
+  record && Object.fromEntries(Object.entries(record).map(([key, value]) => [rename(key), value]))
+
+/**
+ * Sets the axis' name (its ID). Frames refer to axes by that name: X/Y quantity, relative quantity, the
+ * noted plot axes ("quantity" or "quantity/relative") and the axis ranges of annotations and colored
+ * areas. They follow the rename from `previousName` when axisRenameMovesReferences allows it.
+ */
+export const renameAxisInDataframe = (df: DataframeConfig, axisIndex: number, name: string, previousName: string): DataframeConfig => {
+  const renamed = updateAxisInDataframe(df, axisIndex, (axis) => ({ ...axis, name }))
+  if (!axisRenameMovesReferences(df, axisIndex, name, previousName)) return renamed
+  const rename = (entry: string) => (entry === previousName ? name : entry)
+  const renameOptional = (entry: string | undefined) => (entry === undefined ? undefined : rename(entry))
+  const renamePlotAxes = (plotAxes: PlotAxes | undefined): PlotAxes | undefined =>
+    plotAxes && (plotAxes.map((entry) => entry.split('/').map(rename).join('/')) as PlotAxes)
+  return {
+    ...renamed,
+    frames: renamed.frames.map((frame) => ({
+      ...frame,
+      xQuantity: renameOptional(frame.xQuantity),
+      xRelQuantity: renameOptional(frame.xRelQuantity),
+      yQuantity: renameOptional(frame.yQuantity),
+      yRelQuantity: renameOptional(frame.yRelQuantity),
+      axisMargin: { ...frame.axisMargin, plotAxes: renamePlotAxes(frame.axisMargin.plotAxes) },
+      guidelines: frame.guidelines.map((guideline) => ({ ...guideline, plotAxes: renamePlotAxes(guideline.plotAxes) })),
+      annotations: frame.annotations.map((annotation) => ({ ...annotation, axes: renameKeys(annotation.axes, rename) })),
+      coloredAreas: frame.coloredAreas.map((area) => ({ ...area, axes: renameKeys(area.axes, rename), plotAxes: renamePlotAxes(area.plotAxes) })),
+    })),
+  }
+}
+
+/**
  * The backend reads the opacity of points and ranges from the last layer. After layers were added,
  * removed or duplicated, this moves the values of the previous last layer to the new last one.
  */
