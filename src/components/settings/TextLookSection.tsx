@@ -127,7 +127,7 @@ export function TextLookSection({
       </SettingsGroup>
 
       <SettingsGroup title={t('textSizes')} level="default">
-        <div className="grid gap-4 @lg:grid-cols-3">
+        <div className="grid gap-4 @lg:grid-cols-5">
           {fontNumber('titleSize', t('titleSize'), 'font.title_size')}
           {fontNumber('legendTitleSize', t('legendTitleSize'), 'font.legend_title_size')}
           {fontNumber('legendLabelSize', t('legendLabelSize'), 'font.legend_label_size')}
