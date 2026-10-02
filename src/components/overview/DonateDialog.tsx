@@ -51,7 +51,7 @@ export function DonateDialog({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-labelledby="donate-title"
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[88svh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-zinc-300 bg-white text-left dark:border-zinc-700 dark:bg-zinc-900"
+        className="flex max-h-[88svh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-zinc-300 bg-white text-left dark:border-zinc-700 dark:bg-zinc-900"
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 id="donate-title" className="m-0 text-lg font-semibold text-zinc-900 dark:text-zinc-50">{content.donateTitle}</h2>
@@ -68,10 +68,10 @@ export function DonateDialog({ onClose }: { onClose: () => void }) {
         <div className="grid gap-4 overflow-y-auto px-6 py-5 text-sm text-zinc-600 dark:text-zinc-400">
           <p className="m-0">{content.donateDialogText}</p>
           <dl className="m-0 divide-y divide-zinc-200 rounded-lg border border-zinc-200 px-4 dark:divide-zinc-800 dark:border-zinc-800">
-            <AccountRow label={content.donateRecipient} value={DONATION_ACCOUNT.recipient} />
+            <AccountRow label={content.donateRecipient} value={DONATION_ACCOUNT.recipient} copyValue={DONATION_ACCOUNT.recipient}/>
             <AccountRow label="IBAN" value={DONATION_ACCOUNT.iban} copyValue={DONATION_ACCOUNT.iban.replaceAll(' ', '')} />
-            <AccountRow label="BIC" value={DONATION_ACCOUNT.bic} />
-            <AccountRow label={content.donateBank} value={DONATION_ACCOUNT.bank} />
+            <AccountRow label="BIC" value={DONATION_ACCOUNT.bic} copyValue={DONATION_ACCOUNT.bic}/>
+            <AccountRow label={content.donateBank} value={DONATION_ACCOUNT.bank} copyValue={DONATION_ACCOUNT.bank}/>
             <AccountRow label={content.donateReference} value={DONATION_ACCOUNT.reference} copyValue={DONATION_ACCOUNT.reference} />
           </dl>
           <p className="m-0 text-xs text-zinc-500"><RichText parts={content.donateSource} /></p>
