@@ -53,6 +53,13 @@ class GuidelineLabelColorTest(unittest.TestCase):
     def test_an_own_font_color_stays(self) -> None:
         self.assertEqual(self.draw({'line_props': {'color': 'steel'}, 'font_color': 'red'}), 'red')
 
+    def test_a_material_as_line_color_draws_in_its_color(self) -> None:
+        ax = mock.MagicMock()
+        line_props = {'color': 'steel', 'linestyle': '--', 'linewidth': 4}
+        draw_guideline(Storage(), [{'y': 1, 'line_props': line_props}], 0, 10, 0, 10, 'black', ax)
+        self.assertEqual(ax.plot.call_args.kwargs, {'color': '#123456', 'linestyle': '--', 'linewidth': 4})
+        self.assertEqual(line_props['color'], 'steel')      # the config is not changed
+
 
 class AnnotationColorTest(unittest.TestCase):
     def test_without_their_own_color_marker_and_arrow_have_the_text_color(self) -> None:
@@ -65,6 +72,10 @@ class AnnotationColorTest(unittest.TestCase):
         ax = draw_annotation({'text': {'name': 'n', 'color': 'steel'}, 'marker': {'color': 'red'}, 'arrow': {'facecolor': 'blue'}})
         self.assertEqual(ax.scatter.call_args.kwargs['c'], 'red')
         self.assertEqual(ax.annotate.call_args.kwargs['arrowprops'], {'facecolor': 'blue'})
+
+    def test_own_arrow_colors_may_be_materials(self) -> None:
+        ax = draw_annotation({'text': {'name': 'n', 'color': 'red'}, 'arrow': {'facecolor': 'steel', 'edgecolor': 'steel'}})
+        self.assertEqual(ax.annotate.call_args.kwargs['arrowprops'], {'facecolor': '#123456', 'edgecolor': '#123456'})
 
 
 if __name__ == '__main__':

@@ -33,10 +33,13 @@ def draw_guideline(Format_Storage:object, guidelines:dict, x_min:float, x_max:fl
         print(f"guideline: {guideline.get('label',"")} @ [{x_values[0]}|{y_values[0]}] - [{x_values[-1]}|{y_values[-1]}]")
 
 
+        line_props = dict(guideline.get("line_props") or {})
+        if line_props.get('color'):     # a material name: its color (matplotlib does not know "PLA")
+            line_props['color'] = Format_Storage.get_color(line_props['color'])
         ax.plot(
             x_values,
             y_values,
-            **guideline.get("line_props", {})
+            **line_props
             )
 
         if y == None:
@@ -187,9 +190,13 @@ class marker:
 
             font_size = text.get('font_size', self.font_size)
             arrow = annotation.get('arrow', None)
-            if arrow is not None and not arrow.get('facecolor'):
-                # without facecolor: the arrow (and its outline) in the text color
-                arrow = {**{key: value for key, value in arrow.items() if key != 'facecolor'}, 'facecolor': color, 'edgecolor': arrow.get('edgecolor', color)}
+            if arrow is not None:
+                # without facecolor: the arrow (and its outline) in the text color; own colors may be material names
+                own_edge = {'edgecolor': Format_Storage.get_color(arrow['edgecolor'])} if arrow.get('edgecolor') else {}
+                if not arrow.get('facecolor'):
+                    arrow = {**{key: value for key, value in arrow.items() if key != 'facecolor'}, 'facecolor': color, 'edgecolor': color, **own_edge}
+                else:
+                    arrow = {**arrow, 'facecolor': Format_Storage.get_color(arrow['facecolor']), **own_edge}
             label = Format_Storage.language_text(text.get('name',""))
             # print("label pos:", plot_size.x.offset(text['rel_pos'][0], values[0]) , plot_size.y.offset(text['rel_pos'][1], values[1]))
             x = Plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
