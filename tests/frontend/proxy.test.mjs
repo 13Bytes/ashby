@@ -187,3 +187,15 @@ test('a duplicated tab without sessionStorage joins its workspace from the URL a
   assert.match(app, /sync\.requestConfig\(\)/)
   assert.match(app, /\(\) => lastSyncedConfigRef\.current, workspaceId\)/)
 })
+
+test('every setting marked as changed from its default can be reset with ⭮', async () => {
+  const controls = await readSource('components/common/AppControls.tsx')
+  assert.match(controls, /if \(level === 'default' && changed && onReset\)/)
+  for (const name of await readdir(path.join(projectDir, 'src', 'components', 'settings'))) {
+    const source = await readSource(`components/settings/${name}`)
+    // a changed={…} expression may span lines (FieldGroup); its onReset follows it
+    const marked = source.match(/\bchanged=\{/g)?.length ?? 0
+    const resettable = source.match(/\bonReset=\{/g)?.length ?? 0
+    assert.equal(resettable, marked, `${name}: ${marked - resettable} changed setting(s) without onReset`)
+  }
+})

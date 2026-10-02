@@ -1,5 +1,6 @@
 import { useId, useState, type ComponentProps } from 'react'
 import type { FrameConfig } from '../../config/defaultPlotConfig'
+import { DEFAULT_FRAME } from '../../config/settingsSections'
 import { useI18n, type LabelKey } from '../../uiTranslations'
 import { formatList, isFilterGroup, newCondition, operatorsFor, parseList, readFilter, valueKind, withOperator, writeFilter, type FilterCondition, type FilterGroup, type FilterNode, type FilterOperator, type FilterValue } from '../../utils/rowFilter'
 import { Field, SettingsGroup } from '../common/AppControls'
@@ -149,7 +150,7 @@ export function FilterSection({ activeFrame, patchActiveFrame, availableColumns,
 
   return (
     <SettingsGroup level="default">
-      <Field label={t('filterRows')} jsonPath="filter" level="default" changed={filter.filterSet.length > 0} hint={filter.filterSet.length === 0 ? t('filterNone') : undefined}>
+      <Field label={t('filterRows')} jsonPath="filter" level="default" changed={filter.filterSet.length > 0} onReset={() => patchActiveFrame((f) => ({ ...f, filter: structuredClone(DEFAULT_FRAME.filter) }))} hint={filter.filterSet.length === 0 ? t('filterNone') : undefined}>
         {groupRows(filter, setFilter, 'filter')}
       </Field>
     </SettingsGroup>

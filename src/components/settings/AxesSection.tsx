@@ -95,7 +95,7 @@ export function AxesSection({
                     value={(lang) => axis.labels[lang] ?? ''}
                     onChange={(lang, next) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: next } }))}
                   />
-                  <Field label={t('axisMode', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].mode`} level="default" changed={axis.mode !== 'default'}>
+                  <Field label={t('axisMode', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].mode`} level="default" changed={axis.mode !== 'default'} onReset={() => updateAxis(axisIndex, (a) => ({ ...a, mode: 'default' }))}>
                     <Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>
                       {AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
                     </Select>

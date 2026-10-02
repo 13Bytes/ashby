@@ -89,17 +89,17 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, p
                   <Field label={t('layerName', { n: layerIndex + 1 })} jsonPath={`layers[${layerIndex}].name`} level={layerIndex === 0 ? 'required' : 'check'} missing={layerIndex === 0 ? !layer.name?.trim() : undefined} anchor={layerIndex === 0 ? 'groupMaterialsBy' : undefined}>
                     {columnSelect(layerIndex, layer)}
                   </Field>
-                  <Field label={t('lineWidth')} jsonPath={`layers[${layerIndex}].linewidth`} level="default" changed={(layer.linewidth ?? 1.5) !== DEFAULT_LAYER.linewidth}>
+                  <Field label={t('lineWidth')} jsonPath={`layers[${layerIndex}].linewidth`} level="default" changed={(layer.linewidth ?? 1.5) !== DEFAULT_LAYER.linewidth} onReset={() => patchLayer(layerIndex, (x) => ({ ...x, linewidth: DEFAULT_LAYER.linewidth }))}>
                     <Input type="number" step={0.1} min={0} value={layer.linewidth ?? 1.5} onChange={(e) => patchLayer(layerIndex, (x) => ({ ...x, linewidth: Math.max(0, numberValue(e.target.valueAsNumber, x.linewidth ?? 1.5)) }))} />
                   </Field>
-                  <Field label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`} level="default" changed={(layer.alpha ?? 0) !== DEFAULT_LAYER.alpha}>
+                  <Field label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`} level="default" changed={(layer.alpha ?? 0) !== DEFAULT_LAYER.alpha} onReset={() => patchLayer(layerIndex, (x) => ({ ...x, alpha: DEFAULT_LAYER.alpha }))}>
                     <OpacitySlider ariaLabel={t('alpha')} value={layer.alpha ?? 0} onChange={(alpha) => patchLayer(layerIndex, (x) => ({ ...x, alpha }))} />
                   </Field>
                   <Button type="button" variant="outline" size="sm" className="justify-self-start" disabled={!layer.name} title={t('layerToMaterialColorsHint')} onClick={() => addLayerColors(layerIndex, layer)}>
                     {addedColors?.layerIndex === layerIndex ? `✓ ${t('layerColorsAdded', { count: addedColors.count })}` : t('layerToMaterialColors')}
                   </Button>
                 </div>
-                <Field label={t('whitelistKeywords')} jsonPath={`layers[${layerIndex}].whitelist`} level="default" changed={(layer.whitelist ?? []).length > 0 || Boolean(layer.whitelistFlag)} fill>
+                <Field label={t('whitelistKeywords')} jsonPath={`layers[${layerIndex}].whitelist`} level="default" changed={(layer.whitelist ?? []).length > 0 || Boolean(layer.whitelistFlag)} onReset={() => patchLayer(layerIndex, (x) => ({ ...x, whitelist: [], whitelistFlag: false }))} fill>
                   <MultiSelectInput
                     title=""
                     colorFor={(keyword) => (keyword in materialColors ? resolvePreviewColor(keyword, materialColors) : undefined)}
@@ -120,7 +120,7 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, p
 
       <SettingsGroup title={t('allLayers')} level="default">
         <div className="grid gap-4 @lg:grid-cols-3">
-          <Field label={t('algorithm')} jsonPath="frames[j].algorithm" level="default" changed={activeFrame.algorithm !== DEFAULT_FRAME.algorithm}>
+          <Field label={t('algorithm')} jsonPath="frames[j].algorithm" level="default" changed={activeFrame.algorithm !== DEFAULT_FRAME.algorithm} onReset={() => patchActiveFrame((c) => ({ ...c, algorithm: DEFAULT_FRAME.algorithm }))}>
             <Toggle<PlotAlgorithm>
               ariaLabel={t('algorithm')}
               value={activeFrame.algorithm}
@@ -128,10 +128,10 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, p
               options={[{ value: 'cubic', label: t('algorithmCubic') }, { value: 'alpha', label: t('algorithmAlpha') }]}
             />
           </Field>
-          <Field label={t('alphaPoints')} jsonPath="layers[last].alpha_points" level="default" changed={(lastLayer?.alphaPoints ?? 0) !== DEFAULT_LAYER.alphaPoints}>
+          <Field label={t('alphaPoints')} jsonPath="layers[last].alpha_points" level="default" changed={(lastLayer?.alphaPoints ?? 0) !== DEFAULT_LAYER.alphaPoints} onReset={() => patchLastLayer((x) => ({ ...x, alphaPoints: DEFAULT_LAYER.alphaPoints }))}>
             <OpacitySlider ariaLabel={t('alphaPoints')} value={lastLayer?.alphaPoints ?? 0} onChange={(alphaPoints) => patchLastLayer((x) => ({ ...x, alphaPoints }))} />
           </Field>
-          <Field label={t('alphaAreas')} jsonPath="layers[last].alpha_areas" level="default" changed={(lastLayer?.alphaAreas ?? 0) !== DEFAULT_LAYER.alphaAreas}>
+          <Field label={t('alphaAreas')} jsonPath="layers[last].alpha_areas" level="default" changed={(lastLayer?.alphaAreas ?? 0) !== DEFAULT_LAYER.alphaAreas} onReset={() => patchLastLayer((x) => ({ ...x, alphaAreas: DEFAULT_LAYER.alphaAreas }))}>
             <OpacitySlider ariaLabel={t('alphaAreas')} value={lastLayer?.alphaAreas ?? 0} onChange={(alphaAreas) => patchLastLayer((x) => ({ ...x, alphaAreas }))} />
           </Field>
         </div>

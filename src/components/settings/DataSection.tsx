@@ -77,7 +77,7 @@ export function DataSection({
   }
 
   const sheetField = (
-    <Field label={t('importSheet')} jsonPath="import_sheet" level="default" changed={activeDataframe.importSheet !== 0} selfClassName="w-44">
+    <Field label={t('importSheet')} jsonPath="import_sheet" level="default" changed={activeDataframe.importSheet !== 0} onReset={() => patchActiveDataframe((current) => ({ ...current, importSheet: 0 }))} selfClassName="w-44">
       {availableSheets.length > 0 ? (
         <Select
           value={activeDataframe.importSheet}

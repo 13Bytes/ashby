@@ -93,7 +93,8 @@ const EyeIcon = () => (
 )
 
 /** Small icon for a setting level with a tooltip that explains it. */
-export function LevelIcon({ level, missing, changed }: { level: SettingLevel; missing?: boolean; changed?: boolean }) {
+/** `onReset`: for a changed default setting, shown as ⭮ that sets the default again. */
+export function LevelIcon({ level, missing, changed, onReset }: { level: SettingLevel; missing?: boolean; changed?: boolean; onReset?: () => void }) {
   const { t } = useI18n()
   const tooltipId = useId()
   const { anchorRef, position, updateAlignment } = useTooltipAlignment()
@@ -114,6 +115,26 @@ export function LevelIcon({ level, missing, changed }: { level: SettingLevel; mi
       : changed
         ? 'm-0.5 h-3 w-3 bg-brand-500'
         : 'm-0.5 h-3 w-3 ring-1 ring-inset ring-zinc-400 dark:ring-zinc-600'
+
+  if (level === 'default' && changed && onReset) {
+    return (
+      <span ref={anchorRef} className="group relative inline-flex align-middle" onPointerEnter={updateAlignment} onFocus={updateAlignment}>
+        <button
+          type="button"
+          onClick={onReset}
+          aria-label={t('resetToDefault')}
+          aria-describedby={tooltipId}
+          className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[13px] leading-none text-brand-600 hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 dark:text-brand-400 dark:hover:bg-brand-950 dark:hover:text-brand-200"
+        >
+          ⭮
+        </button>
+        <TooltipBubble id={tooltipId} position={position}>
+          <strong className="block font-semibold">{t('resetToDefault')}</strong>
+          <span className="block">{t('levelChangedResetTip')}</span>
+        </TooltipBubble>
+      </span>
+    )
+  }
 
   return (
     <span ref={anchorRef} className="group relative inline-flex align-middle" onPointerEnter={updateAlignment} onFocus={updateAlignment}>
@@ -152,14 +173,14 @@ function WarningIcon({ text }: { text: string }) {
 }
 
 /** Label with the level icon and an optional help tooltip; the help text is looked up by the config path. */
-function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, changed, lang, warning }: { label: string; jsonPath: string; as?: 'label' | 'span'; level?: SettingLevel; missing?: boolean; changed?: boolean; lang?: string; warning?: string }) {
+function FieldLabel({ label, jsonPath, as: Tag = 'label', level, missing, changed, onReset, lang, warning }: { label: string; jsonPath: string; as?: 'label' | 'span'; level?: SettingLevel; missing?: boolean; changed?: boolean; onReset?: () => void; lang?: string; warning?: string }) {
   const { language } = useI18n()
   const help = getFieldHelp(language, jsonPath)
   return (
     <span className="flex min-h-5 flex-wrap items-center gap-1.5">
       <Tag title={help ? undefined : jsonPath} className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</Tag>
       {lang ? <span className="rounded px-1 font-mono text-[10px] uppercase leading-4 text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700">{lang}</span> : null}
-      {level ? <LevelIcon level={level} missing={missing} changed={changed} /> : null}
+      {level ? <LevelIcon level={level} missing={missing} changed={changed} onReset={onReset} /> : null}
       {warning ? <WarningIcon text={warning} /> : null}
       {help ? <InfoTooltip label={label} text={help} jsonPath={jsonPath} /> : null}
     </span>
@@ -172,6 +193,7 @@ export function Field({
   level,
   missing,
   changed,
+  onReset,
   lang,
   otherLang,
   anchor,
@@ -190,6 +212,8 @@ export function Field({
   missing?: boolean
   /** For default settings: the value differs from the default. */
   changed?: boolean
+  /** Sets the default again; the ⭮ next to the label while `changed`. */
+  onReset?: () => void
   /** Language of a per-language text field; shown as a tag. */
   lang?: string
   /** Text field of a plot language other than the selected one (hidden in Simple mode). */
@@ -215,7 +239,7 @@ export function Field({
       data-missing={missing ? 'true' : undefined}
       data-lang-other={otherLang ? 'true' : undefined}
     >
-      <FieldLabel label={label} jsonPath={jsonPath} level={level} missing={missing} changed={changed} lang={lang} warning={warning} />
+      <FieldLabel label={label} jsonPath={jsonPath} level={level} missing={missing} changed={changed} onReset={onReset} lang={lang} warning={warning} />
       <div className={cn('grid gap-2', fill && 'min-h-0', className)}>
         {children}
       </div>
@@ -243,6 +267,7 @@ export function FieldGroup({
   level,
   missing,
   changed,
+  onReset,
   anchor,
   columns = 1,
   inline,
@@ -254,6 +279,8 @@ export function FieldGroup({
   level?: SettingLevel
   missing?: boolean
   changed?: boolean
+  /** Sets the default again (see Field). */
+  onReset?: () => void
   anchor?: string
   columns?: keyof typeof GROUP_COLUMNS
   /** Without the frame, laid out like a Field, so its inputs line up with plain fields next to it. */
@@ -273,7 +300,7 @@ export function FieldGroup({
       data-changed={level === 'default' && changed ? 'true' : undefined}
       data-missing={missing ? 'true' : undefined}
     >
-      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} warning={warning} />
+      <FieldLabel label={label} jsonPath={jsonPath} as="span" level={level} missing={missing} changed={changed} onReset={onReset} warning={warning} />
       <div className={cn('grid items-center gap-x-2 gap-y-2', GROUP_COLUMNS[columns])}>{children}</div>
     </div>
   )

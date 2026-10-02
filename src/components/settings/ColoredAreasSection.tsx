@@ -101,7 +101,7 @@ export function ColoredAreasSection({ activeDataframe, activeFrame, patchActiveF
                 patchActiveFrame((f) => ({ ...f, coloredAreas: f.coloredAreas.filter((_, i) => i !== areaIndex) }))
               }}
             >
-              <Field label={t('areaType')} jsonPath={`colored_areas[${areaIndex}].type`} level="default" changed={!usesAxes}>
+              <Field label={t('areaType')} jsonPath={`colored_areas[${areaIndex}].type`} level="default" changed={!usesAxes} onReset={() => patchArea(areaIndex, (entry) => setColoredAreaType(entry, 'axes', activeFrame))}>
                 <Toggle<'axes' | 'polygon'>
                   ariaLabel={t('areaType')}
                   value={usesAxes ? 'axes' : 'polygon'}
@@ -166,7 +166,7 @@ export function ColoredAreasSection({ activeDataframe, activeFrame, patchActiveF
                 <Field label={t('color')} jsonPath={`colored_areas[${areaIndex}].color`} level="check">
                   <ColorOrMaterialInput materialColors={materialColors} value={area.color} onChange={(color) => patchArea(areaIndex, (entry) => ({ ...entry, color }))} />
                 </Field>
-                <Field label={t('alpha')} jsonPath={`colored_areas[${areaIndex}].alpha`} level="default" changed={area.alpha !== DEFAULT_AREA.alpha}>
+                <Field label={t('alpha')} jsonPath={`colored_areas[${areaIndex}].alpha`} level="default" changed={area.alpha !== DEFAULT_AREA.alpha} onReset={() => patchArea(areaIndex, (entry) => ({ ...entry, alpha: DEFAULT_AREA.alpha }))}>
                   <OpacitySlider ariaLabel={t('alpha')} value={area.alpha} onChange={(alpha) => patchArea(areaIndex, (entry) => ({ ...entry, alpha }))} />
                 </Field>
               </div>

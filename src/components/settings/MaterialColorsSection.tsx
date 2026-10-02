@@ -60,7 +60,7 @@ export function MaterialColorsSection({
           value={(lang) => activeDataframe.legendTitle[lang] ?? ''}
           onChange={(lang, next) => patchActiveDataframe((df) => ({ ...df, legendTitle: { ...df.legendTitle, [lang]: next } }))}
         />
-        <Field label={t('legendPosition')} jsonPath="dataframes[i].legend_above" level="default" changed={activeDataframe.legendAbove !== DEFAULT_DATAFRAME.legendAbove}>
+        <Field label={t('legendPosition')} jsonPath="dataframes[i].legend_above" level="default" changed={activeDataframe.legendAbove !== DEFAULT_DATAFRAME.legendAbove} onReset={() => patchActiveDataframe((df) => ({ ...df, legendAbove: DEFAULT_DATAFRAME.legendAbove }))}>
           <Toggle<'right' | 'above' | 'none'>
             ariaLabel={t('legendPosition')}
             value={activeDataframe.legendAbove === null ? 'none' : activeDataframe.legendAbove ? 'above' : 'right'}

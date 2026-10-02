@@ -26,7 +26,7 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-4">
-        <Field label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" level="default" changed={!isSameAspectRatio(activeDataframe.aspectRatio, DEFAULT_DATAFRAME.aspectRatio)}>
+        <Field label={t('aspectRatio')} jsonPath="dataframes[i].image_ratio" level="default" changed={!isSameAspectRatio(activeDataframe.aspectRatio, DEFAULT_DATAFRAME.aspectRatio)} onReset={() => patchActiveDataframe((current) => ({ ...current, aspectRatio: DEFAULT_DATAFRAME.aspectRatio }))}>
           <PresetInput
             ariaLabel={t('aspectRatio')}
             presets={ASPECT_RATIO_PRESETS}
@@ -37,7 +37,7 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
             onChange={(aspectRatio) => patchActiveDataframe((current) => ({ ...current, aspectRatio }))}
           />
         </Field>
-        <Field label={t('fileFormat')} jsonPath="dataframes[i].fileformat" level="default" changed={activeDataframe.fileformat !== DEFAULT_DATAFRAME.fileformat}>
+        <Field label={t('fileFormat')} jsonPath="dataframes[i].fileformat" level="default" changed={activeDataframe.fileformat !== DEFAULT_DATAFRAME.fileformat} onReset={() => patchActiveDataframe((current) => ({ ...current, fileformat: DEFAULT_DATAFRAME.fileformat }))}>
           <Toggle<'svg' | 'png'>
             ariaLabel={t('fileFormat')}
             value={activeDataframe.fileformat}
@@ -45,7 +45,7 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
             options={[{ value: 'svg', label: 'SVG' }, { value: 'png', label: 'PNG' }]}
           />
         </Field>
-        <Field label={t('resolutionDpi')} jsonPath="dataframes[i].resolution" level="default" changed={activeDataframe.resolution !== DEFAULT_DATAFRAME.resolution} hint={t('dpiHint')}>
+        <Field label={t('resolutionDpi')} jsonPath="dataframes[i].resolution" level="default" changed={activeDataframe.resolution !== DEFAULT_DATAFRAME.resolution} onReset={() => patchActiveDataframe((current) => ({ ...current, resolution: DEFAULT_DATAFRAME.resolution }))} hint={t('dpiHint')}>
           <PresetInput
             ariaLabel={t('resolutionDpi')}
             presets={RESOLUTION_PRESETS}
@@ -60,18 +60,18 @@ export function ImageOutputSection({ activeDataframe, patchActiveDataframe }: Pr
       </div>
       {/* The switches in one row; copyright and watermark only with the attribution key. */}
       <div className="grid grid-cols-2 gap-4 @lg:grid-cols-4">
-        <Field label={t('DarkMode')} jsonPath="dataframes[i].dark_mode" level="default" changed={activeDataframe.darkMode !== DEFAULT_DATAFRAME.darkMode}>
+        <Field label={t('DarkMode')} jsonPath="dataframes[i].dark_mode" level="default" changed={activeDataframe.darkMode !== DEFAULT_DATAFRAME.darkMode} onReset={() => patchActiveDataframe((current) => ({ ...current, darkMode: DEFAULT_DATAFRAME.darkMode }))}>
           <Switch checked={activeDataframe.darkMode} label={t('DarkMode')} onChange={(darkMode) => patchActiveDataframe((current) => ({ ...current, darkMode }))} />
         </Field>
-        <Field label={t('transparent')} jsonPath="dataframes[i].transparent" level="default" changed={activeDataframe.transparent !== DEFAULT_DATAFRAME.transparent}>
+        <Field label={t('transparent')} jsonPath="dataframes[i].transparent" level="default" changed={activeDataframe.transparent !== DEFAULT_DATAFRAME.transparent} onReset={() => patchActiveDataframe((current) => ({ ...current, transparent: DEFAULT_DATAFRAME.transparent }))}>
           <Switch checked={activeDataframe.transparent} label={t('transparent')} onChange={(transparent) => patchActiveDataframe((current) => ({ ...current, transparent }))} />
         </Field>
         {attributionUnlocked && (
           <>
-            <Field label={t('watermark')} jsonPath="dataframes[i].watermark" level="default" changed={activeDataframe.watermark !== DEFAULT_DATAFRAME.watermark}>
+            <Field label={t('watermark')} jsonPath="dataframes[i].watermark" level="default" changed={activeDataframe.watermark !== DEFAULT_DATAFRAME.watermark} onReset={() => patchActiveDataframe((current) => ({ ...current, watermark: DEFAULT_DATAFRAME.watermark }))}>
               <Switch checked={activeDataframe.watermark} label={t('watermark')} onChange={(watermark) => patchActiveDataframe((current) => ({ ...current, watermark }))} />
             </Field>
-            <Field label={t('copyright')} jsonPath="dataframes[i].copyright" level="default" changed={activeDataframe.copyright !== DEFAULT_DATAFRAME.copyright}>
+            <Field label={t('copyright')} jsonPath="dataframes[i].copyright" level="default" changed={activeDataframe.copyright !== DEFAULT_DATAFRAME.copyright} onReset={() => patchActiveDataframe((current) => ({ ...current, copyright: DEFAULT_DATAFRAME.copyright }))}>
               <Switch checked={activeDataframe.copyright} label={t('copyright')} onChange={(copyright) => patchActiveDataframe((current) => ({ ...current, copyright }))} />
             </Field>
           </>
