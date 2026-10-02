@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import os
 import re
 import sys
@@ -220,11 +221,28 @@ def render_plot_image(
                 return _render_plot_image(config, dataframe_index, frame_index, data_sources, progress.output, attribution_unlocked)
             finally:
                 plt.close('all')    # a failed render must not leave its figure in memory
+                _free_render_memory()
     finally:
         if request_id:
             _active_renders.pop(request_id, None)
         with _PENDING_LOCK:
             _pending_renders -= 1
+
+
+_long_lived_objects_frozen = False
+
+
+def _free_render_memory() -> None:
+    '''A figure is full of reference cycles: without a full collection, about 100 MB per render stay
+    until Python's next one, and renders in a row (all plots after an edit) pile up until a
+    container's memory limit kills the server mid-render. After the first render, everything alive
+    (modules, fonts, caches) is frozen, so later collections scan only newer objects: ~30 ms instead
+    of up to seconds in a big process.'''
+    global _long_lived_objects_frozen
+    gc.collect()
+    if not _long_lived_objects_frozen:
+        gc.freeze()
+        _long_lived_objects_frozen = True
 
 
 def _render_plot_image(
