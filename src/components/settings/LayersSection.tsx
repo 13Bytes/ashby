@@ -1,13 +1,13 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select } from '../ui/select'
-import type { FrameConfig, LayerConfig, PlotAlgorithm } from '../../config/defaultPlotConfig'
+import type { DataframeConfig, FrameConfig, LayerConfig, PlotAlgorithm } from '../../config/defaultPlotConfig'
 import { DEFAULT_FRAME, DEFAULT_LAYER } from '../../config/settingsSections'
 import { useI18n } from '../../uiTranslations'
 import { numberValue, type MultiOption } from '../../utils/appState'
 import { resolvePreviewColor } from '../../utils/colors'
-import { keepPointOpacityOnLastLayer } from '../../utils/configEditing'
+import { keepPointOpacityOnLastLayer, layerIncludedKeywords, populateMaterialColorsForDataframe } from '../../utils/configEditing'
 import { useSettings } from '../../utils/settingsContext'
 import { Field, ItemCard, MultiSelectInput, OpacitySlider, SettingsGroup, SharedHint, Toggle } from '../common/AppControls'
 import { useOpenItems } from '../../hooks/useOpenItems'
@@ -16,6 +16,7 @@ type Props = {
   activeFrame: FrameConfig
   materialColors: Record<string, string>
   patchActiveFrame: (updater: (frame: FrameConfig) => FrameConfig) => void
+  patchActiveDataframe: (updater: (dataframe: DataframeConfig) => DataframeConfig) => void
   addLayer: () => void
   layerNameOptions: MultiOption[]
   availableKeywordsByColumn: Record<string, string[]>
@@ -25,7 +26,7 @@ type Props = {
 }
 
 /** Hull layers of the active frame; the first layer's column is required. */
-export function LayersSection({ activeFrame, materialColors, patchActiveFrame, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
+export function LayersSection({ activeFrame, materialColors, patchActiveFrame, patchActiveDataframe, addLayer, layerNameOptions, availableKeywordsByColumn, availableWhitelistKeywords, expandedLayerKeywords, setExpandedLayerKeywords }: Props) {
   const { t } = useI18n()
   const { goTo } = useSettings()
   const openItems = useOpenItems(String(activeFrame._extensions.uiKey))
@@ -40,6 +41,18 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, a
     </Select>
   )
   const firstLayer = activeFrame.layers[0]
+  /** The layer whose keywords were just added to the material colors, and how many were new. */
+  const [addedColors, setAddedColors] = useState<{ layerIndex: number; count: number } | null>(null)
+  useEffect(() => {
+    if (!addedColors) return
+    const timer = window.setTimeout(() => setAddedColors(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [addedColors])
+  const addLayerColors = (layerIndex: number, layer: LayerConfig) => {
+    const keywords = layerIncludedKeywords(layer, availableKeywordsByColumn, availableWhitelistKeywords.map((option) => option.value))
+    setAddedColors({ layerIndex, count: keywords.filter((keyword) => materialColors[keyword] === undefined).length })
+    patchActiveDataframe((df) => populateMaterialColorsForDataframe(df, keywords))
+  }
 
   return (
     <>
@@ -82,6 +95,9 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, a
                   <Field label={t('alpha')} jsonPath={`layers[${layerIndex}].alpha`} level="default" changed={(layer.alpha ?? 0) !== DEFAULT_LAYER.alpha}>
                     <OpacitySlider ariaLabel={t('alpha')} value={layer.alpha ?? 0} onChange={(alpha) => patchLayer(layerIndex, (x) => ({ ...x, alpha }))} />
                   </Field>
+                  <Button type="button" variant="outline" size="sm" className="justify-self-start" disabled={!layer.name} title={t('layerToMaterialColorsHint')} onClick={() => addLayerColors(layerIndex, layer)}>
+                    {addedColors?.layerIndex === layerIndex ? `✓ ${t('layerColorsAdded', { count: addedColors.count })}` : t('layerToMaterialColors')}
+                  </Button>
                 </div>
                 <Field label={t('whitelistKeywords')} jsonPath={`layers[${layerIndex}].whitelist`} level="default" changed={(layer.whitelist ?? []).length > 0 || Boolean(layer.whitelistFlag)} fill>
                   <MultiSelectInput

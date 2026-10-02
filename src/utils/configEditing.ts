@@ -130,6 +130,15 @@ export const generateMaterialColorsForDataframe = (df: DataframeConfig): Datafra
   return { ...df, materialColors: nextColors }
 }
 
+/** Keywords of the layer's column that its whitelist (or blacklist) lets through. `fallbackKeywords`: for a column without text values. */
+export const layerIncludedKeywords = (layer: LayerConfig, keywordsByColumn: Record<string, string[]>, fallbackKeywords: string[]): string[] => {
+  const column = layer.name?.trim()
+  if (!column) return []
+  const sourceKeywords = (keywordsByColumn[column] ?? []).length > 0 ? keywordsByColumn[column] : fallbackKeywords
+  const selected = new Set(layer.whitelist ?? [])
+  return sourceKeywords.filter((keyword) => (layer.whitelistFlag ? selected.has(keyword) : !selected.has(keyword)))
+}
+
 /** Adds a `#000000` entry for every keyword that isn't already a material color; existing entries are untouched. */
 export const populateMaterialColorsForDataframe = (df: DataframeConfig, keywords: string[]): DataframeConfig => {
   const missing = keywords.filter((keyword) => df.materialColors[keyword] === undefined)

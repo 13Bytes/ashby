@@ -9,6 +9,7 @@ import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
 import { AppPopouts, SettingsRow } from './components/layout/AppPopouts'
 import { AttributionKeySetting } from './components/layout/AttributionKeySetting'
+import { layerIncludedKeywords } from './utils/configEditing'
 import { checkAttributionKey, readAttributionKey, setAttributionKey } from './utils/attributionKey'
 import { addPlotLanguageToList, normalizePlotLanguages } from './utils/plotLanguages'
 import { AppHeader } from './components/layout/AppHeader'
@@ -231,21 +232,8 @@ function App() {
   // Keywords a layer's whitelist/blacklist selection actually includes, across every frame of this
   // dataframe — used to populate a material-color entry for each of them.
   const includedLayerKeywords = useMemo(() => {
-    const included = new Set<string>()
-    for (const frame of activeDataframe.frames) {
-      for (const layer of frame.layers) {
-        const column = layer.name?.trim()
-        if (!column) continue
-        const sourceKeywords = (availableKeywordsByColumn[column] ?? []).length > 0
-          ? availableKeywordsByColumn[column]
-          : availableWhitelistKeywords.map((option) => option.value)
-        const selected = new Set(layer.whitelist ?? [])
-        for (const keyword of sourceKeywords) {
-          const isIncluded = layer.whitelistFlag ? selected.has(keyword) : !selected.has(keyword)
-          if (isIncluded) included.add(keyword)
-        }
-      }
-    }
+    const fallbackKeywords = availableWhitelistKeywords.map((option) => option.value)
+    const included = new Set(activeDataframe.frames.flatMap((frame) => frame.layers.flatMap((layer) => layerIncludedKeywords(layer, availableKeywordsByColumn, fallbackKeywords))))
     return [...included].sort((a, b) => a.localeCompare(b))
   }, [activeDataframe.frames, availableKeywordsByColumn, availableWhitelistKeywords])
   const missingDatasourceDataframes = useMemo(
