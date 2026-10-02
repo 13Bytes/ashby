@@ -77,8 +77,6 @@ export type OverviewContent = {
   donateBank: string
   donateReference: string
   /** After the reference text: what else belongs in the payment reference. */
-  donateReferenceNote: string
-  donateReceipt: string
   donateSource: RichText
   copy: string
   copied: string
