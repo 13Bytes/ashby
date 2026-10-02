@@ -9,8 +9,27 @@ from termcolor import (colored, cprint)
 from .formatting import format_storage
 
 
+def _json_safe_row(row:pd.Series) -> dict:
+    """A data row as plain JSON-safe values (NaN/NaT -> None, numpy scalars -> native), for sending a clicked point's underlying data to the frontend."""
+    safe = {}
+    for key, value in row.items():
+        try:
+            is_na = bool(pd.isna(value))
+        except (TypeError, ValueError):
+            is_na = False
+        if is_na:
+            safe[str(key)] = None
+        elif isinstance(value, (np.integer, np.floating, np.bool_)):
+            safe[str(key)] = value.item()
+        elif isinstance(value, (str, int, float, bool)):
+            safe[str(key)] = value
+        else:
+            safe[str(key)] = str(value)
+    return safe
 
-class data_handling(): 
+
+
+class data_handling():
     def __init__(self, Format_Storage:object, graphics:object, dataframe:pd.DataFrame, frame:dict):
         self.graphics        = graphics
         x_quantity = frame.get("x_quantity")
@@ -130,7 +149,7 @@ class data_handling():
                 # print("⚠ skipped Point")
             else:
                 self.point_count['plotted'] += 1
-                self.plot_point(coords, point_list, hirachie, legend_item, current_color)
+                self.plot_point(coords, point_list, hirachie, legend_item, current_color, data.iloc[data_point])
                 point_list = np.vstack((point_list, coords[:,0]))  # add low
                 if not np.all(pd.isna(coords[:, 1])):
                     point_list = np.vstack((point_list, coords[:,1]))   # add high if not empty in both dimensions
@@ -154,8 +173,9 @@ class data_handling():
 
 
 
-    def plot_point(self, coords:list, point_list:list, hirachie:list, legend_item:str, current_color:str) -> None:
+    def plot_point(self, coords:list, point_list:list, hirachie:list, legend_item:str, current_color:str, row:pd.Series=None) -> None:
         point_list = np.vstack((point_list, coords[:,0]))  # add low
+        points_before = len(self.graphics.points)
         if not np.all(pd.isna(coords[:, 1])):
             point_list = np.vstack((point_list, coords[:,1]))   # add high if not empty in both dimensions
 
@@ -185,6 +205,9 @@ class data_handling():
                     hirachie    = hirachie,
                     legend_item = legend_item,
                 )
+
+        if row is not None and len(self.graphics.points) > points_before:
+            self.graphics.points[-1].row = _json_safe_row(row)
 
 
 

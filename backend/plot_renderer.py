@@ -10,7 +10,7 @@ import logging
 import traceback
 from copy import deepcopy
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -33,6 +33,7 @@ class RenderedPlot:
     file_format: str
     messages: list[str]
     log: str = ''
+    points: list[dict] = field(default_factory=list)   # clicked-point data for the frontend's preview, see plot.main()
 
 
 @dataclass
@@ -258,7 +259,7 @@ def _render_plot_image(
                 # a provided dataset (no Teable URL, no uploaded file, as in import_data()) may need the key
                 if dataframe.get('teable_url') is None and source is None and dataframe.get('import_file_name') is not None:
                     check_dataset_access(dataframe['import_file_name'], attribution_unlocked)
-                plot.main(
+                points = plot.main(
                     dataframe,
                     interactive=False,
                     frontend=True,
@@ -281,4 +282,5 @@ def _render_plot_image(
             file_format=file_format,
             messages=_extract_plot_messages(plot_output.getvalue()),
             log=clean_log(plot_output.getvalue()),
+            points=points or [],
         )
