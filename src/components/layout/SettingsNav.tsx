@@ -138,18 +138,25 @@ export function SettingsNav({ mode, activeSection, activeFrameIndex, onSelect, o
         </ul>
       ) : (
         <>
-          <div className="grid gap-1 border-l-[3px] border-violet-500 pl-2.5">
+          {/* the scope tag above its bars: the dataset, then one bar per plot */}
+          <div className="grid justify-items-start gap-1.5">
             <ScopeTag scope="dataset">{t('datasetShared')}</ScopeTag>
-            <strong className="truncate text-xs" title={dataframeName}>{dataframeName}</strong>
-            {group('dataset')}
-          </div>
-          {frameNames.map((frameName, frameIndex) => (
-            <div key={frameIndex} className="grid gap-1 border-l-[3px] border-brand-500 pl-2.5">
-              {frameIndex === 0 ? <ScopeTag scope="plot">{t('plotOnly')}</ScopeTag> : null}
-              <strong className={`truncate text-xs ${frameIndex === activeFrameIndex ? '' : 'font-medium text-zinc-500 dark:text-zinc-400'}`} title={frameName}>{frameName}</strong>
-              {group('plot', frameIndex)}
+            <div className="grid w-full gap-1 border-l-[3px] border-violet-500 pl-2.5">
+              <strong className="truncate text-xs" title={dataframeName}>{dataframeName}</strong>
+              {group('dataset')}
             </div>
-          ))}
+          </div>
+          <div className="grid justify-items-start gap-1.5">
+            <ScopeTag scope="plot">{t('plotOnly')}</ScopeTag>
+            <div className="grid w-full gap-3">
+              {frameNames.map((frameName, frameIndex) => (
+                <div key={frameIndex} className="grid gap-1 border-l-[3px] border-brand-500 pl-2.5">
+                  <strong className={`truncate text-xs ${frameIndex === activeFrameIndex ? '' : 'font-medium text-zinc-500 dark:text-zinc-400'}`} title={frameName}>{frameName}</strong>
+                  {group('plot', frameIndex)}
+                </div>
+              ))}
+            </div>
+          </div>
         </>
       )}
     </nav>
