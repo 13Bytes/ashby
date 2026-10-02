@@ -3,7 +3,7 @@ import { PlotPage } from './components/layout/PlotPage'
 import { Alert, TimedAlert } from './components/ui/alert'
 import { Button } from './components/ui/button'
 import { getConfigVersion, normalizePlotConfig } from './config/configMappers'
-import { CONFIG_VERSION, type PlotConfig } from './config/defaultPlotConfig'
+import { CONFIG_VERSION, type DataframeConfig, type PlotConfig } from './config/defaultPlotConfig'
 import { exportConfig, findExternalFrameOffset, parseImportedConfig, toExternalConfig } from './utils/configIo'
 import { Select } from './components/ui/select'
 import { createTranslator, I18nContext, readStoredUILanguage, UI_LANGUAGE_STORAGE_KEY, type UILanguage } from './uiTranslations'
@@ -43,7 +43,8 @@ type PlotAction = 'preview-current' | 'create-all'
 type ImportDatabaseResponse = { columns?: string[]; keywords_by_column?: Record<string, string[]>; import_file_name?: string; message?: string; success?: boolean; sheet_names?: string[]; format_warnings?: unknown; value_counts?: Record<string, number>; preview?: DataPreview }
 /** What the last datasource import of a dataframe returned; kept per dataframe (by UI key). */
 /** `valueCounts`: rows with a value per axis column (quantity); `preview`: the first rows, sent with the attribution key only. */
-type ImportedSource = { columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[]; valueCounts: Record<string, number>; preview?: DataPreview }
+/** `mode` and `signature`: the source it was read from (see importSignature). */
+type ImportedSource = { mode: SourceMode; signature: string; columns: string[]; keywordsByColumn: Record<string, string[]>; sheets: string[]; formatWarnings: ExcelFormatWarning[]; valueCounts: Record<string, number>; preview?: DataPreview }
 const EMPTY_KEYWORDS: Record<string, string[]> = {}
 const EMPTY_FORMAT_WARNINGS: ExcelFormatWarning[] = []
 
@@ -65,6 +66,9 @@ const MIN_EDITOR_WIDTH = 440 + 10
 
 /** Identifies what an import of a dataframe read, to skip importing the same source again. */
 const sourceSignature = (sourceMode: SourceMode, fileName: string | undefined, sheet: number) => `${sourceMode}:${fileName ?? ''}:${sheet}`
+/** The source a dataframe reads now: its last import counts only while this stays the same. */
+const importSignature = (dataframe: DataframeConfig, sourceMode: SourceMode) =>
+  sourceSignature(sourceMode, sourceMode === 'teable' ? dataframe.teableUrl : dataframe.importFileName, dataframe.importSheet)
 
 const readStored = <T,>(key: string, parse: (value: string | null) => T): T => {
   try {
@@ -145,7 +149,6 @@ function App() {
   const [expandedLayerKeywordsByFrame, setExpandedLayerKeywordsByFrame] = useState<Record<string, Record<number, boolean>>>({})
   // Datasource state is kept per dataframe UI key, so it stays with its dataframe when dataframes
   // are reordered, moved or removed; the index-keyed views below are derived from it.
-  const [importedStatusByKey, setImportedStatusByKey] = useState<Record<string, { imported: boolean; source: SourceMode }>>({})
   const [plotActionNonce, setPlotActionNonce] = useState(0)
   const [plotAction, setPlotAction] = useState<PlotAction>('preview-current')
   const [customMaterialNames, setCustomMaterialNames] = useState<Record<string, string>>({})
@@ -182,7 +185,6 @@ function App() {
   const activeDataframeKey = getUiKey(activeDataframe, 'dataframe')
   const dataframeKeys = useMemo(() => plotConfig.dataframes.map((dataframe) => getUiKey(dataframe, 'dataframe')), [plotConfig.dataframes])
   const datasourceFilesByDataframe = useMemo(() => byDataframeIndex(dataframeKeys, datasourceFilesByKey), [dataframeKeys, datasourceFilesByKey])
-  const importedDatabaseStatus = useMemo(() => byDataframeIndex(dataframeKeys, importedStatusByKey), [dataframeKeys, importedStatusByKey])
   const activeImportedSource = importedSources[activeDataframeKey]
   const availableColumns = useMemo(() => activeImportedSource?.columns ?? [], [activeImportedSource])
   const availableKeywordsByColumn = activeImportedSource?.keywordsByColumn ?? EMPTY_KEYWORDS
@@ -257,32 +259,16 @@ function App() {
             }),
     [availableDatasets, datasourceFilesByDataframe, plotConfig.dataframes],
   )
-  const displayedImportedDatabaseStatus = useMemo(() => {
-    const status = { ...importedDatabaseStatus }
-
-    plotConfig.dataframes.forEach((dataframe, dataframeIndex) => {
-      const sourceMode = getSourceMode(dataframe, availableDatasets ?? [])
-      // For dataset mode the importedDatabaseStatus entry from the actual
-      // import call is authoritative — don't override it.
-      if (sourceMode === 'dataset') return
-
-      if (dataframe.excelImport !== true) {
-        return
-      }
-
-      if (!dataframe.importFileName) {
-        delete status[dataframeIndex]
-        return
-      }
-
-      status[dataframeIndex] = {
-        imported: datasourceFilesByDataframe[dataframeIndex]?.name === dataframe.importFileName,
-        source: 'file',
-      }
-    })
-
-    return status
-  }, [availableDatasets, datasourceFilesByDataframe, importedDatabaseStatus, plotConfig.dataframes])
+  // Imported: the last successful import read the source the dataframe has now (not another
+  // dataset, sheet or Teable table), and an Excel file is still loaded. A file restored from
+  // browser storage counts once its import is done.
+  const displayedImportedDatabaseStatus = useMemo(() => Object.fromEntries(plotConfig.dataframes.flatMap((dataframe, dataframeIndex) => {
+    const source = importedSources[dataframeKeys[dataframeIndex]]
+    if (!source) return []
+    const sourceMode = getSourceMode(dataframe, availableDatasets ?? [])
+    const fileLoaded = sourceMode !== 'file' || datasourceFilesByDataframe[dataframeIndex]?.name === dataframe.importFileName
+    return [[dataframeIndex, { imported: fileLoaded && source.mode === sourceMode && source.signature === importSignature(dataframe, sourceMode), source: source.mode }]]
+  })), [availableDatasets, dataframeKeys, datasourceFilesByDataframe, importedSources, plotConfig.dataframes])
   useEffect(() => {
     patchActiveDataframe((df) => {
       const defaultColor = df.materialColors.default
@@ -451,10 +437,6 @@ function App() {
 
           if (cachedFile) {
             setDatasourceFilesByKey((current) => current[dataframeKey]?.name === cachedFile.name ? current : { ...current, [dataframeKey]: cachedFile })
-            setImportedStatusByKey((current) => ({
-              ...current,
-              [dataframeKey]: { imported: true, source: 'file' },
-            }))
             continue
           }
         } catch {
@@ -599,15 +581,12 @@ function App() {
           })),
         })),
       }))
-      setImportedStatusByKey((current) => ({
-        ...current,
-        [selectedDataframeKey]: { imported: true, source: selectedSourceMode },
-      }))
+      const importedFileName = payload.import_file_name ?? file?.name ?? selectedDataframe.importFileName
       setImportedSources((current) => ({
         ...current,
-        [selectedDataframeKey]: { columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload.value_counts ?? {}, preview: payload.preview },
+        [selectedDataframeKey]: { mode: selectedSourceMode, signature: importSignature({ ...selectedDataframe, importFileName: importedFileName }, selectedSourceMode), columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload.value_counts ?? {}, preview: payload.preview },
       }))
-      importedSignaturesRef.current.set(selectedDataframeKey, sourceSignature(selectedSourceMode, payload.import_file_name ?? file?.name ?? selectedDataframe.importFileName, selectedDataframe.importSheet))
+      importedSignaturesRef.current.set(selectedDataframeKey, sourceSignature(selectedSourceMode, importedFileName, selectedDataframe.importSheet))
       const messageParts = [
         columns.length > 0 ? t('importSuccessColumns', { source: sourceLabel, count: columns.length }) : t('importSuccess', { source: sourceLabel }),
         payload.message ?? '',
@@ -711,7 +690,6 @@ function App() {
       setDatasourceFilesByKey({})
       setDatasourcePrompt(null)
       setDismissedDatasourcePrompts({})
-      setImportedStatusByKey({})
       setConfigBaseName(file.name.replace(/\.[^.]+$/, '') || 'ashby-config')
       setImportedSources({})
       importedSignaturesRef.current.clear()
@@ -763,10 +741,6 @@ function App() {
       setDatasourceFilesByKey((current) => ({
         ...current,
         [prompt.dataframeKey]: cachedFile,
-      }))
-      setImportedStatusByKey((current) => ({
-        ...current,
-        [prompt.dataframeKey]: { imported: true, source: 'file' },
       }))
       setDismissedDatasourcePrompts((current) => {
         const next = { ...current }
@@ -823,7 +797,6 @@ function App() {
     try {
       await clearCachedDatasourceFiles()
       setDatasourceFilesByKey({})
-      setImportedStatusByKey({})
       setDatasourcePrompt(null)
       setDismissedDatasourcePrompts({})
       setAlert({ tone: 'success', message: t('storedFilesCleared') })
@@ -846,7 +819,6 @@ function App() {
     setDatasourceFilesByKey({})
     setDatasourcePrompt(null)
     setDismissedDatasourcePrompts({})
-    setImportedStatusByKey({})
     setShowResetConfirm(false)
   }
   // Settings navigation: modes, sections, jumping to fields, required settings.

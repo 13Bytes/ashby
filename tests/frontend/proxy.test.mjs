@@ -71,10 +71,12 @@ test('App keeps datasource import results per dataframe', async () => {
   const source = await readSource('App.tsx')
 
   assert.match(source, /importedSources\[activeDataframeKey\]/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload\.value_counts \?\? \{\}, preview: payload\.preview \}/)
+  assert.match(source, /\[selectedDataframeKey\]: \{ mode: selectedSourceMode, signature: importSignature\(\{ \.\.\.selectedDataframe, importFileName: importedFileName \}, selectedSourceMode\), columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload\.value_counts \?\? \{\}, preview: payload\.preview \}/)
   // Excel files and import status stay with their dataframe when dataframes are reordered or removed.
   assert.match(source, /\[selectedDataframeKey\]: cachedFile/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ imported: true, source: selectedSourceMode \}/)
+  // Imported only while the last successful import read the current source (and its file is loaded)
+  assert.match(source, /imported: fileLoaded && source\.mode === sourceMode && source\.signature === importSignature\(dataframe, sourceMode\)/)
+  assert.doesNotMatch(source, /imported: true/)
   assert.match(source, /byDataframeIndex\(dataframeKeys, datasourceFilesByKey\)/)
   assert.doesNotMatch(source, /\[activeDataframeIndex\]: cachedFile/)
 })
