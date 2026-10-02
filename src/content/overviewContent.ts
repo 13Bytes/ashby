@@ -25,7 +25,7 @@ export const DONATION_ACCOUNT = {
   iban: 'DE14 6035 0130 0000 0474 27',
   bic: 'BBKRDE6BXXX',
   bank: 'Kreissparkasse Böblingen',
-  reference: 'Spende AEROSPACE LAB',
+  reference: 'Spende für Ashby Plots',
 } as const
 
 /** Text with links: plain strings and linked parts. */
@@ -180,12 +180,10 @@ const en: OverviewContent = {
   donateRecipient: 'Recipient',
   donateBank: 'Bank',
   donateReference: 'Payment reference',
-  donateReferenceNote: 'and your postal address',
-  donateReceipt: 'For amounts up to €300, a simple proof of payment such as a bank statement is enough for the German tax office. From €300, the lab issues a donation receipt.',
   donateSource: ['Bank details as published on ', { text: 'aerospace-lab.de', href: LINKS.donate }, '.'],
   copy: 'Copy',
   copied: 'Copied',
-  followTitle: 'Follow the lab',
+  followTitle: 'Follow the Lab',
   followText: 'News from the Aerospace Lab and its projects.',
   sourceTitle: 'Source code',
   sourceText: 'The code of PolyPlot is on GitHub: issues and pull requests are welcome.',
@@ -283,8 +281,6 @@ const de: OverviewContent = {
   donateRecipient: 'Empfänger',
   donateBank: 'Bank',
   donateReference: 'Verwendungszweck',
-  donateReferenceNote: 'sowie deine Postadresse',
-  donateReceipt: 'Bei Beträgen bis zu 300 € genügt dem Finanzamt ein einfacher Beleg über die Zahlung, zum Beispiel ein Kontoauszug. Ab 300 € stellt der Verein eine Spendenbescheinigung aus.',
   donateSource: ['Bankverbindung wie auf ', { text: 'aerospace-lab.de', href: LINKS.donate }, ' veröffentlicht.'],
   copy: 'Kopieren',
   copied: 'Kopiert',

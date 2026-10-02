@@ -72,9 +72,8 @@ export function DonateDialog({ onClose }: { onClose: () => void }) {
             <AccountRow label="IBAN" value={DONATION_ACCOUNT.iban} copyValue={DONATION_ACCOUNT.iban.replaceAll(' ', '')} />
             <AccountRow label="BIC" value={DONATION_ACCOUNT.bic} />
             <AccountRow label={content.donateBank} value={DONATION_ACCOUNT.bank} />
-            <AccountRow label={content.donateReference} value={DONATION_ACCOUNT.reference} note={content.donateReferenceNote} copyValue={DONATION_ACCOUNT.reference} />
+            <AccountRow label={content.donateReference} value={DONATION_ACCOUNT.reference} copyValue={DONATION_ACCOUNT.reference} />
           </dl>
-          <p className="m-0">{content.donateReceipt}</p>
           <p className="m-0 text-xs text-zinc-500"><RichText parts={content.donateSource} /></p>
         </div>
       </div>
