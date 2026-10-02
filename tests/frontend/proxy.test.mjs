@@ -71,10 +71,12 @@ test('App keeps datasource import results per dataframe', async () => {
   const source = await readSource('App.tsx')
 
   assert.match(source, /importedSources\[activeDataframeKey\]/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload\.value_counts \?\? \{\}, preview: payload\.preview \}/)
+  assert.match(source, /\[selectedDataframeKey\]: \{ mode: selectedSourceMode, signature: importSignature\(\{ \.\.\.selectedDataframe, importFileName: importedFileName \}, selectedSourceMode\), columns, keywordsByColumn, sheets: sheetNames, formatWarnings, valueCounts: payload\.value_counts \?\? \{\}, preview: payload\.preview \}/)
   // Excel files and import status stay with their dataframe when dataframes are reordered or removed.
   assert.match(source, /\[selectedDataframeKey\]: cachedFile/)
-  assert.match(source, /\[selectedDataframeKey\]: \{ imported: true, source: selectedSourceMode \}/)
+  // Imported only while the last successful import read the current source (and its file is loaded)
+  assert.match(source, /imported: fileLoaded && source\.mode === sourceMode && source\.signature === importSignature\(dataframe, sourceMode\)/)
+  assert.doesNotMatch(source, /imported: true/)
   assert.match(source, /byDataframeIndex\(dataframeKeys, datasourceFilesByKey\)/)
   assert.doesNotMatch(source, /\[activeDataframeIndex\]: cachedFile/)
 })
@@ -207,5 +209,8 @@ test('all plots are listed next to the preview, rendered only from the first edi
   // nothing on load: a config change after the page was used starts it, one plot at a time
   assert.match(gallery, /if \(navigator\.userActivation\?\.hasBeenActive \?\? true\) setEdited\(true\)/)
   assert.match(gallery, /const next = edited && autoRefresh && availableDatasets !== null && rendering === null/)
-  assert.match(gallery, /plot\.canRender && thumbnails\[plot\.id\]\?\.key !== plot\.key/)
+  assert.match(gallery, /plot\.canRender && images\[plot\.id\]\?\.key !== plot\.key/)
+  // a selected plot with an up-to-date image is shown, not rendered again
+  assert.match(plotPage, /if \(!requested && image\?\.blob && !image\.error && image\.key === imageKey\?\.key\) \{\s*showImage/)
+  assert.match(plotPage, /if \(imageKey\) storeImage\(imageKey\.id, imageKey\.key, \{ blob: imageBlob/)
 })
