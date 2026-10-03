@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type DragEvent, type MouseEvent, type SetStateAction } from 'react'
 import type { PlotConfig } from '../../config/defaultPlotConfig'
 import { useI18n } from '../../uiTranslations'
-import { dataframeLabel, getSelectedIndices, getUiKey } from '../../utils/appState'
+import { dataframeLabel, frameLabel, getSelectedIndices, getUiKey } from '../../utils/appState'
 import { Button } from '../ui/button'
 
 type TabRename = { type: 'dataframe' | 'frame'; index: number; value: string }
@@ -229,7 +229,7 @@ export function ConfigTabs(props: Props) {
             <div className="flex items-center gap-0.5 rounded-[7px] bg-white py-0.5 pl-1 pr-1 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
               {df.frames.map((frame, frameIndex) => {
                 const active = isActiveDataframe && frameIndex === activeFrameIndex
-                const frameName = frame.name || `Frame ${frameIndex + 1}`
+                const frameName = frameLabel(frame, frameIndex)
                 const missing = frameMissingCount(dataframeIndex, frameIndex)
                 const renaming = tabRename?.type === 'frame' && isActiveDataframe && tabRename.index === frameIndex
                 return (

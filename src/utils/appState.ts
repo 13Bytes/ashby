@@ -4,12 +4,14 @@ export type SourceMode = 'teable' | 'file' | 'dataset'
 /** `count`: shown after the label, e.g. the rows with a value of an axis column. */
 export type MultiOption = { value: string; label: string; count?: number }
 
-/** Name of a dataframe for the UI; unnamed dataframes are numbered ("DF 1"). */
-export const DATAFRAME_NAME_PREFIX = 'DF'
+/** Name of a dataframe (a dataset in the UI); unnamed ones are numbered ("Dataset 1"). */
+export const DATAFRAME_NAME_PREFIX = 'Dataset'
 export const dataframeLabel = (dataframe: { name?: string }, index: number): string => dataframe.name?.trim() || `${DATAFRAME_NAME_PREFIX} ${index + 1}`
-export const frameLabel = (frame: { name?: string }, index: number): string => frame.name || `Frame ${index + 1}`
+/** Name of a frame (a plot in the UI); unnamed ones are numbered ("Plot 1"). */
+export const FRAME_NAME_PREFIX = 'Plot'
+export const frameLabel = (frame: { name?: string }, index: number): string => frame.name || `${FRAME_NAME_PREFIX} ${index + 1}`
 
-/** Default name for a new dataframe: "DF n" with n at least its position, skipping names in use. */
+/** Default name for a new dataframe: "Dataset n" with n at least its position, skipping names in use. */
 export const nextDataframeName = (dataframes: Array<{ name?: string }>): string => {
   const used = new Set(dataframes.map((dataframe, index) => dataframeLabel(dataframe, index)))
   let number = dataframes.length + 1
@@ -299,7 +301,7 @@ export const duplicateFrameInDataframe = (df: DataframeConfig, index: number): {
   const original = df.frames[index]
   if (!original) return null
   const clone = structuredClone(original)
-  clone.name = getNextTabName(df.frames.map(frameLabel), 'Frame')
+  clone.name = getNextTabName(df.frames.map(frameLabel), FRAME_NAME_PREFIX)
   refreshUiKey(clone, 'frame')
   const included = getSelectedIndices(df.frames.length, df.createAllFrames).includes(index)
   const frames = [...df.frames]

@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
 import { addAxisToDataframe, addGuidelineToFrame, addLayerToFrame, generateMaterialColorsForDataframe, updateAxisInDataframe, updateGuidelineInFrame } from '../utils/configEditing'
-import { duplicateFrameInDataframe, frameLabel, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
+import { duplicateFrameInDataframe, FRAME_NAME_PREFIX, frameLabel, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
   activeDataframeIndex: number
@@ -54,7 +54,7 @@ const addDataframe = () => {
     source.name = nextDataframeName(current.dataframes)
     refreshUiKey(source, 'dataframe')
     source.frames = source.frames.map((frame, frameIndex) => {
-      const nextFrame = { ...frame, name: `Frame ${frameIndex + 1}` }
+      const nextFrame = { ...frame, name: frameLabel({}, frameIndex) }
       refreshUiKey(nextFrame, 'frame')
       return nextFrame
     })
@@ -75,7 +75,7 @@ const addFrame = (dataframeIndex: number = activeDataframeIndex) => {
     const df = current.dataframes[dataframeIndex]
     if (!df) return current
     const next = structuredClone(df.frames[0])
-    next.name = getNextTabName(df.frames.map(frameLabel), 'Frame')
+    next.name = getNextTabName(df.frames.map(frameLabel), FRAME_NAME_PREFIX)
     refreshUiKey(next, 'frame')
     const nextFrames = [...df.frames, next]
     setActiveDataframeIndex(dataframeIndex)

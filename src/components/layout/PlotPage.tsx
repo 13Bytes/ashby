@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { downloadBlob, toExternalConfig } from '../../utils/configIo'
 import type { PlotConfig } from '../../config/defaultPlotConfig'
 import { Alert } from '../ui/alert'
-import { dataframeLabel, getSourceMode } from '../../utils/appState'
+import { dataframeLabel, frameLabel, getSourceMode } from '../../utils/appState'
 import { Button } from '../ui/button'
 import { useI18n, type Translate } from '../../uiTranslations'
 import { BackendError, fetchBackend, readBackendError, toErrorDetails, type BackendErrorDetails } from '../../utils/backendErrors'
@@ -302,12 +302,16 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
 
   const getDownloadName = (entry: Pick<RenderedPlotEntry, 'dataframeIndex' | 'frameIndex' | 'mediaType'>) => {
     const extension = entry.mediaType.includes('png') ? 'png' : 'svg'
-    const dataframeName = plotConfig.dataframes[entry.dataframeIndex]?.name?.trim() || `DF${entry.dataframeIndex + 1}`
-    const frameName = plotConfig.dataframes[entry.dataframeIndex]?.frames[entry.frameIndex]?.name?.trim() || `Frame${entry.frameIndex + 1}`
+    const dataframeName = plotConfig.dataframes[entry.dataframeIndex]?.name?.trim() || `Dataset${entry.dataframeIndex + 1}`
+    const frameName = plotConfig.dataframes[entry.dataframeIndex]?.frames[entry.frameIndex]?.name?.trim() || `Plot${entry.frameIndex + 1}`
     return `${dataframeName}_${frameName}.${extension}`
   }
 
-  const plotLabel = (dataframeIndex: number, frameIndex: number) => t('plotLabel', { df: dataframeIndex + 1, frame: frameIndex + 1 })
+  // the names as on the plot tabs
+  const plotLabel = (dataframeIndex: number, frameIndex: number) => t('plotLabel', {
+    df: dataframeLabel(plotConfig.dataframes[dataframeIndex] ?? {}, dataframeIndex),
+    frame: frameLabel(plotConfig.dataframes[dataframeIndex]?.frames[frameIndex] ?? {}, frameIndex),
+  })
 
   // The panel follows the website theme. Only a transparent image gets a backing, matching the plot's
   // dark mode (a dataset setting), so its light or dark text stays readable; other
@@ -680,7 +684,7 @@ export function PlotPage({ plotConfig, configBaseName, activeDataframeIndex, act
       <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mr-auto grid min-w-0">
           <span className="text-[11px] text-zinc-500">{t('preview')} · <span className="font-mono uppercase">{activeDataframe?.language}</span></span>
-          <strong className="truncate text-sm">{activeFrame?.name || `Frame ${activeFrameIndex + 1}`}</strong>
+          <strong className="truncate text-sm">{frameLabel(activeFrame ?? {}, activeFrameIndex)}</strong>
         </div>
         {pill ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pill.className}`}>{pill.text}</span> : null}
         <Button type="button" variant="outline" size="sm" onClick={() => void fetchPlot()} disabled={loading || !canRender} title={t('refreshPreview')} aria-label={t('refreshPreview')}>
