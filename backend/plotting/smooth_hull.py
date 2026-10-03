@@ -7,9 +7,9 @@ import shapely
 from scipy.ndimage import gaussian_filter1d
 from shapely.geometry import MultiPoint, Polygon
 
-BASE_MARGIN     = 0.006     # smallest margin around the points: also makes a tiny group a visible bubble
-RELATIVE_MARGIN = 0.06      # extra margin per unit of the hull's size (square root of its area)
-SMOOTHING       = 0.05      # Gaussian smoothing along the outline, as a share of its length
+BASE_MARGIN     = 0.002     # smallest margin around the points: also makes a tiny group a visible bubble
+RELATIVE_MARGIN = 0.01      # extra margin per unit of the hull's size (square root of its area)
+SMOOTHING       = 0.06      # Gaussian smoothing along the outline, as a share of its length
 STEP            = 0.002     # spacing of the outline's points
 
 
