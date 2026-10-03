@@ -14,6 +14,7 @@ except ImportError:
 
 CONFIG_NAME = "ashby-config-2026-08-03.json"
 DARK_BACKGROUND = '#121212'     # background of dark mode plots that are not transparent
+GENERIC_FONT_FAMILIES = ('serif', 'sans-serif', 'cursive', 'fantasy', 'monospace')
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
@@ -25,7 +26,29 @@ def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
 
 
 
+def _font_rc_params(font:dict) -> dict:
+    '''matplotlib settings for a dataframe's font. The chosen font goes first in its generic family; the family's other fonts stay as fallback for systems without it (e.g. no Arial in Docker).'''
+    family = font.get('font_style', "sans-serif")
+    if family not in GENERIC_FONT_FAMILIES:
+        family = "sans-serif"
+    params = {'font.family': family}
+    font_size = font.get('font_size', 22)
+    if isinstance(font_size, (int, float)) and font_size > 0:
+        params['font.size'] = font_size
+    font_name = font.get('font', "Arial")
+    if isinstance(font_name, str) and font_name.strip():
+        fallback = [name for name in plt.rcParams[f'font.{family}'] if name != font_name.strip()]
+        params[f'font.{family}'] = [font_name.strip(), *fallback]
+    return params
+
+
 def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> list:
+    # only while this dataframe's plots are drawn and saved, so one dataframe's font does not leak into the next render
+    with plt.rc_context(_font_rc_params(dataframe.get('font', {}))):
+        return _plot_frames(dataframe, interactive, frontend, xlsx_file_bytes)
+
+
+def _plot_frames(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> list:
     handler = []
     all_points = []     # clicked-point data for the frontend (figure-fraction coords), one frame's worth when frontend=True
 
@@ -75,11 +98,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
         ax.spines[:].set_color(font_color)
 
-        rc_params: dict[str, Any] = {
-            'font.family': df_font.get('font_style',"sans-serif"),
-            'font.size':   df_font.get('font_size',22),
-           f'font.{df_font.get('font_style',"sans-serif")}': df_font.get('font',"Arial"),
-        }
         if fileformat == "svg":
             plt.rcParams.update({"savefig.format":"svg"})
 
