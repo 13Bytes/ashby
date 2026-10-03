@@ -12,6 +12,7 @@ import {
   getSelectedIndices,
   getUiKey,
   moveFrameInConfig,
+  newDataframeFrom,
   nextDataframeName,
   positiveValue,
 } from '../../src/utils/appState.ts'
@@ -102,6 +103,18 @@ test('new datasets get the next free name', () => {
   assert.equal(dataframeLabel({ name: '  ' }, 2), 'Dataset 3')
   assert.equal(nextDataframeName([{ name: 'Dataset 1' }, { name: '' }]), 'Dataset 3')
   assert.equal(nextDataframeName([{ name: 'Dataset 2' }]), 'Dataset 3')
+})
+
+test('a new dataset starts with one plot, a copy of the first one', () => {
+  const first = normalizePlotConfig({ dataframes: [{ name: 'Mine', font: { font: 'Courier New' }, create_all_frames: [3], frames: [{ name: 'A', title: { en: 'T' } }, { name: 'B' }, { name: 'C' }] }] }).dataframes[0]
+  const created = newDataframeFrom([first])
+  assert.equal(created.name, 'Dataset 2')
+  assert.equal(created.font.font, 'Courier New')
+  assert.deepEqual(created.frames.map((frame) => frame.name), ['Plot 1'])
+  assert.deepEqual(created.frames[0].title, { en: 'T' })
+  assert.equal(created.createAllFrames, true)
+  assert.notEqual(getUiKey(created, 'dataframe'), getUiKey(first, 'dataframe'))
+  assert.equal(first.frames.length, 3)
 })
 
 test('the import sheet is a non-negative whole number', () => {

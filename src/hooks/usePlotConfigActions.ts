@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { AxisConfig, DataframeConfig, FrameConfig, GuidelineConfig, PlotConfig } from '../config/defaultPlotConfig'
 import { addAxisToDataframe, addGuidelineToFrame, addLayerToFrame, generateMaterialColorsForDataframe, updateAxisInDataframe, updateGuidelineInFrame } from '../utils/configEditing'
-import { duplicateFrameInDataframe, FRAME_NAME_PREFIX, frameLabel, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
+import { duplicateFrameInDataframe, FRAME_NAME_PREFIX, frameLabel, getNextTabName, insertSelectionIndex, moveFrameInConfig, moveItem, newDataframeFrom, nextDataframeName, refreshUiKey, removeSelectionIndex, reorderSelectionIndices, toggleIndexSelection } from '../utils/appState'
 
 type Params = {
   activeDataframeIndex: number
@@ -50,17 +50,9 @@ const toggleFrameGeneration = (dataframeIndex: number, index: number, enabled: b
 const addDataframe = () => {
   setPlotConfig((current) => {
     const nextIndex = current.dataframes.length
-    const source = structuredClone(current.dataframes[0])
-    source.name = nextDataframeName(current.dataframes)
-    refreshUiKey(source, 'dataframe')
-    source.frames = source.frames.map((frame, frameIndex) => {
-      const nextFrame = { ...frame, name: frameLabel({}, frameIndex) }
-      refreshUiKey(nextFrame, 'frame')
-      return nextFrame
-    })
     setActiveDataframeIndex(nextIndex)
     setActiveFrameIndex(0)
-    const nextDataframes = [...current.dataframes, source]
+    const nextDataframes = [...current.dataframes, newDataframeFrom(current.dataframes)]
     return {
       ...current,
       dataframes: nextDataframes,

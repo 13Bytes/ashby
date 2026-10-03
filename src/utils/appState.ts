@@ -310,5 +310,15 @@ export const duplicateFrameInDataframe = (df: DataframeConfig, index: number): {
   return { dataframe: { ...df, frames, createAllFrames: toggleIndexSelection(frames.length, shifted, index + 1, included) }, frameIndex: index + 1 }
 }
 
+/** A new dataset: a copy of the first one's settings with a single plot (its first), under the next free name. */
+export const newDataframeFrom = (dataframes: DataframeConfig[]): DataframeConfig => {
+  const source = structuredClone(dataframes[0])
+  source.name = nextDataframeName(dataframes)
+  refreshUiKey(source, 'dataframe')
+  const frame = { ...source.frames[0], name: frameLabel({}, 0) }
+  refreshUiKey(frame, 'frame')
+  return { ...source, frames: [frame], createAllFrames: true }
+}
+
 /** Tag of a value on a plot axis inside a field group, e.g. "X · Density". */
 export const axisTag = (axis: 'x' | 'y', quantity?: string) => (quantity ? `${axis.toUpperCase()} · ${quantity}` : axis.toUpperCase())
