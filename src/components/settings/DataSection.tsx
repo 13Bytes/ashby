@@ -119,8 +119,8 @@ export function DataSection({
             value={sourceMode}
             onChange={updateSourceMode}
             options={[
-              { value: 'file', label: t('sourceModeFile') },
               { value: 'dataset', label: t('sourceModeDataset') },
+              { value: 'file', label: t('sourceModeFile') },
               { value: 'teable', label: t('sourceModeTeable') },
             ]}
           />
