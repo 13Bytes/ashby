@@ -27,6 +27,9 @@ export function useOpenItems(resetKey: string) {
     added: (index: number) => update((current) => new Set([...current, index])),
     /** An item was inserted at `index` (e.g. a duplicate): later items move down, the new one opens. */
     inserted: (index: number) => update((current) => new Set([...shift(current, index, 1), index])),
+    /** The item at `from` was moved to `to`: the items in between shift by one. */
+    moved: (from: number, to: number) => update((current) => new Set([...current].map((index) =>
+      index === from ? to : from < to && index > from && index <= to ? index - 1 : to < from && index >= to && index < from ? index + 1 : index))),
     /** The item at `index` was removed: later items move up. */
     removed: (index: number) => update((current) => shift(new Set([...current].filter((entry) => entry !== index)), index + 1, -1)),
   }

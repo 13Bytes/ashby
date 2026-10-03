@@ -7,10 +7,11 @@ import { DEFAULT_FRAME, DEFAULT_LAYER } from '../../config/settingsSections'
 import { useI18n } from '../../uiTranslations'
 import { numberValue, type MultiOption } from '../../utils/appState'
 import { resolvePreviewColor } from '../../utils/colors'
-import { keepPointOpacityOnLastLayer, layerIncludedKeywords, populateMaterialColorsForDataframe } from '../../utils/configEditing'
+import { keepPointOpacityOnLastLayer, layerIncludedKeywords, moveItem, moveLayerInFrame, populateMaterialColorsForDataframe } from '../../utils/configEditing'
 import { useSettings } from '../../utils/settingsContext'
 import { Field, ItemCard, MultiSelectInput, OpacitySlider, SettingsGroup, SharedHint, Toggle } from '../common/AppControls'
 import { useOpenItems } from '../../hooks/useOpenItems'
+import { useDragReorder } from '../../hooks/useDragReorder'
 
 type Props = {
   activeFrame: FrameConfig
@@ -41,6 +42,14 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, p
     </Select>
   )
   const firstLayer = activeFrame.layers[0]
+  const layerDrag = useDragReorder(activeFrame.layers.length, (from, to) => {
+    openItems.moved(from, to)
+    // the expanded keyword lists are per layer index, too
+    setExpandedLayerKeywords((current) => Object.fromEntries(
+      moveItem(activeFrame.layers.map((_, index) => current[index]), from, to).flatMap((expanded, index) => (expanded ? [[index, true]] : [])),
+    ))
+    patchActiveFrame((f) => moveLayerInFrame(f, from, to))
+  })
   /** The layer whose keywords were just added to the material colors, and how many were new. */
   const [addedColors, setAddedColors] = useState<{ layerIndex: number; count: number } | null>(null)
   useEffect(() => {
@@ -83,6 +92,7 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, p
                 patchActiveFrame((f) => ({ ...f, layers: keepPointOpacityOnLastLayer(f.layers, f.layers.filter((_, i) => i !== layerIndex)) }))
               }}
               removeDisabled={activeFrame.layers.length <= 1}
+              drag={activeFrame.layers.length > 1 ? layerDrag(layerIndex) : undefined}
             >
               <div className="grid items-stretch gap-5 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
                 <div className="grid content-start gap-4">

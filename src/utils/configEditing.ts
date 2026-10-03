@@ -76,6 +76,20 @@ export const keepPointOpacityOnLastLayer = (previous: LayerConfig[], layers: Lay
   }))
 }
 
+/** `list` with the item at `from` moved to `to` (indices after the move). */
+export const moveItem = <T,>(list: readonly T[], from: number, to: number): T[] => {
+  const result = [...list]
+  const [item] = result.splice(from, 1)
+  result.splice(to, 0, item)
+  return result
+}
+
+/** The frame with the layer at `from` moved to `to`; the point opacity stays on the last layer. */
+export const moveLayerInFrame = (frame: FrameConfig, from: number, to: number): FrameConfig => ({
+  ...frame,
+  layers: keepPointOpacityOnLastLayer(frame.layers, moveItem(frame.layers, from, to)),
+})
+
 /** The plot's x and y axis as noted with entered coordinates: the quantity or "quantity/relative quantity". */
 export const plotAxesOf = (frame: FrameConfig): PlotAxes => [
   frame.xRelQuantity ? `${frame.xQuantity ?? ''}/${frame.xRelQuantity}` : frame.xQuantity ?? '',

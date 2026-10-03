@@ -22,7 +22,8 @@ import {
 } from '../../src/utils/appState.ts'
 import { addColoredAreaToFrame, setColoredAreaType } from '../../src/utils/coloredAreas.ts'
 import { resolvePreviewColor } from '../../src/utils/colors.ts'
-import { addAnnotationToFrame, addLayerToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, keepPointOpacityOnLastLayer, plotAxesChanged, setLocalizedLabel } from '../../src/utils/configEditing.ts'
+import { addAnnotationToFrame, addLayerToFrame, generateMaterialColorsForDataframe, getLocalizedLabel, keepPointOpacityOnLastLayer, moveLayerInFrame, plotAxesChanged, setLocalizedLabel } from '../../src/utils/configEditing.ts'
+import { finalIndex } from '../../src/hooks/useDragReorder.ts'
 import { findExternalFrameOffset, parseImportedConfig, parseJsonField, toExternalConfig } from '../../src/utils/configIo.ts'
 import { getJsonSyntaxMarkers } from '../../src/utils/jsonHighlight.ts'
 import { addPlotLanguageToList, normalizePlotLanguages } from '../../src/utils/plotLanguages.ts'
@@ -456,4 +457,15 @@ test('the opacity of points and ranges stays on the last layer, which the backen
   assert.deepEqual(added.layers.map((layer) => [layer.alphaPoints, layer.alphaAreas]), [[undefined, undefined], [0.3, 0.6]])
   const removed = keepPointOpacityOnLastLayer(added.layers, added.layers.slice(0, 1))
   assert.deepEqual([removed[0].alphaPoints, removed[0].alphaAreas], [0.3, 0.6])
+})
+
+test('dragged layers move, and the point opacity stays on whichever layer is last', () => {
+  const base = createDefaultPlotConfig().dataframes[0].frames[0]
+  const frame = { ...base, layers: ['a', 'b', 'c'].reduce((layers, name) => keepPointOpacityOnLastLayer(layers, [...layers, { ...base.layers[0], name }]), []) }
+  const lastToFirst = moveLayerInFrame(frame, 2, 0)
+  assert.deepEqual(lastToFirst.layers.map((layer) => layer.name), ['c', 'a', 'b'])
+  assert.deepEqual(lastToFirst.layers.map((layer) => layer.alphaPoints), [undefined, undefined, frame.layers[2].alphaPoints])
+  assert.deepEqual(moveLayerInFrame(frame, 0, 2).layers.map((layer) => layer.name), ['b', 'c', 'a'])
+  // dropped before the item at `to` (to = length: at the end)
+  assert.deepEqual([finalIndex(0, 3), finalIndex(2, 0), finalIndex(0, 2)], [2, 0, 1])
 })

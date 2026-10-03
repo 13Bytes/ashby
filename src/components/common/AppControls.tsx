@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
+import type { ItemDrag } from '../../hooks/useDragReorder'
 import { getFieldHelp, useI18n } from '../../uiTranslations'
 import type { MultiOption } from '../../utils/appState'
 import { HEX_COLOR, resolvePreviewColor } from '../../utils/colors'
@@ -801,6 +802,7 @@ export function ItemCard({
   onDuplicate,
   onRemove,
   removeDisabled,
+  drag,
   children,
 }: {
   icon?: ReactNode
@@ -812,6 +814,8 @@ export function ItemCard({
   onDuplicate?: () => void
   onRemove: () => void
   removeDisabled?: boolean
+  /** Makes the card reorderable by a handle (useDragReorder). */
+  drag?: ItemDrag
   children: ReactNode
 }) {
   const { t } = useI18n()
@@ -831,9 +835,22 @@ export function ItemCard({
   return (
     <div
       ref={rootRef}
-      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 ring-3 ring-brand-500/12 dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
+      data-item-card
+      {...drag?.item}
+      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${drag ? 'relative' : ''} ${drag?.dragging ? 'opacity-50' : ''} ${open ? 'border-brand-400 ring-3 ring-brand-500/12 dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
     >
+      {drag?.indicator ? <span aria-hidden="true" className={`pointer-events-none absolute inset-x-1 h-0.5 rounded bg-brand-500 ${drag.indicator === 'before' ? '-top-[5px]' : '-bottom-[5px]'}`} /> : null}
       <div className="flex min-w-0 items-center gap-1 pr-2">
+        {drag ? (
+          <span
+            {...drag.handle}
+            role="button"
+            tabIndex={0}
+            className="-mr-2 ml-1 grid h-7 w-5 shrink-0 cursor-grab place-items-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 active:cursor-grabbing dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title={t('dragToReorder')}
+            aria-label={t('dragToReorder')}
+          >⠿</span>
+        ) : null}
         <button
           type="button"
           aria-expanded={open}
