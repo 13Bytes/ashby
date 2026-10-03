@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 
 from .formatting import legend
+from .smooth_hull import smooth_hull
 
 class plot_unit_props():
     def __init__(self, legend, element, x,y, hirachie, legend_item = None, label="", picker=False, picker_nvis=False, alpha=1):
@@ -33,6 +34,7 @@ class plotter_graphics():
         self.points      = []
         self.hulls       = []
         self.algorithm   = algorithm
+        self.pending_hulls = []     # smooth hulls: [points, fill, outline], shaped by finish_hulls()
     
     def __str__(self):
         print(f"Hulls:  {self.hulls }")
@@ -93,7 +95,14 @@ class plotter_graphics():
 
         line = True
         Data = np.unique(X, axis=0)
-        
+
+        if self.algorithm == 'smooth':      # also two points or points on a line: they get a capsule
+            if len(Data) < 2:
+                print("can't plot Hull, only one Point - skipping", X)
+            else:
+                self.draw_smooth_hull(Data, hirachie, legend_item, plot_kwargs)
+            return
+
         if len(Data) < 2:
             print("can't plot Hull, only one Point - skipping", X)
         elif len(Data) > 2:
@@ -134,6 +143,36 @@ class plotter_graphics():
                 **plot_kwargs
             )
             self.hulls.append(plot_unit_props(self.legend, outline, None,None, hirachie, legend_item, alpha=plot_kwargs['alpha']))
+
+
+    # ~ Smooth hull
+    def draw_smooth_hull(self, X, hirachie, legend_item, plot_kwargs):
+        '''fill and outline through the points for now; finish_hulls() gives them their shape once the
+        axes' limits and scales are final (the outline is computed in screen proportions)'''
+        patch = self.ax.fill(X[:,0], X[:,1], **plot_kwargs)
+        self.hulls.append(plot_unit_props(self.legend, patch, None,None, hirachie, legend_item, alpha=plot_kwargs['alpha']))
+        outline = self.ax.plot(X[:,0], X[:,1], **{**plot_kwargs, 'alpha': .35})
+        self.hulls.append(plot_unit_props(self.legend, outline, None,None, hirachie, legend_item, alpha=.35))
+        self.pending_hulls.append([X.copy(), patch, outline])
+
+    def finish_hulls(self):
+        '''shapes the smooth hulls; call after the axes' limits and scales are set'''
+        to_screen = self.ax.transData
+        height = self.ax.bbox.height
+        for X, patch, outline in self.pending_hulls:
+            screen = to_screen.transform(X)
+            screen = screen[np.isfinite(screen).all(axis=1)]     # e.g. a value <= 0 on a log axis
+            if len(np.unique(screen, axis=0)) < 2:
+                for artist in [*patch, *outline]:
+                    artist.set_visible(False)
+                continue
+            ring = smooth_hull(screen / height) * height
+            ring = to_screen.inverted().transform(np.vstack([ring, ring[:1]]))
+            for polygon in patch:
+                polygon.set_xy(ring)
+            for line in outline:
+                line.set_data(ring[:,0], ring[:,1])
+        self.pending_hulls = []
 
 
     # ~ Ellipses 

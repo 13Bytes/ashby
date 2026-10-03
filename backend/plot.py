@@ -106,7 +106,7 @@ def _plot_frames(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_fil
 
         Legend  = legend(dataframe.get('legend_title',""))          # § class §
 
-        Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"alpha"))       # plot_hull.py   → legend()  # § class §
+        Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"smooth"))       # plot_hull.py   → legend()  # § class §
 
         Sorted_data = data_handling(Format_Storage, Graphics, dataframe, frame)   # plot_utilities.py # § class §
 
@@ -203,6 +203,8 @@ def _plot_frames(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_fil
 
         # ~ general info 
         cprint(f"skipped a total of {Sorted_data.point_count['skipped']} Datapoints due to missing entries.  {Sorted_data.point_count['plotted']} were plotted.","green")
+
+        Graphics.finish_hulls()     # smooth hulls need the final limits and scales
 
         # : export :
         if frame.get('export_file_name',None) == None:
