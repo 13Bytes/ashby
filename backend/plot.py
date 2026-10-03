@@ -95,7 +95,7 @@ def _plot_frames(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_fil
         if legend_above is not None and frame.get('legend_flag',True) != None:     # room for the legend
             plt.subplots_adjust(left=0.09, right=0.86)
         
-        ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
+        ax.tick_params(which='both', colors=font_color, labelsize=df_font.get('tick_size',5))     # both: a log axis also labels minor ticks
         ax.spines[:].set_color(font_color)
 
         if fileformat == "svg":
