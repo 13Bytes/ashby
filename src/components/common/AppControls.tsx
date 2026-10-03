@@ -415,9 +415,10 @@ export function SharedHint({ text, linkLabel, onOpen }: { text: string; linkLabe
 }
 
 /** Toggle: segmented control for a small set of choices, e.g. Simple / All settings. */
-export function Toggle<T extends string>({ options, value, onChange, className, ariaLabel, size }: { options: Array<{ value: T; label: ReactNode; title?: string }>; value: T; onChange: (next: T) => void; className?: string; ariaLabel?: string; size?: 'sm' }) {
+/** `fill`: as wide as the field, with equal segments. */
+export function Toggle<T extends string>({ options, value, onChange, className, ariaLabel, size, fill }: { options: Array<{ value: T; label: ReactNode; title?: string }>; value: T; onChange: (next: T) => void; className?: string; ariaLabel?: string; size?: 'sm'; fill?: boolean }) {
   return (
-    <div role="group" aria-label={ariaLabel} className={cn('inline-flex w-fit shrink-0 items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', size === 'sm' ? 'h-8' : 'h-9', className)}>
+    <div role="group" aria-label={ariaLabel} className={cn('inline-flex w-fit shrink-0 items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', size === 'sm' ? 'h-8' : 'h-9', fill && 'flex w-full', className)}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -425,7 +426,7 @@ export function Toggle<T extends string>({ options, value, onChange, className, 
           title={option.title}
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
-          className={`flex items-center whitespace-nowrap rounded text-xs transition-colors ${size === 'sm' ? 'px-2' : 'px-3'} ${option.value === value ? 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          className={`flex items-center whitespace-nowrap rounded text-xs transition-colors ${fill ? 'min-w-0 flex-1 justify-center' : ''} ${size === 'sm' ? 'px-2' : 'px-3'} ${option.value === value ? 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
         >
           {option.label}
         </button>

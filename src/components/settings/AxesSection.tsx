@@ -1,12 +1,11 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Select } from '../ui/select'
 import { AXIS_MODES, type AxisConfig, type DataframeConfig } from '../../config/defaultPlotConfig'
 import { useI18n } from '../../uiTranslations'
 import type { MultiOption } from '../../utils/appState'
 import { addAxisToDataframe, axisRenameMovesReferences, renameAxisInDataframe } from '../../utils/configEditing'
-import { Field, ItemCard, LanguageFields, MultiSelectInput } from '../common/AppControls'
+import { Field, ItemCard, LanguageFields, MultiSelectInput, Toggle } from '../common/AppControls'
 import { useOpenItems } from '../../hooks/useOpenItems'
 
 type Props = {
@@ -96,9 +95,7 @@ export function AxesSection({
                     onChange={(lang, next) => updateAxis(axisIndex, (a) => ({ ...a, labels: { ...a.labels, [lang]: next } }))}
                   />
                   <Field label={t('axisMode', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].mode`} level="default" changed={axis.mode !== 'default'} onReset={() => updateAxis(axisIndex, (a) => ({ ...a, mode: 'default' }))}>
-                    <Select value={axis.mode} onChange={(e) => updateAxis(axisIndex, (a) => ({ ...a, mode: e.target.value as AxisConfig['mode'] }))}>
-                      {AXIS_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
-                    </Select>
+                    <Toggle fill ariaLabel={t('axisMode', { n: axisIndex + 1 })} value={axis.mode} options={AXIS_MODES.map((mode) => ({ value: mode, label: mode }))} onChange={(mode) => updateAxis(axisIndex, (a) => ({ ...a, mode }))} />
                   </Field>
                 </div>
                 <Field label={t('axisColumns', { n: axisIndex + 1 })} jsonPath={`axes[${axisIndex}].columns`} level="required" missing={axis.columns.length === 0} fill>
