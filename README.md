@@ -6,6 +6,8 @@
 
 <p align="center">Build Ashby plots from your material data, right in the browser, with a live preview.</p>
 
+<p align="center"><strong>Use it online, nothing to install: <a href="https://ashby.aerospace-lab.de">ashby.aerospace-lab.de</a></strong></p>
+
 PolyPlot turns a spreadsheet of material properties into Ashby plots: every material family gets a colored hull around its data points, so you can see at a glance which materials cover which region of, say, strength against heat deflection temperature. You pick the data source and the two quantities, and PolyPlot draws the plot. Everything else (colors, fonts, reference lines, annotations, export format) can be tuned but has sensible defaults.
 
 ![Example plot: tensile strength against heat deflection temperature for common polymers](backend/docs/graphics/Ashbyplot_complete.png)
