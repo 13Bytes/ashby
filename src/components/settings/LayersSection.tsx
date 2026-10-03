@@ -135,7 +135,7 @@ export function LayersSection({ activeFrame, materialColors, patchActiveFrame, p
               ariaLabel={t('algorithm')}
               value={activeFrame.algorithm}
               onChange={(algorithm) => patchActiveFrame((c) => ({ ...c, algorithm }))}
-              options={[{ value: 'cubic', label: t('algorithmCubic') }, { value: 'alpha', label: t('algorithmAlpha') }]}
+              options={[{ value: 'smooth', label: t('algorithmSmooth') }, { value: 'cubic', label: t('algorithmCubic') }, { value: 'alpha', label: t('algorithmAlpha') }]}
             />
           </Field>
           <Field label={t('alphaPoints')} jsonPath="layers[last].alpha_points" level="default" changed={(lastLayer?.alphaPoints ?? 0) !== DEFAULT_LAYER.alphaPoints} onReset={() => patchLastLayer((x) => ({ ...x, alphaPoints: DEFAULT_LAYER.alphaPoints }))}>

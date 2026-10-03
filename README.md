@@ -42,7 +42,7 @@ PolyPlot turns a spreadsheet of material properties into Ashby plots: every mate
   adjustable margin, or set by hand.
 - **Hulls** – group the points by a column (e.g. polymer family) and draw one hull per group.
   Filter groups with a whitelist or blacklist of keywords, stack several layers, and choose the
-  hull algorithm (smooth *cubic* or *alpha* shapes) and opacity.
+  hull algorithm (*smooth* bubbles with a margin around every point, *cubic* splines or *alpha* shapes) and opacity.
 - **Materials and legend** – each material keeps the same color in every plot of a dataset.
   Generate evenly spaced colors, add entries for all materials in use, or pick colors with a
   color picker (including a screen eyedropper where the browser supports it).

@@ -184,6 +184,7 @@ const en = {
 
   // frame
   algorithm: 'Algorithm',
+  algorithmSmooth: 'Smooth',
   algorithmCubic: 'Cubic spline',
   algorithmAlpha: 'Alpha shape',
   xAxis: 'X axis',
@@ -683,6 +684,7 @@ const de: Record<LabelKey, string> = {
   axisColumns: 'Achse {n} Spalten',
 
   algorithm: 'Algorithmus',
+  algorithmSmooth: 'Glatt',
   algorithmCubic: 'Kubischer Spline',
   algorithmAlpha: 'Alpha-Shape',
   xAxis: 'X-Achse',
@@ -1145,8 +1147,8 @@ const FIELD_HELP: Array<{ match: RegExp } & Record<UILanguage, string>> = [
 
   // frame
   { match: /^frames\[j\]\.algorithm$/,
-    en: 'How the hull around each group is smoothed. Both start from the convex hull: cubic spline = periodic cubic spline through its corners, alpha shape = smoothed alpha shape of its corners.',
-    de: 'Wie die Hülle um jede Gruppe geglättet wird. Beide starten von der konvexen Hülle: kubischer Spline = periodischer kubischer Spline durch ihre Ecken, Alpha-Shape = geglättete Alpha-Shape ihrer Ecken.' },
+    en: 'How the hull around each group is drawn. All start from the convex hull. Smooth = rounded with a margin around every point and smoothed, with no corners. Cubic spline = periodic cubic spline through its corners. Alpha shape = smoothed alpha shape of its corners. The last two run through the outermost points.',
+    de: 'Wie die Hülle um jede Gruppe gezeichnet wird. Alle starten von der konvexen Hülle. Glatt = abgerundet mit Abstand um jeden Punkt und geglättet, ohne Ecken. Kubischer Spline = periodischer kubischer Spline durch ihre Ecken. Alpha-Shape = geglättete Alpha-Shape ihrer Ecken. Die letzten beiden laufen durch die äußersten Punkte.' },
   { match: /^frames\[j\]\.title$/,
     en: 'Plot title per plot language.',
     de: 'Plot-Titel je Plot-Sprache.' },
