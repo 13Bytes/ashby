@@ -12,6 +12,7 @@ import {
   getSelectedIndices,
   getUiKey,
   moveFrameInConfig,
+  newDataframeFrom,
   nextDataframeName,
   positiveValue,
 } from '../../src/utils/appState.ts'
@@ -98,10 +99,22 @@ test('a duplicated plot is an independent copy right after the original with its
   assert.equal(duplicateFrameInDataframe(dataframe, 5), null)
 })
 
-test('new datasets get the next free short name', () => {
-  assert.equal(dataframeLabel({ name: '  ' }, 2), 'DF 3')
-  assert.equal(nextDataframeName([{ name: 'DF 1' }, { name: '' }]), 'DF 3')
-  assert.equal(nextDataframeName([{ name: 'DF 2' }]), 'DF 3')
+test('new datasets get the next free name', () => {
+  assert.equal(dataframeLabel({ name: '  ' }, 2), 'Dataset 3')
+  assert.equal(nextDataframeName([{ name: 'Dataset 1' }, { name: '' }]), 'Dataset 3')
+  assert.equal(nextDataframeName([{ name: 'Dataset 2' }]), 'Dataset 3')
+})
+
+test('a new dataset starts with one plot, a copy of the first one', () => {
+  const first = normalizePlotConfig({ dataframes: [{ name: 'Mine', font: { font: 'Courier New' }, create_all_frames: [3], frames: [{ name: 'A', title: { en: 'T' } }, { name: 'B' }, { name: 'C' }] }] }).dataframes[0]
+  const created = newDataframeFrom([first])
+  assert.equal(created.name, 'Dataset 2')
+  assert.equal(created.font.font, 'Courier New')
+  assert.deepEqual(created.frames.map((frame) => frame.name), ['Plot 1'])
+  assert.deepEqual(created.frames[0].title, { en: 'T' })
+  assert.equal(created.createAllFrames, true)
+  assert.notEqual(getUiKey(created, 'dataframe'), getUiKey(first, 'dataframe'))
+  assert.equal(first.frames.length, 3)
 })
 
 test('the import sheet is a non-negative whole number', () => {
@@ -241,7 +254,7 @@ test('renaming an axis ID carries the frames along; an empty or taken ID waits',
   }
 })
 
-test('a new plot is named after the plots as shown, unnamed ones count as "Frame n"', () => {
+test('a new plot is named after the plots as shown, unnamed ones count as "Plot n"', () => {
   const dataframe = normalizePlotConfig({ dataframes: [{ frames: [{}, {}] }] }).dataframes[0]
-  assert.equal(duplicateFrameInDataframe(dataframe, 0).dataframe.frames[1].name, 'Frame 3')
+  assert.equal(duplicateFrameInDataframe(dataframe, 0).dataframe.frames[1].name, 'Plot 3')
 })

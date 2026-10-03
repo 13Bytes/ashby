@@ -1,12 +1,7 @@
-import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib import colors
-from types import SimpleNamespace
-from termcolor import (colored, cprint)
+from termcolor import cprint
 
-from .formatting import format_storage
 
 
 def _json_safe_row(row:pd.Series) -> dict:
@@ -76,7 +71,6 @@ class data_handling():
             for category, material_data in data.groupby(layer_name, dropna=False):
                 if pd.isna(category):
                     category = None
-                # print("====== Layer ", current_layer_number, ": ", category, "  (", layer_name, ") ======") 
 
                 if  (category in layer_whitelist and layer_whitelist_flag == True) or \
                 (category not in layer_whitelist and layer_whitelist_flag == False):
@@ -96,8 +90,6 @@ class data_handling():
                             current_color_instance,
                         )
 
-                    # print(DATA)
-                    # print("plotted: ", plotted, "  -  keys: ", data.groupby(layer_name).groups.keys())
                     if DATA.shape[0] > 1 and layer_alpha != None and 0 < layer_alpha <= 1          \
                     and current_color != None and plotted == False: # hull not empty  &  visible  &  not identical to layer below if layer below is plotted
                         self.graphics.draw_hull(
@@ -116,7 +108,6 @@ class data_handling():
 
                     combined_DATA = np.vstack((combined_DATA, DATA))
 
-                    # print("-- Layer ", current_layer_number, " DATA: ", DATA, " combined_DATA: ", combined_DATA) # . combined_DATA[~np.isnan(combined_DATA)]
 
 
             if len(data.groupby(layer_name).groups.keys()) > 1:
@@ -141,12 +132,11 @@ class data_handling():
 
         for data_point in range(len(data)):
             coords = np.full((2, 2), np.nan)
-            for dim, dimension in enumerate(['x','y']):
+            for dim in range(2):     # x, y
                 coords[dim, :] = self.point_per_axis(data, data_point, dim)
 
             if np.any(np.isnan(coords[:,0])): 
                 self.point_count['skipped'] += 1
-                # print("⚠ skipped Point")
             else:
                 self.point_count['plotted'] += 1
                 self.plot_point(coords, point_list, hirachie, legend_item, current_color, data.iloc[data_point])
@@ -155,8 +145,6 @@ class data_handling():
                     point_list = np.vstack((point_list, coords[:,1]))   # add high if not empty in both dimensions
 
         point_list = point_list[1: ,:] # remove placeholder on beginning
-        # print("x: ", np.transpose(point_list[:, 0]))
-        # print("y: ", np.transpose(point_list[:, 1]))
         return point_list
 
 
@@ -253,12 +241,7 @@ class parse_data():   # relative & absolute separate
                 if not pd.isna(data[property_data + ' high'].iloc[data_point]):
                     point[1, property] = data[    property_data + ' high' ].iloc[data_point].copy()  # high
 
-                # point[1, property] = data.get(property_data + ' high', np.nan).iloc[data_point].copy()  # high  (optional)
 
-                # if data.get(property_data + ' high', np.nan) != np.nan:                             # high
-                #     point[1, property] = data[    property_data + ' high'].iloc[data_point].copy()
-                # else:
-                #     point[1,property] = np.nan
         
         if not np.all(np.isnan(point[0, :])):
             if   self.modes[dim] == "max":

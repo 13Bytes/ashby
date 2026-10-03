@@ -2,17 +2,15 @@ import sklearn.preprocessing
 import sklearn.pipeline
 import scipy.spatial
 
-from scipy.spatial import ConvexHull
 from scipy.interpolate import splprep, splev
 import alphashape
-from shapely.geometry import Point
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
-import matplotlib.colors as colors
 
 from .formatting import legend
+from .smooth_hull import smooth_hull
 
 class plot_unit_props():
     def __init__(self, legend, element, x,y, hirachie, legend_item = None, label="", picker=False, picker_nvis=False, alpha=1):
@@ -25,7 +23,6 @@ class plot_unit_props():
         self.picker_nvis = picker_nvis
         self.alpha       = alpha    
         self.visible     = True
-        # print(self.hirachie)
 
         legend.append_content(legend_item, self)
             
@@ -37,6 +34,7 @@ class plotter_graphics():
         self.points      = []
         self.hulls       = []
         self.algorithm   = algorithm
+        self.pending_hulls = []     # smooth hulls: [points, fill, outline], shaped by finish_hulls()
     
     def __str__(self):
         print(f"Hulls:  {self.hulls }")
@@ -51,12 +49,10 @@ class plotter_graphics():
         if X == [None, None]: 
             return label
 
-        # print(X)
         coords = ["",""]
         for dim in [0,1]:
             coords[dim] += "{0:.5g}".format(X[dim][0])
             if X[dim][1] != None and X[dim][0] != X[dim][1]:
-                # print(X[1][dim])
                 coords[dim] += " - {0:.5g}".format(X[dim][1])
         
         return f" {label}\n ( {coords[0]} I {coords[1]} ) " 
@@ -75,7 +71,6 @@ class plotter_graphics():
                         picker = 5,
                         zorder = 5,
                     )
-        # self.legend.append_content(category, points)
         point = plot_unit_props(self.legend, points, x[0],y[0], hirachie, legend_item, label, picker=5, alpha=alpha)
         self.points.append(point)
 
@@ -97,11 +92,17 @@ class plotter_graphics():
             elif np.isnan(entry[1]):
                 entry[1] = X[pos-1,1]
         
-        # print(np.transpose(X))
 
         line = True
         Data = np.unique(X, axis=0)
-        
+
+        if self.algorithm == 'smooth':      # also two points or points on a line: they get a capsule
+            if len(Data) < 2:
+                print("can't plot Hull, only one Point - skipping", X)
+            else:
+                self.draw_smooth_hull(Data, hirachie, legend_item, plot_kwargs)
+            return
+
         if len(Data) < 2:
             print("can't plot Hull, only one Point - skipping", X)
         elif len(Data) > 2:
@@ -142,6 +143,36 @@ class plotter_graphics():
                 **plot_kwargs
             )
             self.hulls.append(plot_unit_props(self.legend, outline, None,None, hirachie, legend_item, alpha=plot_kwargs['alpha']))
+
+
+    # ~ Smooth hull
+    def draw_smooth_hull(self, X, hirachie, legend_item, plot_kwargs):
+        '''fill and outline through the points for now; finish_hulls() gives them their shape once the
+        axes' limits and scales are final (the outline is computed in screen proportions)'''
+        patch = self.ax.fill(X[:,0], X[:,1], **plot_kwargs)
+        self.hulls.append(plot_unit_props(self.legend, patch, None,None, hirachie, legend_item, alpha=plot_kwargs['alpha']))
+        outline = self.ax.plot(X[:,0], X[:,1], **{**plot_kwargs, 'alpha': .35})
+        self.hulls.append(plot_unit_props(self.legend, outline, None,None, hirachie, legend_item, alpha=.35))
+        self.pending_hulls.append([X.copy(), patch, outline])
+
+    def finish_hulls(self):
+        '''shapes the smooth hulls; call after the axes' limits and scales are set'''
+        to_screen = self.ax.transData
+        height = self.ax.bbox.height
+        for X, patch, outline in self.pending_hulls:
+            screen = to_screen.transform(X)
+            screen = screen[np.isfinite(screen).all(axis=1)]     # e.g. a value <= 0 on a log axis
+            if len(np.unique(screen, axis=0)) < 2:
+                for artist in [*patch, *outline]:
+                    artist.set_visible(False)
+                continue
+            ring = smooth_hull(screen / height) * height
+            ring = to_screen.inverted().transform(np.vstack([ring, ring[:1]]))
+            for polygon in patch:
+                polygon.set_xy(ring)
+            for line in outline:
+                line.set_data(ring[:,0], ring[:,1])
+        self.pending_hulls = []
 
 
     # ~ Ellipses 
@@ -186,7 +217,6 @@ class plotter_graphics():
 
             label = self.make_label(hirachie)
             self.hulls.append(plot_unit_props(self.legend, [ellipse], center_x,center_y, hirachie, legend_item, alpha=plot_kwargs['alpha']))
-            # print(f"⋅⋅ {len(self.hulls) - 1} ellipses: {self.hulls[-1].element}")
 
 
     def calculate_hull(
@@ -222,13 +252,6 @@ class plotter_graphics():
             tck, _ = splprep([coords[:,0], coords[:,1]], s=0.001, per=True)
             u_fine = np.linspace(0, 1, 500)
             x2, y2 = splev(u_fine, tck)
-        # elif self.algorithm == 'quadratic':
-        #     t = np.zeros(x.shape)
-        #     t[1:] = np.sqrt((x[1:] - x[:-1])**2 + (y[1:] - y[:-1])**2)
-        #     t = np.cumsum(t)
-        #     t /= t[-1]
-        #     x2 = scipy.interpolate.splev(nt, scipy.interpolate.splrep(t, x, per=True, k=4))
-        #     y2 = scipy.interpolate.splev(nt, scipy.interpolate.splrep(t, y, per=True, k=4))
         else: # self.algorithm == 'cubic'
             t = np.zeros(x.shape)
             t[1:] = np.sqrt((x[1:] - x[:-1])**2 + (y[1:] - y[:-1])**2)

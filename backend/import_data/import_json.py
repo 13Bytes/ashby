@@ -1,5 +1,5 @@
 import json
-from termcolor import (colored, cprint)
+from termcolor import cprint
 
 
 CURRENT_VERSION = 6     # keep equal to CONFIG_VERSION in src/config/defaultPlotConfig.ts
@@ -52,5 +52,4 @@ def clear_empty_strings(config:dict|list|tuple|set) -> dict:
 
 
 def set_default(config:dict) -> dict:
-    # config.setdefault('','')
     return config

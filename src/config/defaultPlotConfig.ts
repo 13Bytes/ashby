@@ -1,4 +1,4 @@
-export const PLOT_ALGORITHMS = ['cubic', 'alpha'] as const
+export const PLOT_ALGORITHMS = ['smooth', 'cubic', 'alpha'] as const
 export type PlotAlgorithm = (typeof PLOT_ALGORITHMS)[number]
 
 export const AXIS_MODES = ['default', 'max', 'min', 'span'] as const
@@ -214,7 +214,7 @@ export function createDefaultPlotConfig(): PlotConfig {
             yQuantity: undefined,
             logYFlag: false,
             axisMargin: { left: 0.12, right: 0.12, top: 0.12, bottom: 0.12, absolute: [] },
-            algorithm: 'cubic',
+            algorithm: 'smooth',
             layers: [
               {
                 name: undefined,

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/utils'
+import type { ItemDrag } from '../../hooks/useDragReorder'
 import { getFieldHelp, useI18n } from '../../uiTranslations'
 import type { MultiOption } from '../../utils/appState'
 import { HEX_COLOR, resolvePreviewColor } from '../../utils/colors'
@@ -415,9 +416,10 @@ export function SharedHint({ text, linkLabel, onOpen }: { text: string; linkLabe
 }
 
 /** Toggle: segmented control for a small set of choices, e.g. Simple / All settings. */
-export function Toggle<T extends string>({ options, value, onChange, className, ariaLabel, size }: { options: Array<{ value: T; label: ReactNode; title?: string }>; value: T; onChange: (next: T) => void; className?: string; ariaLabel?: string; size?: 'sm' }) {
+/** `fill`: as wide as the field, with equal segments. */
+export function Toggle<T extends string>({ options, value, onChange, className, ariaLabel, size, fill }: { options: Array<{ value: T; label: ReactNode; title?: string }>; value: T; onChange: (next: T) => void; className?: string; ariaLabel?: string; size?: 'sm'; fill?: boolean }) {
   return (
-    <div role="group" aria-label={ariaLabel} className={cn('inline-flex w-fit shrink-0 items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', size === 'sm' ? 'h-8' : 'h-9', className)}>
+    <div role="group" aria-label={ariaLabel} className={cn('inline-flex w-fit shrink-0 items-stretch gap-0.5 rounded-md border border-zinc-300 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900', size === 'sm' ? 'h-8' : 'h-9', fill && 'flex w-full', className)}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -425,7 +427,7 @@ export function Toggle<T extends string>({ options, value, onChange, className, 
           title={option.title}
           aria-pressed={option.value === value}
           onClick={() => onChange(option.value)}
-          className={`flex items-center whitespace-nowrap rounded text-xs transition-colors ${size === 'sm' ? 'px-2' : 'px-3'} ${option.value === value ? 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
+          className={`flex items-center whitespace-nowrap rounded text-xs transition-colors ${fill ? 'min-w-0 flex-1 justify-center' : ''} ${size === 'sm' ? 'px-2' : 'px-3'} ${option.value === value ? 'bg-white font-semibold text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
         >
           {option.label}
         </button>
@@ -736,55 +738,6 @@ export function MultiSelectInput({
 }
 
 /**
- * Text input for values that are parsed from text (JSON, number lists). Keeps the raw text while
- * the field is focused so intermediate, not-yet-valid input is not thrown away, and only commits
- * values that parse. `parse` returns undefined for invalid text.
- */
-export function DraftInput<T>({
-  value,
-  parse,
-  onCommit,
-  multiline = false,
-  className,
-}: {
-  value: string
-  parse: (text: string) => T | undefined
-  onCommit: (next: T) => void
-  multiline?: boolean
-  className?: string
-}) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const text = draft ?? value
-  const invalid = draft !== null && parse(draft) === undefined
-  const handleChange = (next: string) => {
-    setDraft(next)
-    const parsed = parse(next)
-    if (parsed !== undefined) onCommit(parsed)
-  }
-  const invalidClassName = invalid ? 'border-red-500 focus-visible:ring-red-500' : ''
-
-  return multiline ? (
-    <textarea
-      className={`min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${invalidClassName} ${className ?? ''}`}
-      value={text}
-      aria-invalid={invalid}
-      onChange={(event) => handleChange(event.target.value)}
-      onBlur={() => setDraft(null)}
-      spellCheck={false}
-    />
-  ) : (
-    <Input
-      className={`${invalidClassName} ${className ?? ''}`}
-      value={text}
-      aria-invalid={invalid}
-      onChange={(event) => handleChange(event.target.value)}
-      onBlur={() => setDraft(null)}
-    />
-  )
-}
-
-
-/**
  * Collapsible row for a list item (axis, layer, area, guideline, annotation): a one-line summary
  * that opens the details when clicked, plus duplicate and remove. The section controls which
  * cards are open (new items open by default). The details stay in the DOM while closed, so "Find
@@ -800,6 +753,7 @@ export function ItemCard({
   onDuplicate,
   onRemove,
   removeDisabled,
+  drag,
   children,
 }: {
   icon?: ReactNode
@@ -811,6 +765,8 @@ export function ItemCard({
   onDuplicate?: () => void
   onRemove: () => void
   removeDisabled?: boolean
+  /** Makes the card reorderable by a handle (useDragReorder). */
+  drag?: ItemDrag
   children: ReactNode
 }) {
   const { t } = useI18n()
@@ -830,9 +786,22 @@ export function ItemCard({
   return (
     <div
       ref={rootRef}
-      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${open ? 'border-brand-400 ring-3 ring-brand-500/12 dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
+      data-item-card
+      {...drag?.item}
+      className={`rounded-lg border bg-white transition-colors dark:bg-zinc-950 has-[[data-remove]:hover]:border-red-500 has-[[data-duplicate]:hover]:border-blue-500 ${drag ? 'relative' : ''} ${drag?.dragging ? 'opacity-50' : ''} ${open ? 'border-brand-400 ring-3 ring-brand-500/12 dark:border-brand-700' : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
     >
+      {drag?.indicator ? <span aria-hidden="true" className={`pointer-events-none absolute inset-x-1 h-0.5 rounded bg-brand-500 ${drag.indicator === 'before' ? '-top-[5px]' : '-bottom-[5px]'}`} /> : null}
       <div className="flex min-w-0 items-center gap-1 pr-2">
+        {drag ? (
+          <span
+            {...drag.handle}
+            role="button"
+            tabIndex={0}
+            className="-mr-2 ml-1 grid h-7 w-5 shrink-0 cursor-grab place-items-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 active:cursor-grabbing dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title={t('dragToReorder')}
+            aria-label={t('dragToReorder')}
+          >⠿</span>
+        ) : null}
         <button
           type="button"
           aria-expanded={open}

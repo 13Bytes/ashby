@@ -73,7 +73,7 @@
                 "plot_axes": ["", ""]       // written by the editor: x and y axis ("quantity" or "quantity/rel_quantity") the absolute values were entered for; the editor warns when they changed
             },
     
-            "algorithm":"",                 // approximation algorithm for hulls ["alpha" / "cubic"]  {cubic}
+            "algorithm":"",                 // approximation algorithm for hulls ["smooth" / "cubic" / "alpha"]  {smooth}: a margin around every point, no corners
             
         // + layers +
             "layers":[{

@@ -1,9 +1,5 @@
 import os
-import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
-import numpy as np
-import json
 from termcolor import (colored, cprint)
 
 try:
@@ -18,6 +14,7 @@ except ImportError:
 
 CONFIG_NAME = "ashby-config-2026-08-03.json"
 DARK_BACKGROUND = '#121212'     # background of dark mode plots that are not transparent
+GENERIC_FONT_FAMILIES = ('serif', 'sans-serif', 'cursive', 'fantasy', 'monospace')
 
 
 def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
@@ -29,7 +26,29 @@ def _aspect_ratio(value:list|float, fallback:float=16 / 9) -> float:
 
 
 
+def _font_rc_params(font:dict) -> dict:
+    '''matplotlib settings for a dataframe's font. The chosen font goes first in its generic family; the family's other fonts stay as fallback for systems without it (e.g. no Arial in Docker).'''
+    family = font.get('font_style', "sans-serif")
+    if family not in GENERIC_FONT_FAMILIES:
+        family = "sans-serif"
+    params = {'font.family': family}
+    font_size = font.get('font_size', 22)
+    if isinstance(font_size, (int, float)) and font_size > 0:
+        params['font.size'] = font_size
+    font_name = font.get('font', "Arial")
+    if isinstance(font_name, str) and font_name.strip():
+        fallback = [name for name in plt.rcParams[f'font.{family}'] if name != font_name.strip()]
+        params[f'font.{family}'] = [font_name.strip(), *fallback]
+    return params
+
+
 def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> list:
+    # only while this dataframe's plots are drawn and saved, so one dataframe's font does not leak into the next render
+    with plt.rc_context(_font_rc_params(dataframe.get('font', {}))):
+        return _plot_frames(dataframe, interactive, frontend, xlsx_file_bytes)
+
+
+def _plot_frames(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=None) -> list:
     handler = []
     all_points = []     # clicked-point data for the frontend (figure-fraction coords), one frame's worth when frontend=True
 
@@ -69,9 +88,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         image_ratio = _aspect_ratio(frame.get('image_ratio'), df_image_ratio)
 
         figure_size = (10*image_ratio ,10)
-        # with ui.matplotlib(figsize=figure_size) as mpl_fig:
-            # fig = mpl_fig.figure
-            # ax = fig.add_subplot(1,1, 1)        # & no subplots
         fig, ax = plt.subplots(1,1, figsize=figure_size)
         if dark_mode:       # without this a non-transparent dark plot gets white text on matplotlib's white background
             fig.patch.set_facecolor(DARK_BACKGROUND)
@@ -79,14 +95,9 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         if legend_above is not None and frame.get('legend_flag',True) != None:     # room for the legend
             plt.subplots_adjust(left=0.09, right=0.86)
         
-        ax.tick_params(colors=font_color, labelsize=df_font.get('tick_size',5))
+        ax.tick_params(which='both', colors=font_color, labelsize=df_font.get('tick_size',5))     # both: a log axis also labels minor ticks
         ax.spines[:].set_color(font_color)
 
-        rc_params: dict[str, Any] = {
-            'font.family': df_font.get('font_style',"sans-serif"),
-            'font.size':   df_font.get('font_size',22),
-           f'font.{df_font.get('font_style',"sans-serif")}': df_font.get('font',"Arial"),
-        }
         if fileformat == "svg":
             plt.rcParams.update({"savefig.format":"svg"})
 
@@ -95,7 +106,7 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
         Legend  = legend(dataframe.get('legend_title',""))          # § class §
 
-        Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"alpha"))       # plot_hull.py   → legend()  # § class §
+        Graphics = plotter_graphics(ax, Legend, frame.get('algorithm',"smooth"))       # plot_hull.py   → legend()  # § class §
 
         Sorted_data = data_handling(Format_Storage, Graphics, dataframe, frame)   # plot_utilities.py # § class §
 
@@ -113,7 +124,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
         if not len(DATA):
             raise ValueError("No Data plotted. Please check the config.json and your data source (Excel/Teable)")
-        # print(DATA)
 
         # : plot from config :
         Plot_size = plot_size(frame, DATA, Marker, image_ratio) # § class §
@@ -158,7 +168,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
         Marker.create_annotations(Format_Storage, Plot_size)
-        # Graphics.legend.format_label_pos(Plot_size)
 
         # : Figure manipulation :
         # ~ set axes limits 
@@ -191,10 +200,11 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
                 axis  = 'both',
                 linestyle = '-.',
             )
-        # .plt.tight_layout(pad=2.5)
 
         # ~ general info 
         cprint(f"skipped a total of {Sorted_data.point_count['skipped']} Datapoints due to missing entries.  {Sorted_data.point_count['plotted']} were plotted.","green")
+
+        Graphics.finish_hulls()     # smooth hulls need the final limits and scales
 
         # : export :
         if frame.get('export_file_name',None) == None:
@@ -231,7 +241,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
             cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
             plt.close()
 
-        # mpl_fig.update()
 
     return all_points
 

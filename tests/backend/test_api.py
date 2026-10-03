@@ -20,6 +20,7 @@ from backend.app import _extract_metadata_from_xlsx
 
 PROJECT_DIR = Path(__file__).resolve().parents[2]
 FIXTURE_PATH = PROJECT_DIR / 'tests' / 'fixtures' / 'render-config.json'
+SERVER_START_SECONDS = 60     # importing the backend (scikit-learn, matplotlib) can take 20 s on a busy machine
 UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_1.xlsx'
 FILAMENT_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_2.xlsx'
 SPRITZGUSS_UPLOAD_FIXTURE_PATH = PROJECT_DIR / 'tests' / 'dataset_3.xlsx'
@@ -118,7 +119,7 @@ class BackendApiTests(unittest.TestCase):
             text=True,
         )
 
-        deadline = time.monotonic() + 20
+        deadline = time.monotonic() + SERVER_START_SECONDS
         while time.monotonic() < deadline:
             if cls.server_process.poll() is not None:
                 output = cls.read_server_output()
@@ -136,7 +137,7 @@ class BackendApiTests(unittest.TestCase):
             cls.server_process.kill()
             cls.server_process.communicate(timeout=5)
         output = cls.read_server_output()
-        raise RuntimeError(f'Backend test server did not start within 20 seconds:\n{output}')
+        raise RuntimeError(f'Backend test server did not start within {SERVER_START_SECONDS} seconds:\n{output}')
 
     @classmethod
     def read_server_output(cls) -> str:
