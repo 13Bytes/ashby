@@ -20,6 +20,7 @@ const en = {
   close: 'Close',
   cancel: 'Cancel',
   closeNotification: 'Close notification',
+  notifications: 'Notifications',
   backToOverview: 'Back to the overview',
   backendUnavailable: 'The backend server is not available. Plot previews and datasource imports will not work until it is running.',
 
@@ -528,6 +529,7 @@ const de: Record<LabelKey, string> = {
   close: 'Schließen',
   cancel: 'Abbrechen',
   closeNotification: 'Meldung schließen',
+  notifications: 'Meldungen',
   backToOverview: 'Zurück zur Übersicht',
   backendUnavailable: 'Der Backend-Server ist nicht verfügbar. Plot-Vorschauen und Datenquellenimporte funktionieren erst wieder, wenn er läuft.',
 

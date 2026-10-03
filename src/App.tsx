@@ -1050,32 +1050,29 @@ function App() {
       <AppHeader mode={settingsMode} setMode={changeSettingsMode} openJsonEditor={openJsonEditor} setShowAbout={setShowAbout} setShowSettings={setShowSettings} showOverview={showOverview} onShowOverview={() => setShowOverview(true)} />
       <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={handleImportFile} />
       {showOverview ? <OverviewPage onOpenEditor={() => setShowOverview(false)} onOpenPrivacy={() => setShowPrivacy(true)} /> : (<>
-        {backendAvailable === false ? (
-          <div className="px-4 pt-3">
-            <Alert variant="warning">{backendForeign ? t('backendForeign') : t('backendUnavailable')}</Alert>
-          </div>
-        ) : null}
-        {missingDatasourceDataframes.length > 0 ? (
-          <div className="px-4 pt-3">
-            <Alert variant="warning">
-              {t('datasourceMissing', { list: missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => t('datasourceMissingItem', { n: dataframeIndex + 1, filename: dataframe.importFileName ?? '' })).join(', ') })}
-            </Alert>
-          </div>
-        ) : null}
         <ConfigTabs {...tabProps} />
-        {/* Notices close themselves (messages stay in the log); warnings and errors stay longer. */}
-        {configWarning ? (
-          <div className="px-4 pt-3">
-            <TimedAlert variant="warning" seconds={NOTICE_SECONDS.warning} onClose={() => setConfigWarning(null)} closeLabel={t('closeNotification')} resetKey={configWarning}>
-              {configWarning}
-            </TimedAlert>
-          </div>
-        ) : null}
-        {alert ? (
-          <div className="px-4 pt-3">
-            <TimedAlert variant={alert.tone === 'error' ? 'destructive' : alert.tone} seconds={NOTICE_SECONDS[alert.tone]} onClose={() => setAlert(null)} closeLabel={t('closeNotification')} resetKey={alert}>
-              {alert.message}
-            </TimedAlert>
+        {/* All notices in one place below the tabs: first the ones that last while their cause does, then the
+            ones that close themselves (messages stay in the log; warnings and errors stay longer). */}
+        {backendAvailable === false || missingDatasourceDataframes.length > 0 || configWarning || alert ? (
+          <div className="grid gap-2 px-4 pt-3" role="region" aria-label={t('notifications')}>
+            {backendAvailable === false ? (
+              <Alert variant="warning">{backendForeign ? t('backendForeign') : t('backendUnavailable')}</Alert>
+            ) : null}
+            {missingDatasourceDataframes.length > 0 ? (
+              <Alert variant="warning">
+                {t('datasourceMissing', { list: missingDatasourceDataframes.map(({ dataframe, dataframeIndex }) => t('datasourceMissingItem', { n: dataframeIndex + 1, filename: dataframe.importFileName ?? '' })).join(', ') })}
+              </Alert>
+            ) : null}
+            {configWarning ? (
+              <TimedAlert variant="warning" seconds={NOTICE_SECONDS.warning} onClose={() => setConfigWarning(null)} closeLabel={t('closeNotification')} resetKey={configWarning}>
+                {configWarning}
+              </TimedAlert>
+            ) : null}
+            {alert ? (
+              <TimedAlert variant={alert.tone === 'error' ? 'destructive' : alert.tone} seconds={NOTICE_SECONDS[alert.tone]} onClose={() => setAlert(null)} closeLabel={t('closeNotification')} resetKey={alert}>
+                {alert.message}
+              </TimedAlert>
+            ) : null}
           </div>
         ) : null}
         <div
