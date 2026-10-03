@@ -2,15 +2,12 @@ import sklearn.preprocessing
 import sklearn.pipeline
 import scipy.spatial
 
-from scipy.spatial import ConvexHull
 from scipy.interpolate import splprep, splev
 import alphashape
-from shapely.geometry import Point
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
-import matplotlib.colors as colors
 
 from .formatting import legend
 
@@ -25,7 +22,6 @@ class plot_unit_props():
         self.picker_nvis = picker_nvis
         self.alpha       = alpha    
         self.visible     = True
-        # print(self.hirachie)
 
         legend.append_content(legend_item, self)
             
@@ -51,12 +47,10 @@ class plotter_graphics():
         if X == [None, None]: 
             return label
 
-        # print(X)
         coords = ["",""]
         for dim in [0,1]:
             coords[dim] += "{0:.5g}".format(X[dim][0])
             if X[dim][1] != None and X[dim][0] != X[dim][1]:
-                # print(X[1][dim])
                 coords[dim] += " - {0:.5g}".format(X[dim][1])
         
         return f" {label}\n ( {coords[0]} I {coords[1]} ) " 
@@ -75,7 +69,6 @@ class plotter_graphics():
                         picker = 5,
                         zorder = 5,
                     )
-        # self.legend.append_content(category, points)
         point = plot_unit_props(self.legend, points, x[0],y[0], hirachie, legend_item, label, picker=5, alpha=alpha)
         self.points.append(point)
 
@@ -97,7 +90,6 @@ class plotter_graphics():
             elif np.isnan(entry[1]):
                 entry[1] = X[pos-1,1]
         
-        # print(np.transpose(X))
 
         line = True
         Data = np.unique(X, axis=0)
@@ -186,7 +178,6 @@ class plotter_graphics():
 
             label = self.make_label(hirachie)
             self.hulls.append(plot_unit_props(self.legend, [ellipse], center_x,center_y, hirachie, legend_item, alpha=plot_kwargs['alpha']))
-            # print(f"⋅⋅ {len(self.hulls) - 1} ellipses: {self.hulls[-1].element}")
 
 
     def calculate_hull(
@@ -222,13 +213,6 @@ class plotter_graphics():
             tck, _ = splprep([coords[:,0], coords[:,1]], s=0.001, per=True)
             u_fine = np.linspace(0, 1, 500)
             x2, y2 = splev(u_fine, tck)
-        # elif self.algorithm == 'quadratic':
-        #     t = np.zeros(x.shape)
-        #     t[1:] = np.sqrt((x[1:] - x[:-1])**2 + (y[1:] - y[:-1])**2)
-        #     t = np.cumsum(t)
-        #     t /= t[-1]
-        #     x2 = scipy.interpolate.splev(nt, scipy.interpolate.splrep(t, x, per=True, k=4))
-        #     y2 = scipy.interpolate.splev(nt, scipy.interpolate.splrep(t, y, per=True, k=4))
         else: # self.algorithm == 'cubic'
             t = np.zeros(x.shape)
             t[1:] = np.sqrt((x[1:] - x[:-1])**2 + (y[1:] - y[:-1])**2)

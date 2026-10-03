@@ -27,8 +27,6 @@ class format_storage():
                 return self.material_colors[color] 
             # elif color[0] == "#" and len(color) in [4,5,7,9] and all(char in hex_characters for char in color):   # ≙ re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color): # hex color code
             return color                # & partial problems with inputs like "red"
-            # else:
-            #     return self.material_colors['default']
         else:
             return self.material_colors['default']
             
@@ -64,12 +62,6 @@ class legend():
         if category != 'default':
             self.map[category].append(item)
 
-    # def format_label_pos(self, Plot_size):
-    #     for category in self.map.values():
-    #         for item in category[1:]:
-    #             if item.label_pos[1] != None:
-    #                 item.label_pos[1] += Plot_size.x.space
-    #                 print(item.label_pos[1])
                 
 
     def create_legend(self, Format_Storage:object, font_color:str, font_size:int, title_size:int, above:bool=False, copyright:bool=False) -> None:
@@ -104,7 +96,6 @@ class legend():
                 facecolor = 'none',
                 edgecolor = 'none',
                 ncols = np.ceil(len(self.handles)/16),  # & test
-                # draggable = True
             )
         elif not above and copyright:
             self.legend = plt.legend(

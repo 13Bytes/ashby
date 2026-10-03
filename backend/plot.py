@@ -1,9 +1,5 @@
 import os
-import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
-import numpy as np
-import json
 from termcolor import (colored, cprint)
 
 try:
@@ -69,9 +65,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
         image_ratio = _aspect_ratio(frame.get('image_ratio'), df_image_ratio)
 
         figure_size = (10*image_ratio ,10)
-        # with ui.matplotlib(figsize=figure_size) as mpl_fig:
-            # fig = mpl_fig.figure
-            # ax = fig.add_subplot(1,1, 1)        # & no subplots
         fig, ax = plt.subplots(1,1, figsize=figure_size)
         if dark_mode:       # without this a non-transparent dark plot gets white text on matplotlib's white background
             fig.patch.set_facecolor(DARK_BACKGROUND)
@@ -113,7 +106,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
         if not len(DATA):
             raise ValueError("No Data plotted. Please check the config.json and your data source (Excel/Teable)")
-        # print(DATA)
 
         # : plot from config :
         Plot_size = plot_size(frame, DATA, Marker, image_ratio) # § class §
@@ -158,7 +150,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
 
 
         Marker.create_annotations(Format_Storage, Plot_size)
-        # Graphics.legend.format_label_pos(Plot_size)
 
         # : Figure manipulation :
         # ~ set axes limits 
@@ -191,7 +182,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
                 axis  = 'both',
                 linestyle = '-.',
             )
-        # .plt.tight_layout(pad=2.5)
 
         # ~ general info 
         cprint(f"skipped a total of {Sorted_data.point_count['skipped']} Datapoints due to missing entries.  {Sorted_data.point_count['plotted']} were plotted.","green")
@@ -231,7 +221,6 @@ def main(dataframe:dict, interactive:bool, frontend:bool=False, xlsx_file_bytes=
             cprint(f"-> plot saved as ./export/{frame['export_file_name']} \n","green")
             plt.close()
 
-        # mpl_fig.update()
 
     return all_points
 

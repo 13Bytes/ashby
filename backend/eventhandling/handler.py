@@ -1,6 +1,4 @@
-import matplotlib.pyplot as plt 
 from matplotlib import patches
-from matplotlib.widgets import Button
 
 
 class pick_event_handing:

@@ -1,8 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from termcolor import (colored, cprint)
+from termcolor import cprint
 
-from .formatting import format_storage
 
 
 # : Guideline :
@@ -97,10 +96,6 @@ def draw_colored_areas(Format_Storage:object, Sorted_data:object, colored_areas:
             values = [None, None]
             for dim in range(2):  # [x,y]
                 values[dim] = colored_area['axes'].get(Sorted_data.absolute.quantities[dim], [None,None])  # get axes value from config for active axe
-                # if values[dim] != None and Sorted_data.relative.quantities[dim] != None:
-                #     value   = colored_area['axes'].get(Sorted_data.relative.quantities[dim], None)
-                #     if value != None: values[dim] /= value
-                #     else:          values[dim] = None
 
             print(f"colored area: {values}")
             if all(bound is None for value in values for bound in (value or [None, None])):     # no range on this plot's axes: skip only this area
@@ -126,7 +121,6 @@ def min_max_area(x:list, y:list, Plot_size:object) -> (list, list):
 
         X = [x_lim[0], x[0], x[0], x[1], x[1], x_lim[1],    x_lim[1], x[1], x[1], x[0], x[0], x_lim[0]]
         Y = [y[0], y[0], y_lim[0], y_lim[0], y[0], y[0],    y[1], y[1], y_lim[1], y_lim[1], y[1], y[1]]
-        print(X,Y)
         return X, Y
     
 
@@ -158,11 +152,6 @@ class marker:
                 annotation['values'] = values
                 self.annotations.append(annotation)  
 
-    # def get_pos(self, plt_axe, ann_axes):
-    #     for key, value in ann_axes.items():
-    #         if plt_axe == key:
-    #             return value
-    #     ann_axes.get(plt_axe,None)
 
 
     def create_annotations(self, Format_Storage:object, Plot_size:object):
@@ -198,7 +187,6 @@ class marker:
                 else:
                     arrow = {**arrow, 'facecolor': Format_Storage.get_color(arrow['facecolor']), **own_edge}
             label = Format_Storage.language_text(text.get('name',""))
-            # print("label pos:", plot_size.x.offset(text['rel_pos'][0], values[0]) , plot_size.y.offset(text['rel_pos'][1], values[1]))
             x = Plot_size.x.offset(values[0], text.get('rel_pos', [0,0])[0])
             y = Plot_size.y.offset(values[1], text.get('rel_pos', [0,0])[1])
             if arrow == None:           # ~ Label
@@ -218,7 +206,6 @@ class marker:
                     color      = color,
                     fontsize   = font_size,
                     arrowprops = arrow,
-                    # kwargs   = {'ha': 'center'}
                 )
             print(f"marker: {label} @ [{x}|{y}]")
 

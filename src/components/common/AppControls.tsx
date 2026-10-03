@@ -738,55 +738,6 @@ export function MultiSelectInput({
 }
 
 /**
- * Text input for values that are parsed from text (JSON, number lists). Keeps the raw text while
- * the field is focused so intermediate, not-yet-valid input is not thrown away, and only commits
- * values that parse. `parse` returns undefined for invalid text.
- */
-export function DraftInput<T>({
-  value,
-  parse,
-  onCommit,
-  multiline = false,
-  className,
-}: {
-  value: string
-  parse: (text: string) => T | undefined
-  onCommit: (next: T) => void
-  multiline?: boolean
-  className?: string
-}) {
-  const [draft, setDraft] = useState<string | null>(null)
-  const text = draft ?? value
-  const invalid = draft !== null && parse(draft) === undefined
-  const handleChange = (next: string) => {
-    setDraft(next)
-    const parsed = parse(next)
-    if (parsed !== undefined) onCommit(parsed)
-  }
-  const invalidClassName = invalid ? 'border-red-500 focus-visible:ring-red-500' : ''
-
-  return multiline ? (
-    <textarea
-      className={`min-h-24 rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 ${invalidClassName} ${className ?? ''}`}
-      value={text}
-      aria-invalid={invalid}
-      onChange={(event) => handleChange(event.target.value)}
-      onBlur={() => setDraft(null)}
-      spellCheck={false}
-    />
-  ) : (
-    <Input
-      className={`${invalidClassName} ${className ?? ''}`}
-      value={text}
-      aria-invalid={invalid}
-      onChange={(event) => handleChange(event.target.value)}
-      onBlur={() => setDraft(null)}
-    />
-  )
-}
-
-
-/**
  * Collapsible row for a list item (axis, layer, area, guideline, annotation): a one-line summary
  * that opens the details when clicked, plus duplicate and remove. The section controls which
  * cards are open (new items open by default). The details stay in the DOM while closed, so "Find
